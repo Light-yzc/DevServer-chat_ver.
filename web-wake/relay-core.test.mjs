@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { allowSocketOrigin, collectWakeEvents, createWakeToken, verifyWakeToken } from './relay-core.mjs';
+import { allowSocketOrigin, collectWakeEvents, collectWakeAcknowledgements, createWakeToken, verifyWakeToken } from './relay-core.mjs';
 
 test('pairing token is independent, private and not overwritten',()=>{
   const dir=mkdtempSync(join(tmpdir(),'wake-test-'));
@@ -52,4 +52,20 @@ test('reject web pages as websocket clients',()=>{
   assert.equal(allowSocketOrigin('https://chatgpt.com'),false);
   assert.equal(allowSocketOrigin('chrome-extension://abcdefghijklmnopabcdefghijklmnop'),true);
   assert.equal(allowSocketOrigin(undefined),false);
+});
+test('explicit Web MCP ACKs are separate metadata; missing events do not imply ACK',()=>{
+  const now=Date.parse('2026-10-12T08:20:00Z');
+  const roles=[{id:'web-air-main',status:'claimed',leaseExpiresAt:new Date(now+3600000).toISOString()}];
+  const messages=[
+    {id:'11111111-1111-1111-1111-111111111111',to:'web-air-main',at:new Date(now-1000).toISOString(),status:'unread',body:'SECRET'},
+    {id:'22222222-2222-2222-2222-222222222222',to:'web-air-main',at:new Date(now-1000).toISOString(),status:'acknowledged',ackBy:'web-air-main',body:'PRIVATE'},
+    {id:'33333333-3333-3333-3333-333333333333',to:'web-air-main',at:new Date(now-1000).toISOString(),status:'resolved',ackBy:'web-air-main',body:'HIDDEN'},
+    {id:'44444444-4444-4444-4444-444444444444',to:'web-air-main',at:new Date(now-1000).toISOString(),status:'unread',body:'NO ACK'},
+  ];
+  const acked=collectWakeAcknowledgements({roles,messages,now});
+  assert.deepEqual(acked,[
+    {id:'22222222-2222-2222-2222-222222222222',to:'web-air-main'},
+    {id:'33333333-3333-3333-3333-333333333333',to:'web-air-main'},
+  ]);
+  assert.ok(acked.every(m=>Object.keys(m).join(',')==='id,to'),'No bodies or auth keys transmitted');
 });

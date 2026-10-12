@@ -11,7 +11,7 @@ function statusText(raw){
   if(raw==='Connecting…')return '正在连接…';
   if(raw==='Not connected')return '尚未连接';
   const sent=raw.match(/^Wake submitted: (\S+) \((\d+) message\(s\)\)/);
-  if(sent)return `已唤醒 ${sent[1]} · ${sent[2]} 条消息`;
+  if(sent)return `已提交提醒 ${sent[1]} · ${sent[2]} 条消息（等待 Web ACK）`;
   const notReady=raw.match(/^Chat (\S+) content script not ready/);
   if(notReady)return `${notReady[1]} 需要刷新聊天页面`;
   const busy=raw.match(/^Chat (\S+) is generating or has a draft/);
@@ -24,8 +24,8 @@ async function resetBinding(role){
 }
 async function refresh(){
   const sequence=++refreshSequence;
-  const {endpoint=DEFAULT_URL,token='',enabled=false,lastStatus='Not connected',lastStatusAt=0,serverRoles=[],bindings={},pending={},done={}}
-    =await chrome.storage.local.get(['endpoint','token','enabled','lastStatus','lastStatusAt','serverRoles','bindings','pending','done']);
+  const {endpoint=DEFAULT_URL,token='',enabled=false,lastStatus='Not connected',lastStatusAt=0,serverRoles=[],bindings={},pending={},submitted={},done={}}
+    =await chrome.storage.local.get(['endpoint','token','enabled','lastStatus','lastStatusAt','serverRoles','bindings','pending','submitted','done']);
   const tabs=await chrome.tabs.query({url:'https://chatgpt.com/*'});
   if(sequence!==refreshSequence)return;
   // Live status updates must not overwrite settings the user is editing.
@@ -34,6 +34,7 @@ async function refresh(){
   $('mode').classList.toggle('on',enabled);
   $('modeText').textContent=enabled?'自动唤醒已开启':'自动唤醒已暂停';
   $('pendingCount').textContent=Object.keys(pending).length;
+  $('submittedCount').textContent=Object.keys(submitted).length;
   $('doneCount').textContent=Object.keys(done).length;
   $('status').textContent=statusText(lastStatus);
   $('updated').textContent=lastStatusAt?`最近状态 · ${new Date(lastStatusAt).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}`:'';

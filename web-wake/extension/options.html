@@ -15,7 +15,7 @@
     button{cursor:pointer;border:1px solid #303b4c;border-radius:8px;background:#202936;color:#dce5f2;padding:7px 11px;font-weight:600}button:hover{background:#2a3749}button:disabled{opacity:.5;cursor:wait}button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid #84b6ff;outline-offset:3px}
     .refresh{font-size:12px;padding:6px 10px;flex-shrink:0;white-space:nowrap}.overview{border:1px solid #2d3a4e;border-radius:12px;background:linear-gradient(120deg,#1c2a3d,#19202b);padding:12px;margin-bottom:14px}
     .mode{display:flex;align-items:center;gap:7px;font-size:12px;color:#aab8cb}.dot{width:7px;height:7px;border-radius:50%;background:#738199}.mode.on .dot{background:#69d5a1;box-shadow:0 0 0 3px #69d5a115}.mode.on{color:#a5e2c3}
-    .metrics{display:grid;grid-template-columns:1fr 1fr;margin:8px 0}.metric+.metric{border-left:1px solid #334054;padding-left:20px}.metric strong{display:block;font-size:26px;line-height:1.2;font-variant-numeric:tabular-nums;letter-spacing:-1px}.metric span{font-size:11px;color:#9caac0}
+    .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:8px 0}.metric+.metric{border-left:1px solid #334054;padding-left:12px}.metric strong{display:block;font-size:26px;line-height:1.2;font-variant-numeric:tabular-nums;letter-spacing:-1px}.metric span{font-size:11px;color:#9caac0}
     #status{font-size:12px;color:#d0dae8;overflow-wrap:anywhere;margin:0}#updated{display:block;color:#7f90a8;font-size:10px;margin-top:5px}
     .section-title{margin-bottom:10px}h2{font-size:13px;margin:0}.count{font-size:11px;color:#8797ae}#roles{display:grid;gap:8px}.role{padding:10px;border:1px solid #2b3544;background:#1a202b;border-radius:10px}.role-name{font-size:13px;font-weight:650;overflow-wrap:anywhere;min-width:0}.badge{font-size:10px;white-space:nowrap;flex-shrink:0;padding:2px 7px;border-radius:5px;background:#293243;color:#aab8cc}.badge.ready{color:#94e1b9;background:#183d30}.badge.warn{color:#f2c880;background:#41331f}.role-help{font-size:11px;color:#8999af;margin:6px 0 0}.role-footer{border-top:1px solid #2b3544;padding-top:6px;margin-top:6px;font-size:11px;color:#8999af}.binding{font:10px ui-monospace,monospace;color:#b1c3de}.unbind{padding:2px 6px;font-size:10px;background:transparent;color:#b3bfd0;border-color:#364255}.empty{padding:22px 14px;text-align:center;color:#91a1b8;border:1px dashed #344155;border-radius:10px}
     details{margin-top:16px;border-top:1px solid #2b3544;padding-top:12px}summary{cursor:pointer;color:#b7c4d7;font-size:12px;user-select:none}label{display:block;margin-top:12px;font-size:11px;color:#9fadc2}input[type=text],input[type=password]{width:100%;margin-top:5px;border:1px solid #344155;border-radius:7px;background:#191f29;color:#e9eef6;padding:8px 10px;font:11px ui-monospace,monospace}input[type=checkbox]{accent-color:#77a9ff;margin:0}.toggle{display:flex;align-items:center;gap:7px;color:#cfdaea}.settings-actions{margin-top:12px}.primary{background:#598ef1;border-color:#598ef1;color:#fff}.primary:hover{background:#72a0f5}.privacy{font-size:10px;color:#8291a8;margin:0}.footnote{font-size:10px;color:#77879e;margin:14px 0 0;line-height:1.6}
@@ -26,7 +26,7 @@
   <header><div class="brand"><span class="logo" aria-hidden="true">↗</span><div><h1>Web Wake</h1><p>DevSpace · 会话自动唤醒</p></div></div><button id="refresh" class="refresh">刷新</button></header>
   <section class="overview" aria-label="唤醒状态">
     <div id="mode" class="mode"><span class="dot" aria-hidden="true"></span><span id="modeText">正在读取状态</span></div>
-    <div class="metrics"><div class="metric"><strong id="pendingCount">—</strong><span>待唤醒</span></div><div class="metric"><strong id="doneCount">—</strong><span>已提交 · 本地记录</span></div></div>
+    <div class="metrics"><div class="metric"><strong id="pendingCount">—</strong><span>待提交</span></div><div class="metric"><strong id="submittedCount">—</strong><span>已提交 · 待 ACK</span></div><div class="metric"><strong id="doneCount">—</strong><span>已 ACK</span></div></div>
     <p id="status" role="status">等待连接</p><time id="updated"></time>
   </section>
   <section aria-labelledby="rolesTitle"><div class="section-title"><h2 id="rolesTitle">Web 身份</h2><span id="roleCount" class="count"></span></div><div id="roles"></div></section>
@@ -36,6 +36,6 @@
     <label class="toggle"><input id="enabled" type="checkbox">启用自动唤醒</label>
     <div class="settings-actions"><p class="privacy">令牌仅保存在插件本地</p><button id="save" class="primary">保存并连接</button></div>
   </details>
-  <p class="footnote">聊天标题须与身份名称一致。已提交表示唤醒提示已发送，消息处理结果以 MCP ACK 为准。</p>
+  <p class="footnote">聊天标题须与身份名称一致。提交成功后不再重复唤醒该消息；只有收到 MCP ACK 才记为已完成。</p>
 </main><script src="options.js"></script></body>
 </html>

@@ -62,6 +62,22 @@ export function collectWakeEvents({roles,messages,now=Date.now(),maxAgeMs=DEFAUL
   }).map(({id,to}) => ({id,to}));
 }
 
+/** Explicit MCP ACK routing metadata; disappearance from the pending snapshot
+ * alone must NEVER be interpreted as ACK (lease expiry/retention can also
+ * remove a message from the snapshot). No message body is transmitted. */
+export function collectWakeAcknowledgements({roles,messages,now=Date.now(),maxAgeMs=DEFAULT_MAX_AGE_MS}) {
+  const valid=new Set(roles.filter(role=>role.status==='claimed'&&
+    VALID_ROLE.test(role.id)&&Date.parse(role.leaseExpiresAt)>now).map(role=>role.id));
+  const unique=new Set();
+  return messages.filter(msg=>{
+    if(!msg||!valid.has(msg.to)||!msg.ackBy||unique.has(msg.id))return false;
+    if(typeof msg.id!=='string'||!/^[a-f0-9-]{36}$/i.test(msg.id))return false;
+    const when=Date.parse(msg.at);
+    if(!Number.isFinite(when)||when>now+60_000||now-when>maxAgeMs)return false;
+    unique.add(msg.id);return true;
+  }).map(({id,to})=>({id,to}));
+}
+
 export function allowSocketOrigin(origin) {
   // Only our local Chrome/Edge extension can open a browser-origin connection.
   // This is defense in depth; the random pairing token is still mandatory.

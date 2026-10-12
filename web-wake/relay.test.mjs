@@ -42,8 +42,24 @@ test('end-to-end: extension authenticates and receives only wake routing data',a
     const snapshot=packets.find(p=>p.type==='snapshot');
     assert.deepEqual(snapshot.roles,[role]);
     assert.deepEqual(snapshot.events,[{id:sent.id,to:role}]);
+    assert.deepEqual(snapshot.acked,[]);
     assert.equal(JSON.stringify(packets).includes('DO_NOT_TRANSMIT_THE_BODY'),false);
     assert.equal(tips.messages({action:'get',id:sent.id}).status,'unread');
+    // After a REAL MCP ACK, the relay emits a separate ACK id. An un-ACKed
+    // message disappearing due to retention/lease would not appear here.
+    tips.messages({action:'ack',id:sent.id,agentId:role});
+    const next=new WebSocket(`ws://127.0.0.1:${port}/ws`,{headers:{Origin:'chrome-extension://abcdefghijklmnopabcdefghijklmnop'}});
+    try{
+      const later=[];next.on('message',data=>later.push(JSON.parse(String(data))));
+      await once(next,'open');next.send(JSON.stringify({type:'auth',token}));
+      const deadline=Date.now()+3000;
+      while(!later.some(p=>p.type==='snapshot')&&Date.now()<deadline)await new Promise(r=>setTimeout(r,10));
+      const updated=later.find(p=>p.type==='snapshot');
+      assert.ok(updated,'acknowledgement snapshot delivered');
+      assert.deepEqual(updated.events,[]);
+      assert.deepEqual(updated.acked,[{id:sent.id,to:role}]);
+      assert.equal(JSON.stringify(updated).includes('DO_NOT_TRANSMIT_THE_BODY'),false);
+    }finally{next.terminate()}
   }finally{
     if(ws)ws.terminate();
     await relay.close();

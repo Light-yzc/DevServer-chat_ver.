@@ -15,7 +15,7 @@ node tips/web-handoff.mjs status web-handoff-xxxxxx
 
 `request` 先确认收件人 Web 身份已认领且租约有效；然后生成 `server-controller → web-*` 的 **tracked 消息**与同名 `web-handoff-*` Tips 进度卡。对相同 `sourceId`/收件角色幂等，减少重复通知。
 
-4. Web Wake Relay 读 Tips 未 ACK 消息和有效 Web 身份，向扩展流式推送 `{id,to}`，**绝不暴露正文**；扩展只在匹配的 ChatGPT 对话打开、页面空闲、输入框空时尝试提交提示。提交成功**不表示** Web 已读或开始执行；20 分钟后仍未 ACK 会逐步退避重试（最长间隔 2 小时）。恢复连接时仍可显示 30 天内未确认邮件，前提是 Web 角色租约仍有效（默认 7 天，需重新认领或续期）。
+4. Web Wake Relay 读取 Tips 待处理消息与有效 Web 身份，向扩展推送 `{id,to}` 和不含正文的 ACK 标志。扩展仅在匹配的 ChatGPT 对话打开、页面空闲、输入框空时提交提示。**成功提交一次立刻持久标记 `submitted`，绝不重复提交同一条消息**；真实 Web Agent ACK 后才标记 `done`。提交失败则保留 `pending` 待重试。恢复连接时可显示 30 天内未确认邮件，但 Web 身份租约仍需有效（默认 7 天）。
 5. `tips-server-controller` 的轻量定期扫描只看 Tips 记录，不调用模型。Handoff **45 分钟没有 Web ACK**、**已 ACK 但 3 小时没完成验收**，或 Web 正式拒绝/请求修改时，自动仅发送**一次**可信提醒给 Local Main，由 Sol 决定 Luna 后备还是继续等待；绝不自动解除 GPU/STOP/Owner 门禁。Web 后续 ACK 和 Verify 仍可在任务卡追踪，避免并行重复修改同一实验。
 
 **重要限制**：无法通过 DevSpace MCP 直接从云端启动一个不存在的 ChatGPT Web 会话。Web Wake 仅依赖用户自控的浏览器扩展和在线的匹配标签页；离线只可保存消息和等待后备调度。

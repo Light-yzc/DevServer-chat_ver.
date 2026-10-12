@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { devspaceConfigDir } from '../vendor/devspace/dist/user-config.js';
-import { allowSocketOrigin, collectWakeEvents, createWakeToken, verifyWakeToken } from './relay-core.mjs';
+import { allowSocketOrigin, collectWakeEvents, collectWakeAcknowledgements, createWakeToken, verifyWakeToken } from './relay-core.mjs';
 
 // Mount directly onto the existing DevSpace HTTP server. The public WSS URL
 // shares its HTTPS port and SSH tunnel with /mcp and /tips.
@@ -53,8 +53,10 @@ export function attachWakeRelay(server,{stateDir,configDir=devspaceConfigDir(),p
   function flush(ws){
     try {
       const roles=readClaimedRoles();
-      const events=collectWakeEvents({roles,messages:tips.messages({action:'list',limit:300})});
-      const payload=JSON.stringify({type:'snapshot',roles:roles.filter(r=>r.status==='claimed'&&Date.parse(r.leaseExpiresAt)>Date.now()).map(r=>r.id),events});
+      const messages=tips.messages({action:'list',limit:300});
+      const events=collectWakeEvents({roles,messages});
+      const acked=collectWakeAcknowledgements({roles,messages});
+      const payload=JSON.stringify({type:'snapshot',roles:roles.filter(r=>r.status==='claimed'&&Date.parse(r.leaseExpiresAt)>Date.now()).map(r=>r.id),events,acked});
       // Do not wake the MV3 service worker repeatedly for an unchanged inbox.
       if(ws.lastWakeSnapshot!==payload){ws.lastWakeSnapshot=payload;ws.send(payload);}
     } catch(err){emit(ws,{type:'error',message:'Tips state temporarily unavailable'});}
