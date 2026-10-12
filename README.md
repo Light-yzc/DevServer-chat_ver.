@@ -60,12 +60,14 @@ npm start
 `npm run setup` 生成如下私有文件：
 
 - `var/config/config.json`：监听地址、端口、公开 URL、允许的工作根目录
-- `var/config/auth.json`：随机生成的 OAuth Owner Token，权限 0600
+- `var/config/auth.json`：DevSpace 原生自动生成并管理的 OAuth Owner Token，权限 0600。**用户无需自行填写 Token**，仍通过原有 OAuth 登录/验证页面授权。
 - `var/state/`：OAuth 状态、Tips 消息、Agent Thread ID 等运行数据
 
 **以上全部被 `.gitignore` 排除。** 不要提交 `auth.json`、`credentials.json`、`runtime.env`、SSH 私钥或任何运行目录。需要自定义代理或 Codex 可执行文件路径时：
 
-**统一密钥配置（明文，私有文件）：** `var/config/security.json` 现在集中保存 DevSpace OAuth ownerToken、Tips 的 view/write/dispatch Token 以及 `webAdminKey`。初始化运行 `npm run setup` 会自动运行 `security:unify`：**读取并原样保留已有 OAuth/Tips Token**，为 Web 管理员生成一个随机密钥；默认权限为 `0600`。仓库只提交 [`security.example.json`](security.example.json)，真实 `security.json` 被 `.gitignore` 排除。独立 OAuth、Tips 读写、dispatch、管理员 key 仍然各司其职，并非同一把可到处使用的万能密钥。修改真实文件需要在服务器操作，切勿复制到 GitHub。
+**DevSpace OAuth 无需重复配置：** 原生 OAuth 登录/授权页面及其 `auth.json` 完全由 DevSpace 管理，用户通过页面完成验证即可，不需要向 `security.json` 填写 OAuth Token。
+
+**Tips / Web 管理员配置（明文，私有文件）：** `var/config/security.json` 只集中保存 Tips 的 view/write/dispatch Token 和 `webAdminKey`。初始化运行 `npm run setup` 会自动运行 `security:unify`：原样保留已有 Tips Token，为 Web 管理员生成一个随机密钥；默认权限为 `0600`。仓库只提交 [`security.example.json`](security.example.json)，真实 `security.json` 被 `.gitignore` 排除。OAuth 与 Tips/管理员是不同权限层，不应重复存储 OAuth 凭证。修改真实文件需要在服务器操作，切勿复制到 GitHub。
 
 要使用自选管理员明文密钥，可以在服务器运行 `read -rs ADMIN_KEY; printf '%s' "$ADMIN_KEY" | npm run admin:key; unset ADMIN_KEY` （密钥至少 32 字符，输入内容不显示）。之后重启**仅 DevSpace MCP**以重新加载配置。原 Tips CLI 和 Python 客户端仍可使用旧的私有凭证副本，服务器自动保持其与 `security.json` 一致。
 

@@ -161,7 +161,8 @@ export function loadConfig(env = process.env) {
     return {
         host,
         port,
-        oauth: parseOAuthConfig(env, security?.oauthOwnerToken??files.auth.ownerToken),
+        // OAuth authorization/login remains entirely DevSpace's native flow.
+        oauth: parseOAuthConfig(env, files.auth.ownerToken),
         security,
         allowedRoots: parseAllowedRoots(env.DEVSPACE_ALLOWED_ROOTS ?? files.config.allowedRoots),
         allowedHosts: parseAllowedHosts(env.DEVSPACE_ALLOWED_HOSTS, derivedAllowedHosts),

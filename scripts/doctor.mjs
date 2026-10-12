@@ -19,14 +19,10 @@ if(existsSync(join(CONFIG_DIR,'auth.json'))){
 }
 if(existsSync(join(CONFIG_DIR,'security.json'))){
   const sec=JSON.parse(readFileSync(join(CONFIG_DIR,'security.json'),'utf8'));
-  check(sec.version===1&&typeof sec.oauthOwnerToken==='string'&&
+  check(sec.version===1&&
     ['viewToken','writeToken','dispatchToken'].every(k=>sec.tips?.[k]?.length>=32)&&
-    sec.webAdminKey?.length>=32,'Unified security keys configured (contents not shown)');
+    sec.webAdminKey?.length>=32,'Tips and Web-admin keys configured (contents not shown)');
   check((statSync(join(CONFIG_DIR,'security.json')).mode&0o077)===0,'Unified security file permissions 0600');
-  if(existsSync(join(CONFIG_DIR,'auth.json'))){
-    const old=JSON.parse(readFileSync(join(CONFIG_DIR,'auth.json'),'utf8'));
-    check(sec.oauthOwnerToken===old.ownerToken,'OAuth owner key migration consistent');
-  }
   const oldPath=join(STATE_DIR,'tips','credentials.json');
   if(existsSync(oldPath)){
     const legacy=JSON.parse(readFileSync(oldPath,'utf8'));
