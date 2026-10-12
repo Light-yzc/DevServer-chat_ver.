@@ -85,6 +85,8 @@ subagent({"action":"status","name":"sub-air-cpu-review"})
 
 **请求本地 Agent 时，必须让用户能在 `/tips` 追踪进度**：Sub 的 ID `sub-*` 就是对应的 Tips 任务卡 ID。Web Main 与 Local Main 无论通过 `subagent(start)` 还是发给 `sub-*` 的消息指令，都应明确关联此 ID。新任务被接受时自动创建 `pending` 卡；Manager 继续写入运行、心跳、停止、失败和完成状态；Local Sub 需要在实际阶段变化时写入证据、下一步和阻塞原因。
 
+**容量与并发分离**：持久注册身份最多 **128 个**，只计注册表中的不同 `sub-*` 名称；`TIPS_SUBAGENT_MAX` **默认 2 个、硬限制 4 个并行进程**。已完成的同名 Agent 可继续原 Thread，不额外占用一个身份。调高注册容量不会绕过 STOP、Owner、`dispatch_hold` 或 GPU 许可。
+
 本地 Sub 的 `<tips-actions>` 回执还允许在**已有模型输出中**附加 `progress` 属性，无需再单独调用模型或 shell CLI：
 
 ```text

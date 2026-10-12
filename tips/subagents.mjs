@@ -6,6 +6,9 @@ import { join, relative, resolve, sep } from 'node:path';
 const ID=/^sub-[a-z0-9][a-z0-9_.-]{0,57}$/;
 const MODEL=new Set(['gpt-6-luna','gpt-6.1-sol']);
 const SANDBOX=new Set(['read-only','workspace-write','danger-full-access']);
+// Registered persistent identities are NOT simultaneous Codex processes.
+// Parallel execution is independently capped by TIPS_SUBAGENT_MAX (default 2).
+export const MAX_REGISTERED_SUBAGENTS=128;
 const wait=new Int32Array(new SharedArrayBuffer(4));
 const now=()=>new Date().toISOString();
 const err=m=>{throw Error(m)};
@@ -38,7 +41,8 @@ export function subagentRegistry(config,tips){
       if(current&&['queued','running','stopping'].includes(current.status))err('This subagent is already running or queued');
       if(current&&(current.model!==model||current.cwd!==root||current.sandbox!==sandbox))
         err('Existing agent has different model/cwd/sandbox; use a new name to isolate sessions');
-      if(!current&&Object.keys(db.agents).length>=24)err('Subagent cap of 24 reached');
+      if(!current&&Object.keys(db.agents).length>=MAX_REGISTERED_SUBAGENTS)
+        err(`Subagent registration cap of ${MAX_REGISTERED_SUBAGENTS} reached`);
       const jobId=randomUUID();
       const goalFile=join(dir,`${name}-${jobId}.goal.txt`);
       writeFileSync(goalFile,goal+'\n',{mode:0o600});

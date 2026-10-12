@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
-import { subagentRegistry } from './subagents.mjs';
+import { subagentRegistry,MAX_REGISTERED_SUBAGENTS } from './subagents.mjs';
 
 const harness=()=>{
   const dir=mkdtempSync(join(tmpdir(),'tips-subagent-test-'));
@@ -68,5 +68,22 @@ test('Web->Local Sub instruction creates a Tips task card even before scheduling
     assert.equal(task.kind,'progress');
     assert.match(task.message,/收到任务请求/);
     assert.match(task.details,/web-air-main/);
+  }finally{t.cleanup()}
+});
+test('register up to 128 persistent agent identities without increasing parallel execution',()=>{
+  const t=harness();try{
+    assert.equal(MAX_REGISTERED_SUBAGENTS,128);
+    for(let i=0;i<MAX_REGISTERED_SUBAGENTS;i++){
+      const name=`sub-capacity-${String(i).padStart(3,'0')}`;
+      const agent=t.registry.start({name,goal:'CPU-only synthetic registration; never execute',cwd:t.root});
+      assert.equal(agent.status,'queued');
+    }
+    assert.equal(t.registry.list().length,128);
+    assert.throws(()=>t.registry.start({name:'sub-capacity-128',goal:'should reject',cwd:t.root}),/cap of 128/);
+    const entry=t.registry.status('sub-capacity-000');
+    t.registry.update(entry.name,entry.jobId,{status:'completed'});
+    const resumed=t.registry.start({name:entry.name,goal:'Same name should reuse slot',cwd:t.root});
+    assert.equal(resumed.revision,2);
+    assert.equal(t.registry.list().length,128);
   }finally{t.cleanup()}
 });

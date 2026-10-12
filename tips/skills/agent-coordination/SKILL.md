@@ -12,6 +12,8 @@ description: Read before coordinating AIR Web/Main and Local/Sub agents, assigni
 - **Local Main**：`server-controller`, `gpt-6.1-sol`。**研究总调度**，审查、拆任务、发送指令、监督 Local Sub。平时睡眠，授权紧急唤醒时一并处理普通积压邮件。
 - **Local Sub**：`sub-*`, 默认 `gpt-6-luna`。持久 Codex App Server，低成本长期执行。高难度需要时再调用 Sol。
 
+**注册数 ≠ 并行数**：最多保留 128 个不同持久 Local Sub 身份；Manager 默认同时运行 2 个，最多 4 个。尽量复用已完成且配置一致的 Thread，不要为同一工作无节制创建新身份。超出注册上限才考虑按安全手续退休，不得未经核对丢失实验上下文。
+
 Main/Sub 是职责而非管理员权限；`controller` 是旧 Web 邮箱，不等于任何当前的 Main 身份。
 
 ## 工具和协议
