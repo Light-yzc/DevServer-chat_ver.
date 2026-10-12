@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createTipsV2 } from './tips-core.js';
+import { buildAgentOverview } from './tips-agent-overview.js';
 
 export { createTipsV2 as createTips } from './tips-core.js';
 const AUTH = (received, expected) => {
@@ -121,6 +122,20 @@ export function mountTipsRoutes(app,config,express){
   };
   app.get(['/tips','/tips/'],(_req,res)=>{
     headers(res);res.type('html').send(readFileSync(new URL('./tips-dashboard.html',import.meta.url),'utf8'));
+  });
+  app.get(['/tips/agents','/tips/agents/'],(_req,res)=>{
+    headers(res);res.type('html').send(readFileSync(new URL('./tips-dashboard.html',import.meta.url),'utf8'));
+  });
+  let overviewCache=null,overviewAt=0;
+  app.get('/tips/agents/api',(req,res)=>{
+    if(!auth(req,res))return;
+    guard(()=>{
+      if(!overviewCache||Date.now()-overviewAt>12000){
+        overviewCache=buildAgentOverview(config,tips);
+        overviewAt=Date.now();
+      }
+      return overviewCache;
+    },req,res);
   });
   app.get('/tips/api',(req,res)=>{
     if(!auth(req,res))return;

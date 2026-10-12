@@ -45,6 +45,12 @@ npm start
 
 `npm start` 同时启动三个进程：原始 DevSpace MCP、轻量 Main Sol 自动唤醒器和轻量 Subagent App Server 调度器。模型进程仅在有工作时运行。`Ctrl+C` 停止本次前台服务。
 
+### Agents 总览页
+
+在 `https://你的域名/tips` 导航到 **Agents**，或直接打开 `/tips/agents`（需相同的私有查看密钥）。页面每 5 秒更新，提供 Server Main / App Server Sub / Web Chat 身份 / 旧 tmux Worker 四种来源，以及另外分开的运行中研究任务列表。**Web 身份“已认领”不代表窗口在线，tmux 会话也不保证里面正在运行模型。**
+
+每张卡显示状态、模型（如果有）、简略最新进度、待确认消息数及最近消息的**主题**，可以通过「查看通信」跳转到针对该 Agent 的 Tips 留言筛选。数据直接来自 Subagent Registry、Web Identity Registry、Tips 任务/消息和服务器只读服务/进程检查，不重复调用 Luna/Sol，也不另造一份可能过期的状态。`GET /tips/agents/api` 与原 Tips API 使用相同的只读 Bearer 鉴权，绝不会将邀请码、claimKey、任务内部文件路径等敏感数据返回给看板。
+
 **无需 GitHub 即可本地运行。** 该仓库可先在服务器本地提交，后续再自行设置 GitHub remote。
 
 ## 配置与安全

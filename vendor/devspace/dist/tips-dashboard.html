@@ -96,8 +96,17 @@
     .history-box li{font-size:12px;margin:8px 0;color:#aaa;overflow-wrap:anywhere}
     #group-select{min-width:135px;max-width:180px;font-size:13px;padding:9px}
     .hint{font-size:13px;color:#999;line-height:1.6;margin:12px 0}
+    .agent-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:22px}
+    .agent-card{background:#151515;border:1px solid #303030;border-radius:13px;padding:16px;min-width:0}
+    .agent-card h3{font-size:15px;margin:0;overflow-wrap:anywhere}
+    .agent-card .mini-summary{font-size:13px;line-height:1.6;color:#c9c9c9;margin:11px 0;overflow-wrap:anywhere}
+    .agent-card .minor{margin:5px 0}
+    .agent-section-head{grid-column:1/-1;display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:14px 0 0}
+    .agent-section-head h2{font-size:18px}
+    .agent-stats{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+    .agent-stats span{font-size:12px;color:#d6d6d6;border:1px solid #393939;border-radius:8px;padding:8px 11px;background:#171717}
     [hidden]{display:none!important}
-    @media(max-width:700px){.layout{padding:22px 13px 60px}.stats{grid-template-columns:repeat(2,1fr);gap:9px}.stat{padding:14px;min-height:89px}.stat .number{font-size:26px}#tasks{grid-template-columns:1fr}.toolbar input{flex-grow:1;width:100%}article.task{padding:16px}header{margin-bottom:24px}}
+    @media(max-width:700px){.layout{padding:22px 13px 60px}.stats{grid-template-columns:repeat(2,1fr);gap:9px}.stat{padding:14px;min-height:89px}.stat .number{font-size:26px}#tasks,.agent-overview{grid-template-columns:1fr}.toolbar input{flex-grow:1;width:100%}article.task{padding:16px}header{margin-bottom:24px}}
   </style>
 </head>
 <body>
@@ -106,7 +115,7 @@
      <div><h1><b>tips</b> / Research control</h1><p class="subtitle">Agent · 实验进度 · 状态历史 · 主控留言</p></div>
      <div class="live"><span id="dot" class="dot"></span><span id="connection">尚未连接</span></div>
    </header>
-   <nav class="topnav"><button data-tab="tasks" class="active">任务总览</button><button data-tab="mailbox">主控留言板 <span id="unread-count"></span></button></nav>
+   <nav class="topnav"><button data-tab="tasks" class="active">任务总览</button><button data-tab="agents">Agents <span id="agent-count"></span></button><button data-tab="mailbox">Agent 消息 <span id="unread-count"></span></button></nav>
    <div id="auth" class="auth" hidden>
      <p>此面板为私有内容。输入查看密钥，或打开包含 #密钥 的私人链接。</p>
      <div class="row" style="justify-content:flex-start"><input id="key" type="password" placeholder="查看密钥" autocomplete="off"><button id="connect">解锁看板</button></div>
@@ -126,12 +135,20 @@
    <main id="tasks"><div class="empty">尚无数据</div></main>
    <section class="foot"><div class="section-title"><h2>最近更新</h2><small id="last-update">每 5 秒自动刷新</small></div><ol id="events" class="events"></ol><p id="error"></p></section>
    </div>
+   <section id="agents-tab" hidden>
+     <div class="section-title"><div><h2>Agent Registry</h2><p class="hint">服务器 Main、App Server Sub、Web Chat 和旧 tmux Worker 分开列出。简报从已有任务状态和 Tips 消息读取，不额外调用模型。</p></div><span class="pill" id="agent-updated">等待数据</span></div>
+     <div id="agent-summary" class="agent-stats"></div>
+     <div class="toolbar"><input id="agent-search" type="search" placeholder="搜索 Agent / 模型 / 分组" aria-label="搜索 Agent"><select id="agent-type" aria-label="Agent 类型"><option value="all">全部类型</option><option value="main">Server Main</option><option value="subs">App Server Sub</option><option value="web">Web Chat</option><option value="legacy">旧 Worker / tmux</option><option value="tracked">研究任务（非 Agent）</option></select></div>
+     <div id="agent-cards" class="agent-overview"><div class="empty">正在读取 Agent 注册表</div></div>
+     <p class="hint" id="agent-note">Web 已认领不等于在线；tmux 存在不代表模型正在推理；状态消息不会自动成为新的控制指令。</p>
+   </section>
    <section id="mailbox-tab" class="board" hidden>
      <div class="section-title"><div><h2>Agent 消息通道</h2><p class="hint">Main / Sub 双向留言。送达不等于 ACK；只有接收 Agent 主动确认，才算已读取。</p></div><span id="mail-summary" class="pill">等待消息</span></div>
      <div class="toolbar">
        <div class="filters" id="mail-filters"><button class="active" data-mail-filter="all">全部</button><button data-mail-filter="tracked">通信事务</button><button data-mail-filter="unread">未读</button><button data-mail-filter="ack">ACK</button><button data-mail-filter="resolved">已解决</button><button data-mail-filter="high">高优先级</button></div>
        <select id="mail-from" aria-label="筛选发送 Agent"><option value="">全部发送方</option></select>
        <select id="mail-to" aria-label="筛选接收 Agent"><option value="">全部接收方</option></select>
+       <select id="mail-agent" aria-label="消息任一端 Agent"><option value="">所有通信对象</option></select>
      </div>
      <div class="inbox" id="inbox"><div class="empty">暂无留言</div></div>
      <p class="hint">该网页只读。Agent 使用 <code>tips_messages</code> 或本机 CLI 留言；不触发普通 ChatGPT 自动回复。</p>
@@ -141,7 +158,7 @@
  'use strict';
  const $=id=>document.getElementById(id);
  const statusText={pending:'等待中',running:'运行中',completed:'已完成',failed:'失败',blocked:'阻塞',cancelled:'已取消',paused:'已暂停'};
- let filter='all',mailFilter='all',tab='tasks',data={tasks:[],events:[]},mailbox=[],historyCache={};
+ let filter='all',mailFilter='all',tab=location.pathname.startsWith('/tips/agents')?'agents':'tasks',data={tasks:[],events:[]},mailbox=[],agentData=null,historyCache={};
  // Keep each task's expanded details across polling, card updates and page reloads.
  let expandedCards=new Set();
  try{expandedCards=new Set(JSON.parse(sessionStorage.getItem('tips-expanded-cards')||'[]'))}catch{}
@@ -264,11 +281,69 @@
      if(!r.ok)throw Error('HTTP '+r.status);historyCache[id]=await r.json();render();}
    catch(e){historyCache[id]=[{at:new Date().toISOString(),status:'failed',message:'历史读取失败：'+e.message}];render()}
  }
+ const agentStatusText={running:'运行中',stopping:'停止中',queued:'排队中',completed:'上轮完成 / 待命',failed:'上轮失败',interrupted:'已中断',stopped:'已停止',listening:'监听待命',offline:'离线',unknown:'状态未知',claimed:'已认领（在线未知）',available:'待认领',released:'已释放',observed:'发现进程'};
+ function activateTab(next,updateUrl=true){
+   tab=next;
+   for(const button of document.querySelectorAll('.topnav button'))button.classList.toggle('active',button.dataset.tab===tab);
+   $('tasks-tab').hidden=tab!=='tasks';$('agents-tab').hidden=tab!=='agents';$('mailbox-tab').hidden=tab!=='mailbox';
+   if(updateUrl){
+     const target=tab==='agents'?'/tips/agents':tab==='mailbox'?'/tips?tab=mailbox':'/tips';
+     history.replaceState(null,'',target+location.hash);
+   }
+ }
+ function renderAgents(){
+   if(!agentData)return;
+   const groups=agentData.groups||{};
+   const total=(groups.main?.length||0)+(groups.subs?.length||0)+(groups.web?.length||0)+(groups.legacy?.length||0);
+   $('agent-count').textContent='· '+total;
+   $('agent-updated').textContent='刷新 · '+time(agentData.at);
+   const summary=$('agent-summary');summary.replaceChildren();
+   const totals=[`Main ${groups.main?.length||0}`,`Sub ${groups.subs?.length||0}`,`Web ${groups.web?.length||0}（已认领 ${agentData.counts?.claimedWeb||0}）`,`旧 Worker ${groups.legacy?.length||0}`,`运行中 Sub ${agentData.counts?.runningSubs||0}`];
+   for(const value of totals)summary.append(node('span',value));
+   const type=$('agent-type').value,q=$('agent-search').value.trim().toLowerCase();
+   const sections=[['main','Server Main · 独立主控'],['subs','App Server Sub · 持久线程'],['web','Web Chats · 独立身份'],['legacy','旧 Worker · tmux 进程'],['tracked','研究中任务 · 非独立 Agent']];
+   const cards=[];
+   for(const [kind,label] of sections){
+     if(type!=='all'&&type!==kind)continue;
+     const visible=(groups[kind]??[]).filter(a=>!q||[a.id,a.name,a.model,a.group,a.summary].filter(Boolean).join(' ').toLowerCase().includes(q));
+     if(!visible.length)continue;
+     const heading=node('div',null,'agent-section-head');add(heading,node('h2',label),node('small',visible.length+' 项'));cards.push(heading);
+     for(const a of visible){
+       const card=node('article',null,'agent-card');
+       const head=node('div',null,'row');
+       const statusClass=['running','claimed','listening'].includes(a.status)?'running':['completed'].includes(a.status)?'completed':['failed','interrupted','offline'].includes(a.status)?'failed':'';
+       add(head,node('h3',a.name||a.id),node('span',agentStatusText[a.status]||a.status,'pill '+statusClass));card.append(head);
+       card.append(node('div','ID · '+a.id,'minor'));
+       if(a.model||a.group)card.append(node('div',[a.model&&'模型 · '+a.model,a.group&&'分组 · '+a.group].filter(Boolean).join('  /  '),'minor'));
+       if(a.summary)card.append(node('p',a.summary,'mini-summary'));
+       if(a.mailbox){
+         const m=a.mailbox;
+         if(m.last)card.append(node('div','最近消息 · '+m.last.from+' → '+m.last.to+' · '+m.last.subject,'minor'));
+         card.append(node('div','待确认消息 '+m.unread+' · '+(m.last?'最近 '+time(m.last.at):'暂无留言'),'minor'));
+         const controls=node('div',null,'row');const button=node('button','查看通信');
+         button.addEventListener('click',()=>{
+           const select=$('mail-agent');
+           const target=a.id;
+           if(![...select.options].some(o=>o.value===target))select.add(new Option(target,target));
+           select.value=target;
+           $('mail-from').value='';$('mail-to').value='';mailFilter='all';
+           for(const b of $('mail-filters').querySelectorAll('button'))b.classList.toggle('active',b.dataset.mailFilter==='all');
+           activateTab('mailbox');renderInbox();
+         });
+         controls.append(button);card.append(controls);
+       }
+       card.append(node('div','来源 · '+a.source+' · '+(a.updatedAt?'更新 '+time(a.updatedAt):'非心跳监控'),'minor'));
+       cards.push(card);
+     }
+   }
+   $('agent-cards').replaceChildren(...(cards.length?cards:[node('div','当前筛选条件没有匹配的 Agent','empty')]));
+   $('agent-note').textContent=agentData.note||'';
+ }
  function renderInbox(){
    $('unread-count').textContent=(data.mailbox?.unreadController??0)>0?' · '+data.mailbox.unreadController:'';
    $('mail-summary').textContent=`未读 ${data.mailbox?.unreadController??0} · 共 ${mailbox.length} 条`;
-   const from=$('mail-from').value,to=$('mail-to').value;
-   const visible=mailbox.filter(m=>(!from||m.from===from)&&(!to||m.to===to)&&(
+   const from=$('mail-from').value,to=$('mail-to').value,agent=$('mail-agent').value;
+   const visible=mailbox.filter(m=>(!from||m.from===from)&&(!to||m.to===to)&&(!agent||m.from===agent||m.to===agent)&&(
      mailFilter==='all'||(mailFilter==='tracked'?m.tracked===true:mailFilter==='unread'?['unread','delivered'].includes(m.status):
        mailFilter==='ack'?m.status==='acknowledged':mailFilter==='resolved'?m.status==='resolved':m.priority==='high')));
    const box=$('inbox'),signature=JSON.stringify(visible);
@@ -304,9 +379,9 @@
    box.replaceChildren(...(elems.length?elems:[node('div','当前没有符合条件的留言','empty')]));
  }
  function updateMailSelectors(){
-   for(const [id,key,caption] of [['mail-from','from','全部发送方'],['mail-to','to','全部接收方']]){
+   for(const [id,key,caption] of [['mail-from','from','全部发送方'],['mail-to','to','全部接收方'],['mail-agent',null,'所有通信对象']]){
      const select=$(id),current=select.value;
-     const names=[...new Set(mailbox.map(m=>m[key]).filter(Boolean))].sort();
+     const names=[...new Set(key?mailbox.map(m=>m[key]).filter(Boolean):mailbox.flatMap(m=>[m.from,m.to]).filter(Boolean))].sort();
      const sig=names.join('\u0000');if(select.dataset.signature===sig)continue;
      select.dataset.signature=sig;
      select.replaceChildren(new Option(caption,''),...names.map(n=>new Option(n,n)));
@@ -322,10 +397,11 @@
    selector.value=groups.includes(current)?current:'';
  }
  document.querySelector('.topnav').addEventListener('click',e=>{
-   const b=e.target.closest('[data-tab]');if(!b)return;tab=b.dataset.tab;
-   for(const button of document.querySelectorAll('.topnav button'))button.classList.toggle('active',button===b);
-   $('tasks-tab').hidden=tab!=='tasks';$('mailbox-tab').hidden=tab!=='mailbox';
+   const b=e.target.closest('[data-tab]');if(!b)return;activateTab(b.dataset.tab);
  });
+ $('agent-search').addEventListener('input',renderAgents);
+ $('agent-type').addEventListener('change',renderAgents);
+ $('mail-agent').addEventListener('change',renderInbox);
  $('mail-filters').addEventListener('click',e=>{
    const b=e.target.closest('[data-mail-filter]');if(!b)return;mailFilter=b.dataset.mailFilter;
    for(const button of $('mail-filters').querySelectorAll('button'))button.classList.toggle('active',button===b);renderInbox();
@@ -341,17 +417,22 @@
    const token=decodeURIComponent(location.hash.slice(1));
    if(!token){$('auth').hidden=false;$('connection').textContent='需要查看密钥';$('dot').classList.remove('ok');return}
    try{
-     const [r,mailResult]=await Promise.all([
+     const [r,mailResult,agentsResult]=await Promise.all([
        fetch('/tips/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}),
-       fetch('/tips/messages?to=all&limit=120',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)}))]);
+       fetch('/tips/messages?to=all&limit=120',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)})),
+       fetch('/tips/agents/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)}))]);
      if(!r.ok)throw Error('HTTP '+r.status+(r.status===401?' · 查看密钥无效':''));
      data=await r.json();
      if(mailResult.ok){mailbox=await mailResult.json();$('error').textContent='';}
      else{$('error').textContent='留言板暂时不可用（HTTP '+mailResult.status+'）；任务进度仍可正常查看。';}
+     if(agentsResult.ok)agentData=await agentsResult.json();
+     else $('agent-note').textContent='Agent 目录暂时不可用（HTTP '+agentsResult.status+'），其它面板不受影响';
      $('auth').hidden=true;$('dot').classList.add('ok');$('connection').textContent='已连接 · '+new Date().toLocaleTimeString('zh-CN',{hour12:false});
-     $('last-update').textContent='最近任务变更 · '+time(data.updatedAt);updateGroups();updateMailSelectors();render();renderInbox();
+     $('last-update').textContent='最近任务变更 · '+time(data.updatedAt);updateGroups();updateMailSelectors();render();renderAgents();renderInbox();
    }catch(e){$('error').textContent='读取失败：'+e.message;$('dot').classList.remove('ok');$('connection').textContent='连接异常';if(e.message.includes('401'))$('auth').hidden=false}
  }
+ if(new URLSearchParams(location.search).get('tab')==='mailbox')tab='mailbox';
+ activateTab(tab,false);
  refresh();setInterval(refresh,5000);
  </script>
 </body>
