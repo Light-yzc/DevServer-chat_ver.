@@ -8,7 +8,7 @@ This is an **opt-in, experimental Chrome/Edge Manifest V3 extension** plus a **r
 2. In the intended ChatGPT conversation, use `web_identity(action="claim",id="web-reviewer-01",invite="...")`, and later verify with `whoami`. **The extension never receives the claim key**. If your ChatGPT MCP connection does not expose stable conversation metadata, keep your own `claimKey` in that ChatGPT conversation for follow-up identity calls.
 3. Rename the **ChatGPT conversation** (sidebar menu → Rename) to exactly `web-reviewer-01`. The tab title must visibly equal that name (optionally with the standard ` - ChatGPT` suffix). Open one chat per role; **two matching tabs block delivery**.
 4. A trusted server worker or another claimed chat sends a normal Tips message to `to="web-reviewer-01"`. This is a regular message, **not** `wake=true` (which is reserved for `server-controller`).
-5. The relay reads the existing Tips state and claimed identity registry. It streams `{id,to}` only. The extension matches the title, pins the *conversation URL ID*, confirms the composer is empty and the assistant isn't visibly generating, and submits a short inbox-check instruction. The Web chat then calls `web_identity(whoami)` / `web_mail(inbox)` to inspect and ACK the real message.
+5. The relay reads the existing Tips state and claimed identity registry. It streams `{id,to}` only. The extension matches the title, pins the *conversation URL ID*, confirms the composer is empty and the assistant isn't visibly generating, and submits a short inbox-check instruction. The Web chat then calls `web_mail(inbox)`, checks that the messages belong to its identity, executes tasks within existing authorization, and ACKs the handled messages.
 
 The browser's title match is **routing, not authentication**; the subsequent MCP tools must verify the Web identity. The relay never returns message contents. Local delivery (`submitted`) does **not** mark a Tips message read or complete; only MCP ACK/resolve does.
 
@@ -77,6 +77,21 @@ For localhost testing, use `ws://127.0.0.1:17679/ws` (the browser extension perm
 4. Keep the ChatGPT conversation tab open and renamed to the claimed role. When a new Tips message arrives it can submit a prompt if the chat is idle. Check extension status for connection and pending counts.
 
 To change a role's conversation, first **reset its URL binding** in Options and then give the new chat the correct title. A URL pin prevents a second conversation from silently inheriting the old role. No code in this project navigates to a different ChatGPT conversation or manipulates browser tabs beyond reading metadata.
+
+### Updating an existing unpacked installation (0.1.1)
+
+Update the files in the **same local folder** that Edge originally loaded, then
+open `edge://extensions` and click **Reload** on DevSpace Web Wake. Refresh the
+target ChatGPT tabs too, so they load the updated content script. Do not remove
+and reinstall the extension: reloading the existing installation preserves its
+pairing token, pending/submitted IDs, and URL bindings in `chrome.storage.local`.
+
+Version 0.1.1 fixes `Send form not found`: an empty ChatGPT composer may show
+Voice instead of Send. The extension now inserts the wake prompt first, waits
+for Send within that composer, and confirms the composer cleared after clicking
+before reporting submission. If Send never becomes available, it removes only
+its unchanged, unsent draft so the pending wake can retry. If a click cannot be
+confirmed, it preserves the draft and pending IDs for manual inspection.
 
 ## Operational and security rules
 

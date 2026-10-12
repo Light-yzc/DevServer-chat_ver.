@@ -3,8 +3,10 @@ const WAKE_ROLE_RE=/^web-[a-z0-9][a-z0-9_.-]{0,58}$/;
 let submitting=false;
 function findComposer(){return document.querySelector('[contenteditable="true"][role="textbox"][aria-label="Ask ChatGPT"]') ||
   document.querySelector('#prompt-textarea[contenteditable="true"]');}
-function findSend(){return document.querySelector('button[type="submit"][aria-label="Send"]') ||
-  document.querySelector('button[data-testid="send-button"]');}
+function findSend(editor){
+  const root=editor.closest('form') || editor.closest('[data-chatgpt-composer]');
+  return root?.querySelector('button[data-testid="send-button"],button[type="submit"][aria-label="Send"],button[type="submit"][aria-label="Send message"],button[type="submit"][aria-label="发送"],button[type="submit"][aria-label="发送消息"]');
+}
 function isBusy(){return !!document.querySelector('button[data-testid="stop-button"],button[aria-label="Stop generating"],button[aria-label="Stop"],button[aria-label="停止生成"]');}
 function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
 async function submitWake({role,ids}){
@@ -16,21 +18,41 @@ async function submitWake({role,ids}){
   if(!editor)return {status:'not_ready',reason:'Composer not found'};
   if(editor.textContent?.trim() || editor.querySelector('[data-testid="file-thumbnail"]') ||
     document.querySelector('[data-testid="composer-attachment"]'))return {status:'busy'};
-  const form=editor.closest('form');
-  const send=findSend();
-  if(!send || !form || !form.contains(send))return {status:'not_ready',reason:'Send form not found'};
+  if(!editor.closest('form') && !editor.closest('[data-chatgpt-composer]'))return {status:'not_ready',reason:'Composer container not found'};
   submitting=true;
-  const prompt=`DevSpace/Tips 向本 Web 会话身份 ${role} 发送了新消息（ID：${ids.join(', ')}）。请先调用 web_identity(action="whoami") 核对你的身份，再调用 web_mail(action="inbox") 自行读取此身份的未处理消息，按既有任务权限执行，必要时 ACK、回复或验证。身份不符就停止并说明；不要把通知本身当成已经授权执行危险操作。`;
+  const prompt=`DevSpace/Tips：${role} 有新消息（ID：${ids.join(', ')}）。请调用 web_mail(action="inbox") 读取；确认是自己的消息后，有任务就按已有授权执行，处理后 ACK，必要时回复。`;
   try {
     editor.focus();
     // ChatGPT's ProseMirror composer listens for normal contenteditable input.
     const inserted=document.execCommand('insertText',false,prompt);
     if(!inserted || !editor.textContent?.includes('DevSpace/Tips'))return {status:'not_ready',reason:'Text insertion unsupported'};
-    await sleep(200);
-    const button=findSend();
-    if(isBusy()||!button||button.disabled||button.getAttribute('aria-disabled')==='true')return {status:'not_ready',reason:'Message drafted but Send unavailable'};
-    button.click();
-    return {status:'sent'};
+    // Empty ChatGPT composers show Voice instead of Send. Wait for React to
+    // mount and enable Send AFTER insertion, scoped to this composer only.
+    for(let attempt=0;attempt<40;attempt++){
+      await sleep(100);
+      if(!editor.isConnected || editor.textContent?.trim()!==prompt.trim())return {status:'not_ready',reason:'Composer changed; wake remains queued'};
+      const button=findSend(editor);
+      if(isBusy())break;
+      if(!button || button.disabled || button.getAttribute('aria-disabled')==='true')continue;
+      button.click();
+      // A click alone is not a submission. Only record success after the
+      // composer clears; otherwise keep pending and preserve the draft.
+      for(let check=0;check<50;check++){
+        await sleep(100);
+        const current=findComposer();
+        if(current && !current.textContent?.trim())return {status:'sent'};
+      }
+      return {status:'not_ready',reason:'Submission not confirmed; wake draft preserved, check the chat'};
+    }
+    // No click occurred. Remove only our unchanged draft so a later alarm
+    // can retry; never erase a draft edited by the user.
+    if(editor.isConnected && editor.textContent?.trim()===prompt.trim()){
+      editor.focus();
+      const selection=window.getSelection(),range=document.createRange();
+      range.selectNodeContents(editor);selection.removeAllRanges();selection.addRange(range);
+      document.execCommand('delete',false);
+    }
+    return {status:'not_ready',reason:'Send unavailable; wake remains queued'};
   }finally{submitting=false;}
 }
 chrome.runtime.onMessage.addListener((msg,_sender,sendResponse)=>{
