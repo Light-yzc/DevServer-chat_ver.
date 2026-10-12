@@ -5,28 +5,37 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>DevSpace Web Wake</title>
   <style>
-    :root{color-scheme:dark}body{font:14px system-ui,-apple-system,sans-serif;background:#17191e;color:#e9ebf0;margin:0;width:360px;max-width:100%}
-    main{padding:18px}h2{font-size:18px;margin:0 0 8px}p{color:#aeb5c5;line-height:1.5}
-    label{display:block;margin-top:14px;font-weight:600}input[type=text],input[type=password]{display:block;box-sizing:border-box;width:100%;padding:9px 10px;margin-top:5px;background:#252a33;color:#fff;border:1px solid #414958;border-radius:7px;font:12px ui-monospace,monospace}
-    input[type=checkbox]{accent-color:#7da9ff}button{margin-top:12px;border:0;border-radius:7px;background:#407bee;color:#fff;padding:9px 12px;font-weight:600;cursor:pointer}button.secondary{background:#333b49}button:disabled{opacity:.5}
-    code{font:12px ui-monospace,monospace;color:#b5d7ff}#status,#roles{white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;margin-top:10px;background:#242a34;border-radius:7px;line-height:1.6}small{color:#adb5c5}
+    :root{color-scheme:dark;font:13px/1.5 system-ui,-apple-system,sans-serif;background:#11151c;color:#e9eef6}
+    /* Chromium sizes action popups from document layout. Do not constrain the
+       body to the initial popup viewport: that can lock it at ~160px wide. */
+    html{width:380px;min-width:380px}*{box-sizing:border-box}body{margin:0;width:380px;min-width:380px}main{padding:18px}button,input{font:inherit}
+    header,.section-title,.role-heading,.role-footer,.settings-actions{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    header{margin-bottom:12px}.brand{display:flex;align-items:center;gap:10px}.logo{display:grid;place-items:center;flex-shrink:0;width:34px;height:34px;border:1px solid #3a5580;border-radius:10px;background:#1d2c44;color:#a7c8ff;font-weight:800;font-size:19px}
+    h1{font-size:16px;line-height:1.3;margin:0}header p{margin:2px 0 0;color:#8592a7;font-size:11px}
+    button{cursor:pointer;border:1px solid #303b4c;border-radius:8px;background:#202936;color:#dce5f2;padding:7px 11px;font-weight:600}button:hover{background:#2a3749}button:disabled{opacity:.5;cursor:wait}button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid #84b6ff;outline-offset:3px}
+    .refresh{font-size:12px;padding:6px 10px;flex-shrink:0;white-space:nowrap}.overview{border:1px solid #2d3a4e;border-radius:12px;background:linear-gradient(120deg,#1c2a3d,#19202b);padding:12px;margin-bottom:14px}
+    .mode{display:flex;align-items:center;gap:7px;font-size:12px;color:#aab8cb}.dot{width:7px;height:7px;border-radius:50%;background:#738199}.mode.on .dot{background:#69d5a1;box-shadow:0 0 0 3px #69d5a115}.mode.on{color:#a5e2c3}
+    .metrics{display:grid;grid-template-columns:1fr 1fr;margin:8px 0}.metric+.metric{border-left:1px solid #334054;padding-left:20px}.metric strong{display:block;font-size:26px;line-height:1.2;font-variant-numeric:tabular-nums;letter-spacing:-1px}.metric span{font-size:11px;color:#9caac0}
+    #status{font-size:12px;color:#d0dae8;overflow-wrap:anywhere;margin:0}#updated{display:block;color:#7f90a8;font-size:10px;margin-top:5px}
+    .section-title{margin-bottom:10px}h2{font-size:13px;margin:0}.count{font-size:11px;color:#8797ae}#roles{display:grid;gap:8px}.role{padding:10px;border:1px solid #2b3544;background:#1a202b;border-radius:10px}.role-name{font-size:13px;font-weight:650;overflow-wrap:anywhere;min-width:0}.badge{font-size:10px;white-space:nowrap;flex-shrink:0;padding:2px 7px;border-radius:5px;background:#293243;color:#aab8cc}.badge.ready{color:#94e1b9;background:#183d30}.badge.warn{color:#f2c880;background:#41331f}.role-help{font-size:11px;color:#8999af;margin:6px 0 0}.role-footer{border-top:1px solid #2b3544;padding-top:6px;margin-top:6px;font-size:11px;color:#8999af}.binding{font:10px ui-monospace,monospace;color:#b1c3de}.unbind{padding:2px 6px;font-size:10px;background:transparent;color:#b3bfd0;border-color:#364255}.empty{padding:22px 14px;text-align:center;color:#91a1b8;border:1px dashed #344155;border-radius:10px}
+    details{margin-top:16px;border-top:1px solid #2b3544;padding-top:12px}summary{cursor:pointer;color:#b7c4d7;font-size:12px;user-select:none}label{display:block;margin-top:12px;font-size:11px;color:#9fadc2}input[type=text],input[type=password]{width:100%;margin-top:5px;border:1px solid #344155;border-radius:7px;background:#191f29;color:#e9eef6;padding:8px 10px;font:11px ui-monospace,monospace}input[type=checkbox]{accent-color:#77a9ff;margin:0}.toggle{display:flex;align-items:center;gap:7px;color:#cfdaea}.settings-actions{margin-top:12px}.primary{background:#598ef1;border-color:#598ef1;color:#fff}.primary:hover{background:#72a0f5}.privacy{font-size:10px;color:#8291a8;margin:0}.footnote{font-size:10px;color:#77879e;margin:14px 0 0;line-height:1.6}
+    @media(prefers-reduced-motion:no-preference){button{transition:background .15s}}
   </style>
 </head>
 <body><main>
-  <h2>DevSpace Web Wake</h2>
-  <p>通过手工命名的 ChatGPT 标签页，唤醒已认领身份的 Web Agent。仅接收消息 ID，完整消息由 ChatGPT 自己通过 MCP 读取。</p>
-  <label for="endpoint">Relay WebSocket 地址</label>
-  <input id="endpoint" type="text" spellcheck="false" autocomplete="off">
-  <label for="token">私有配对令牌（不会提交给聊天页面）</label>
-  <input id="token" type="password" spellcheck="false" autocomplete="off">
-  <label><input id="enabled" type="checkbox"> 启用自动唤醒（实验性）</label>
-  <button id="save">保存并连接</button> <button id="refresh" class="secondary">刷新状态</button>
-  <div id="status" aria-live="polite">未配置</div>
-  <label>已认领的 Web 身份 / 标签页绑定</label>
-  <div id="roles">等待连接</div>
-  <label for="resetRole">解除指定身份的聊天 URL 绑定</label>
-  <input id="resetRole" type="text" placeholder="web-reviewer-01" spellcheck="false">
-  <button id="reset" class="secondary">解除绑定</button>
-  <p><small>首次绑定后，该身份固定到对应的聊天 URL。不要在多个标签页使用同一个身份名称。自动提交依赖 ChatGPT 页面结构，更新后可能需要调整。</small></p>
+  <header><div class="brand"><span class="logo" aria-hidden="true">↗</span><div><h1>Web Wake</h1><p>DevSpace · 会话自动唤醒</p></div></div><button id="refresh" class="refresh">刷新</button></header>
+  <section class="overview" aria-label="唤醒状态">
+    <div id="mode" class="mode"><span class="dot" aria-hidden="true"></span><span id="modeText">正在读取状态</span></div>
+    <div class="metrics"><div class="metric"><strong id="pendingCount">—</strong><span>待唤醒</span></div><div class="metric"><strong id="doneCount">—</strong><span>已提交 · 本地记录</span></div></div>
+    <p id="status" role="status">等待连接</p><time id="updated"></time>
+  </section>
+  <section aria-labelledby="rolesTitle"><div class="section-title"><h2 id="rolesTitle">Web 身份</h2><span id="roleCount" class="count"></span></div><div id="roles"></div></section>
+  <details id="settings"><summary>连接设置</summary>
+    <label for="endpoint">WebSocket 地址</label><input id="endpoint" type="text" spellcheck="false" autocomplete="off">
+    <label for="token">配对令牌</label><input id="token" type="password" spellcheck="false" autocomplete="off">
+    <label class="toggle"><input id="enabled" type="checkbox">启用自动唤醒</label>
+    <div class="settings-actions"><p class="privacy">令牌仅保存在插件本地</p><button id="save" class="primary">保存并连接</button></div>
+  </details>
+  <p class="footnote">聊天标题须与身份名称一致。已提交表示唤醒提示已发送，消息处理结果以 MCP ACK 为准。</p>
 </main><script src="options.js"></script></body>
 </html>
