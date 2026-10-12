@@ -15,9 +15,10 @@ import { createInterface } from 'node:readline';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {resolveCodexBin} from './codex-bin.mjs';
 import { loadConfig } from '../vendor/devspace/dist/config.js';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
-import { tipsProtocol, needsDelivery, shouldInjectProtocol } from './subagent-protocol.mjs';
+import { tipsProtocol, needsDelivery, shouldInjectProtocol,localMainWakeRequested } from './subagent-protocol.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -40,13 +41,14 @@ if(!params.probe&&!params.promptFile)throw Error('Provide --prompt-file');
 const runtime=join(tips.dir,'app-agents');
 mkdirSync(runtime,{recursive:true,mode:0o700});chmodSync(runtime,0o700);
 const threadFile=params.sessionFile||join(runtime,params.name+'.json');
-const codex=process.env.TIPS_CODEX_BIN||'codex';
+const codex=resolveCodexBin();
 const timeoutSeconds=Math.min(7200,Math.max(60,Number(process.env.TIPS_APP_TURN_TIMEOUT_SECONDS||3600)));
 const eventOut=params.logFile?resolve(params.logFile):'';
 const safeLog=(o)=>{if(eventOut)writeFileSync(eventOut,JSON.stringify(o)+'\n',{flag:'a',mode:0o600});};
 const stored=()=>{try{return JSON.parse(readFileSync(threadFile,'utf8'))}catch{return null}};
 const store=(threadId,protocolInjected)=>writeFileSync(threadFile,JSON.stringify({threadId,model:params.model,protocolInjected,at:new Date().toISOString()})+'\n',{mode:0o600});
 let stopping=false,turnId=null,threadId=null,turnStatus=null,answer='',active=false,mailTimer=null;
+let executionSteps=0,lastStageAt=0;
 const proc=spawn(codex,['app-server','--stdio'],{cwd:params.cwd,env:process.env,stdio:['pipe','pipe','pipe']});
 const pending=new Map();let nextId=1;
 proc.stderr.on('data',buf=>{const line=buf.toString('utf8');if(/error|failed|panic/i.test(line))console.error('[app-server]',line.slice(0,450))});
@@ -117,7 +119,8 @@ function finalizeActions(raw){
       typeof post.body!=='string'||!post.body.trim())continue;
     try{tips.messages({action:'post',from:params.name,to:post.to,
       subject:String(post.subject||`Update from ${params.name}`).slice(0,200),
-      body:post.body.slice(0,6000),priority:['low','normal','high'].includes(post.priority)?post.priority:'normal'},
+      body:post.body.slice(0,6000),priority:['low','normal','high'].includes(post.priority)?post.priority:'normal',
+      wake:localMainWakeRequested(post)},
       {trustedWake:true})}
     catch(e){safeLog({event:'post_failed',to:post.to,error:e.message})}
   }
@@ -147,6 +150,18 @@ rl.on('line',line=>{
     return;
   }
   const method=event.method||'';
+  if(active&&['item/started','item/completed'].includes(method)){
+    if(method==='item/completed')executionSteps++;
+    const now=Date.now();
+    if(now-lastStageAt>=60_000){
+      lastStageAt=now;
+      const stage=event.params?.item?.type||'work';
+      try{tips.mutate({action:'update',id:params.name,kind:'progress',status:'running',
+        message:`执行中 · ${executionSteps} 个已观察到的步骤 · 最近阶段 ${String(stage).slice(0,60)}`,
+        heartbeatEnabled:true,heartbeat:true},{trustedUpdate:true});}
+      catch(e){safeLog({event:'task_progress_error',error:String(e.message).slice(0,150)})}
+    }
+  }
   if(method==='turn/started'&&event.params?.turn?.id)turnId=event.params.turn.id;
   if(method==='item/agentMessage/delta'&&typeof event.params?.delta==='string')answer+=event.params.delta;
   if(method==='item/completed'&&event.params?.item?.type==='agentMessage'&&typeof event.params?.item?.text==='string')answer=event.params.item.text;
@@ -178,6 +193,11 @@ async function main(){
   console.log('App Server ready:',params.name,'thread:',threadId,'resumed:',Boolean(previousThreadId));
   if(params.probe)return;
   let prompt=readFileSync(params.promptFile,'utf8');
+  prompt+=`\nREQUIRED VISIBLE TIPS PROGRESS: This Local Sub task has a Tips task card ID ${params.name}. The user follows progress in /tips and may never open server logs. At actual milestones, blockers, and roughly every meaningful phase, update this SAME card via an available shell tool: node ${join(ROOT,'tips','tips-cli.mjs')} update ${params.name} --status running --kind progress --message "Current stage and verified evidence". When a real total/plan exists, also use --progress 0..100; otherwise do not invent percentages. For blockers use --status blocked and detail the reason; do not claim scientific completion merely because one Codex turn ends. The manager separately publishes queued, running, heartbeat, completion and failure. Do not write keys into Tips.\n`;
+  // Existing persistent Codex Threads were initialized before wake escalation
+  // existed. A short per-Turn reminder upgrades them without reinjecting the
+  // full protocol or spending a separate model call.
+  prompt+='\nTips Local Sub reminder: send routine updates to server-controller without wake. For an actual urgent Sol decision only, use final <tips-actions> posts:[{to:"server-controller",priority:"high",wake:true,subject:"...",body:"evidence + requested decision"}]. This triggers ONE authorized Sol wake; respect STOP/GPU/Owner locks.\n';
   const initial=await unreadMail();
   if(initial.length){
     prompt+='\nPending trusted mailbox messages:\n'

@@ -6,6 +6,8 @@ You are the **server-side controller** for the AIR/AIR-LIFE research project. Yo
 
 **On-demand Codex Skills:** `agent-coordination`, `main-batch-triage`, `research-safety`, `tips-troubleshooting` are installed under `$CODEX_HOME/skills/`. You may read their `SKILL.md` as needed, then consult the specific detailed guide referenced there. Do not embed all documents in every Turn.
 
+**Codex executable in systemd**: systemd may not inherit the interactive shell PATH. Resolve `TIPS_CODEX_BIN` first, then `~/.local/bin/codex` or PATH; `scripts/doctor.mjs` checks that it can execute. After changing user systemd drop-ins use daemon-reload; restart Local Main **only when no Sol Turn is active**. The service being active only proves the lightweight watcher is alive, not that Sol actually started. Verify a `codex exec` child process, claimed mailbox ID, and a truthful completion receipt.
+
 ## Job rules
 
 **New Sub Agent delegation:** For any *new* long-lived Luna worker, use the App Server-managed subagent interface instead of adding another `codex exec` loop. From this repository root run `node tips/subagent-cli.mjs start sub-NAME --cwd /path/to/allowed/research-workspace --goal-file PATH`. Check `status sub-NAME`, and use `message sub-NAME --from server-controller --subject TEXT --body TEXT` for live Tips instructions. The background manager attempts steering while busy or resumes the same Thread when idle; a Sub must explicitly ACK after reading and reply on completion. Do not spawn parallel workers that duplicate an existing Owner or violate GPU limits.

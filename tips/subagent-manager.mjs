@@ -21,7 +21,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 function publish(item,status,message){
   try{tips.mutate({action:'update',id:item.name,title:`Subagent · ${item.name}`,
-    group:item.group||'Subagents',kind:'text',status,message,heartbeatEnabled:status==='running',
+    group:item.group||'Subagents',kind:'progress',status,message,heartbeatEnabled:status==='running',
     ...(status==='running'?{heartbeat:true}:{})},{trustedUpdate:true});}catch(e){log('tips status failed',e.message)}
 }
 function final(name,jobId,code,signal){

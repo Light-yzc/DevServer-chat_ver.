@@ -12,6 +12,7 @@ import { loadConfig } from '../vendor/devspace/dist/config.js';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { createBlockWatch, rejectQueuedAutoBlock } from './block-watch.mjs';
 import { finalizeMainMessage } from './controller-receipts.mjs';
+import {resolveCodexBin} from './codex-bin.mjs';
 import {pendingMainBatch,batchPrompt,applyBatchReceipt} from './main-inbox-batch.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -22,7 +23,7 @@ const blockWatch=createBlockWatch(tips);
 const runtime=join(tips.dir,'controller-runtime');
 mkdirSync(runtime,{recursive:true,mode:0o700});
 const controllerId='tips-server-controller';
-const codex=process.env.TIPS_CODEX_BIN||'codex';
+const codex=resolveCodexBin();
 const model=process.env.TIPS_CODEX_MODEL||'gpt-6.1-sol';
 const maxSeconds=Math.min(7200,Math.max(60,Number(process.env.TIPS_CONTROLLER_TIMEOUT_SECONDS||2400)));
 const intervalMs=Math.max(1000,Number(process.env.TIPS_CONTROLLER_POLL_MS||5000));

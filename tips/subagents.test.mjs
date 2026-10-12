@@ -18,12 +18,19 @@ test('register, queue, finish, and resume persistent agent ID',()=>{
     let x=t.registry.start({name:'sub-check',goal:'Summarize AIR docs.',cwd:t.root});
     assert.equal(x.status,'queued');assert.equal(x.model,'gpt-6-luna');
     assert.equal(x.sandbox,'workspace-write');
+    const queued=t.tips.mutate({action:'get',id:'sub-check'});
+    assert.equal(queued.status,'pending');
+    assert.equal(queued.kind,'progress');
+    assert.equal(queued.progress,0);
+    assert.match(queued.message,/已排队/);
+    assert.match(queued.details,/Summarize AIR docs/);
     assert.equal(t.registry.list().length,1);
     assert.throws(()=>t.registry.start({name:'sub-check',goal:'overlap',cwd:t.root}),/already running/);
     x=t.registry.update('sub-check',x.jobId,{status:'completed',lastResult:'Results done'});
     assert.equal(x.status,'completed');
     const next=t.registry.start({name:'sub-check',goal:'Second task',cwd:t.root});
     assert.notEqual(next.jobId,x.jobId);assert.equal(next.revision,2);
+    assert.equal(t.tips.mutate({action:'get',id:'sub-check'}).progress,0);
     assert.equal(t.registry.stop('sub-check').status,'stopped');
   }finally{t.cleanup()}
 });
@@ -39,10 +46,25 @@ test('trusted Tips route works for queued/subagent mailbox',()=>{
     t.registry.start({name:'sub-alpha',goal:'Analyze a schema.',cwd:t.root});
     const m=t.registry.send({name:'sub-alpha',from:'server-controller',subject:'Check logs',body:'Review error details'});
     assert.equal(m.status,'unread');assert.equal(m.to,'sub-alpha');assert.equal(m.trustedSender,true);
+    assert.equal(m.taskId,'sub-alpha');
+    const card=t.tips.mutate({action:'get',id:'sub-alpha'});
+    assert.ok(card.logs.some(x=>x.text.includes(m.id)));
     assert.equal(t.tips.messages({action:'list',to:'sub-alpha'})[0].id,m.id);
     assert.equal(t.tips.messages({action:'delivered',id:m.id,turnId:'turn1'},{trustedWake:true}).status,'delivered');
     const ack=t.tips.messages({action:'ack',id:m.id,agentId:'sub-alpha'});
     assert.equal(ack.status,'acknowledged');assert.equal(ack.ackBy,'sub-alpha');
     assert.equal(t.tips.messages({action:'resolve',id:m.id}).status,'resolved');
+  }finally{t.cleanup()}
+});
+test('Web->Local Sub instruction creates a Tips task card even before scheduling',()=>{
+  const t=harness();try{
+    const msg=t.tips.messages({action:'post',from:'web-air-main',to:'sub-new-review',
+      subject:'Review the AIR CPU checkpoint',body:'Read evidence only; GPU frozen'},{trustedWake:true});
+    assert.equal(msg.taskId,'sub-new-review');
+    const task=t.tips.mutate({action:'get',id:'sub-new-review'});
+    assert.equal(task.status,'pending');
+    assert.equal(task.kind,'progress');
+    assert.match(task.message,/收到任务请求/);
+    assert.match(task.details,/web-air-main/);
   }finally{t.cleanup()}
 });

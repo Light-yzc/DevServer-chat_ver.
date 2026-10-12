@@ -33,7 +33,7 @@ export function subagentRegistry(config,tips){
     if(!SANDBOX.has(sandbox))err('Invalid sandbox');
     if(typeof group!=='string'||group.length>70)err('Invalid group');
     const root=allowed(resolve(cwd??config.allowedRoots[0]),config.allowedRoots);
-    return modify(db=>{
+    const started=modify(db=>{
       let current=db.agents[name];
       if(current&&['queued','running','stopping'].includes(current.status))err('This subagent is already running or queued');
       if(current&&(current.model!==model||current.cwd!==root||current.sandbox!==sandbox))
@@ -49,6 +49,14 @@ export function subagentRegistry(config,tips){
       db.agents[name]=item;
       return publicAgent(item);
     });
+    // Every new/renewed Local Sub request is immediately visible on /tips,
+    // including the time spent QUEUED before an App Server process exists.
+    // Lifecycle heartbeats/status are maintained by the manager thereafter.
+    tips.mutate({action:'update',id:name,title:`Subagent · ${name}`,
+      kind:'progress',group,status:'pending',progress:0,archived:false,
+      message:`已排队 · ${model} · 等待 Local Sub Manager 分配执行`,
+      details:goal.slice(0,2200),heartbeatEnabled:false},{trustedUpdate:true});
+    return started;
   }
   function publicAgent(a){const {goalFile,...rest}=a;return rest;}
   function status(name){const item=get(name);return item?publicAgent(item):null}

@@ -10,24 +10,23 @@ import {createWebIdentityStore} from '../vendor/devspace/dist/web-identity-store
 import {subagentRegistry} from './subagents.mjs';
 import {mountTipsRoutes} from '../vendor/devspace/dist/tips.js';
 
-const secret='test-admin-key-without-public-secrets';
 function fixture(){
   const dir=mkdtempSync(join(tmpdir(),'tips-administration-'));
   const allowed=join(dir,'allowed');mkdirSync(allowed);
-  const config={stateDir:dir,allowedRoots:[allowed],security:{webAdminKey:secret}};
+  const config={stateDir:dir,allowedRoots:[allowed]};
   const tips=createTipsV2(config),admin=createTipsAdmin(config,tips);
   const web=createWebIdentityStore(config),sub=subagentRegistry(config,tips);
-  const run=(action,id,key=secret)=>admin.run({action,id,adminKey:key,reason:'administrative cleanup'});
+  const run=(action,id,key=tips.credentials.viewToken)=>admin.run({action,id,viewToken:key,reason:'administrative cleanup'});
   return {dir,allowed,config,tips,admin,web,sub,run,cleanup:()=>rmSync(dir,{recursive:true,force:true})};
 }
 
-test('admin requires supplied key for every action; removing Web identity preserves mail',()=>{
+test('Tips view token grants management; removing Web identity preserves mail',()=>{
   const x=fixture();try{
     const p=x.web.prepare({id:'web-archive',label:'Old chat'});
     const claim=x.web.claim({id:'web-archive',scope:'old-session',invite:p.invite});
     const mail=x.tips.messages({action:'post',from:'test-worker',to:'web-archive',subject:'Older mail',body:'Retain this'});
-    assert.throws(()=>x.run('remove_web','web-archive','wrong'),/administrator key/);
-    assert.throws(()=>x.run('remove_web','web-archive',''),/administrator key/);
+    assert.throws(()=>x.run('remove_web','web-archive','wrong'),/view token/);
+    assert.throws(()=>x.run('remove_web','web-archive',''),/view token/);
     assert.equal(x.web.whoami({scope:'old-session'}).recognized,true);
     const result=x.run('remove_web','web-archive');
     assert.equal(result.result.removed,true);
@@ -35,7 +34,7 @@ test('admin requires supplied key for every action; removing Web identity preser
     assert.equal(x.web.list().find(v=>v.id==='web-archive'),undefined);
     assert.equal(x.tips.messages({action:'get',id:mail.id}).body,'Retain this');
     assert.equal(x.run('history').events[0].id,'web-archive');
-    assert.ok(!readFileSync(join(x.tips.dir,'admin-audit.json'),'utf8').includes(secret));
+    assert.ok(!readFileSync(join(x.tips.dir,'admin-audit.json'),'utf8').includes(x.tips.credentials.viewToken));
   }finally{x.cleanup()}
 });
 
@@ -87,22 +86,22 @@ test('processing message cannot be deleted; other explicit deletions are audited
   }finally{x.cleanup()}
 });
 
-test('Tips admin HTTP requires both dashboard view token and admin key',async()=>{
+test('Tips admin HTTP only needs the dashboard view token, not a second key',async()=>{
   const x=fixture();let server;
   try{
     const app=express();mountTipsRoutes(app,x.config,express);
     server=await new Promise(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s))});
     const base='http://127.0.0.1:'+server.address().port;
-    const post=(viewToken,adminKey)=>fetch(base+'/tips/admin/api',{method:'POST',
+    const post=(viewToken)=>fetch(base+'/tips/admin/api',{method:'POST',
       headers:{Authorization:'Bearer '+viewToken,'Content-Type':'application/json'},
-      body:JSON.stringify({action:'history',adminKey})});
-    assert.equal((await post('wrong',secret)).status,401);
-    assert.equal((await post(x.tips.credentials.viewToken,'wrong')).status,400);
-    const allowed=await post(x.tips.credentials.viewToken,secret);
+      body:JSON.stringify({action:'history'})});
+    assert.equal((await post('wrong')).status,401);
+    const allowed=await post(x.tips.credentials.viewToken);
     assert.equal(allowed.status,200);
     assert.deepEqual((await allowed.json()).events,[]);
     const html=await (await fetch(base+'/tips/agents')).text();
-    assert.ok(html.includes('admin-unlock'));
-    assert.ok(!html.includes(secret));
+    assert.ok(html.includes('admin-panel'));
+    assert.ok(!html.includes('admin-unlock'));
+    assert.ok(!html.includes('admin-key'));
   }finally{if(server)await new Promise(resolve=>server.close(resolve));x.cleanup()}
 });

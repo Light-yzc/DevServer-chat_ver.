@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { CONFIG_DIR,PROJECT_ROOT,STATE_DIR,runtimeEnv } from './runtime.mjs';
+import {resolveCodexBin} from '../tips/codex-bin.mjs';
 const env=runtimeEnv();let errors=0;
 const check=(pass,message)=>{console.log(`${pass?'PASS':'FAIL'} ${message}`);if(!pass)errors++};
 const version=process.versions.node.split('.').map(Number);
@@ -21,9 +22,8 @@ if(existsSync(join(CONFIG_DIR,'security.json'))){
   const sec=JSON.parse(readFileSync(join(CONFIG_DIR,'security.json'),'utf8'));
   check(sec.version===1&&
     ['viewToken','writeToken','dispatchToken'].every(k=>typeof sec.tips?.[k]==='string'&&sec.tips[k].length>0)&&
-    typeof sec.webAdminKey==='string'&&sec.webAdminKey.length>0&&
     typeof sec.webWakeToken==='string'&&sec.webWakeToken.length>0,
-    'Tips, Web-admin and Web-Wake keys configured (contents not shown)');
+    'Tips (view=management), Web-Wake keys configured (contents not shown)');
   check((statSync(join(CONFIG_DIR,'security.json')).mode&0o077)===0,'Unified security file permissions 0600');
   const oldPath=join(STATE_DIR,'tips','credentials.json');
   if(existsSync(oldPath)){
@@ -39,6 +39,9 @@ if(existsSync(join(CONFIG_DIR,'config.json'))){
   console.log('Configured MCP URL:',`${config.publicBaseUrl}/mcp`);
 }
 check(existsSync(STATE_DIR),'Private state directory exists');
-const codex=env.TIPS_CODEX_BIN??'codex';
-console.log('Codex executable setting:',codex,'(required only when launching agents)');
+try{
+  const codex=resolveCodexBin(env);
+  console.log('Codex executable resolved:',codex);
+  check(true,'Local Main and Sub can locate Codex without an interactive shell PATH');
+}catch(error){check(false,'Codex resolution: '+error.message)}
 if(errors){console.error(`${errors} checks failed`);process.exitCode=1}else console.log('Deployment preflight passed.');

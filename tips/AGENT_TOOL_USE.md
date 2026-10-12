@@ -25,12 +25,12 @@ Tips 网页：`/tips`；Agent 总览：`/tips/agents`。面板需要自己的私
 最小调用：
 
 ```text
-tips_admin({"action":"revoke_web","id":"web-old","adminKey":"<私有管理员密钥>","reason":"retired"})
-tips_admin({"action":"remove_web","id":"web-old","adminKey":"<私有管理员密钥>","reason":"retired"})
-tips_admin({"action":"stop_sub","id":"sub-old","adminKey":"<私有管理员密钥>"})
+tips_admin({"action":"revoke_web","id":"web-old","viewToken":"<Tips 查看密钥>","reason":"retired"})
+tips_admin({"action":"remove_web","id":"web-old","viewToken":"<Tips 查看密钥>","reason":"retired"})
+tips_admin({"action":"stop_sub","id":"sub-old","viewToken":"<Tips 查看密钥>"})
 # 先 subagent(status) 确认不再 queued/running/stopping，再调用：
-tips_admin({"action":"remove_sub","id":"sub-old","adminKey":"<私有管理员密钥>"})
-tips_admin({"action":"history","adminKey":"<私有管理员密钥>"})
+tips_admin({"action":"remove_sub","id":"sub-old","viewToken":"<Tips 查看密钥>"})
+tips_admin({"action":"history","viewToken":"<Tips 查看密钥>"})
 ```
 
 `revoke_web` 只撤销认证、保留角色登记；`remove_web` 将该角色从注册表移除并让此前聊天立即失效，历史 Tips 留言仍在。`remove_sub` 只适用于已结束或已停止的 managed Sub，且会归档旧 Thread 指针，不会杀进程或删除实验成果。`archive_task` 与 `delete_task` 都不允许操作 `running` 任务；后者还会删除 Tips **任务历史**。`delete_message` 不允许删除 `processing` 消息。每次请求必须附带密钥，并记录不含密钥的操作审计。详细的动作矩阵、前端操作、保留策略和权限说明在 [`TIPS_ADMIN.md`](TIPS_ADMIN.md)。
@@ -40,7 +40,7 @@ tips_admin({"action":"history","adminKey":"<私有管理员密钥>"})
 ## 场景 1：新 Web Chat 首次注册，然后联系其他 Web
 
 若某个 Web Chat 已废弃且本人无法再调用 `release`，管理员可以直接调用
-`web_identity({"action":"revoke","id":"web-old","adminKey":"<私有管理员密钥>"})`。
+`web_identity({"action":"revoke","id":"web-old","viewToken":"<Tips 查看密钥>"})`。
 这要求该次工具请求提供密钥，不需要预先 `admin_login`、认领新的 Web 身份或等待审批。密钥保存在服务器私有 `security.json`，在 Git 中忽略；历史 Tips 留言不会被删除。
 
 先调用一次 `web_identity` 的 `whoami`（如果已经认领，直接返回身份）：
@@ -80,6 +80,17 @@ web_mail({"action":"reply","id":"<收到的消息 ID>","body":"已收到，准�
 ```text
 subagent({"action":"start","name":"sub-air-cpu-review","model":"gpt-6-luna","cwd":"/your/allowed/research-workspace","sandbox":"read-only","goal":"核对 CPU-only 实验设计，并写出具体证据；不要启动 GPU 或修改冻结结果"})
 subagent({"action":"status","name":"sub-air-cpu-review"})
+
+## Local Sub 进度必须同步 Tips
+
+**请求本地 Agent 时，必须让用户能在 `/tips` 追踪进度**：Sub 的 ID `sub-*` 就是对应的 Tips 任务卡 ID。Web Main 与 Local Main 无论通过 `subagent(start)` 还是发给 `sub-*` 的消息指令，都应明确关联此 ID。新任务被接受时自动创建 `pending` 卡；Manager 继续写入运行、心跳、停止、失败和完成状态；Local Sub 需要在实际阶段变化时写入证据、下一步和阻塞原因。
+
+```text
+node tips/tips-cli.mjs update sub-air-cpu-review --status running --kind progress --message "已核对数据划分与随机种子，正在对齐 baseline"
+node tips/tips-cli.mjs update sub-air-cpu-review --status blocked --kind progress --message "缺少完整原始日志，等待文件补齐"
+```
+
+有真实完成数/总数时可以附 `--current N --total M`，否则不要编造百分比。任务卡不是实验成功证明，验证结论仍需实验日志和原始证据。
 ```
 
 `start` 返回 `accepted:true`、`queued` 只表示**已入队**。等待管理器执行后，再看 `status` 中的 `completed` 和 `lastResult`。已有 `queued/running` Agent 不应重复 `start`；可以通过留言追加要求：

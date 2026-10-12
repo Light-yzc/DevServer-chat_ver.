@@ -9,7 +9,6 @@
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "security:unify": "node scripts/unify-security.mjs",
-    "admin:key": "node scripts/set-admin-key.mjs",
     "web-wake:key": "node scripts/set-web-wake-token.mjs",
     "skills:install": "node scripts/install-skills.mjs",
     "start": "node scripts/start-stack.mjs",

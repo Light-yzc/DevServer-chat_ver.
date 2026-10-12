@@ -38,12 +38,12 @@ export function registerTipsTool(server,config,z){
     },annotations:{readOnlyHint:true},
   },textResult(args=>skills.run(args)));
   server.registerTool('tips_admin',{
-    title:'Tips administrator — revoke, remove, archive, stop (private key required)',
+    title:'Tips management — revoke, remove, archive, stop (view token required)',
     description:TIP_TOOL_DESCRIPTIONS.tips_admin,
     inputSchema:{
       action:z.enum(['history','revoke_web','remove_web','stop_sub','remove_sub','archive_task','delete_task','delete_message']).describe('history reads administrator audit; revoke/remove_web affects Web roles; stop/remove_sub affects managed Local Sub; task/message actions manage Tips records.'),
       id:z.string().optional().describe('Exact web-*, sub-*, task ID or message UUID to operate on; required except history.'),
-      adminKey:z.string().describe('PRIVATE plaintext admin key required on every call. Do not save in project files or Tips messages.'),
+      viewToken:z.string().describe('PRIVATE Tips dashboard view token, required on every MCP management call; the same token is used to unlock /tips.'),
       reason:z.string().max(400).optional().describe('Short administrator reason, written to audit (never a secret).'),
     },annotations:{readOnlyHint:false,destructiveHint:true},
   },textResult(args=>admin.run(args)));
@@ -164,7 +164,8 @@ export function mountTipsRoutes(app,config,express){
   });
   app.post('/tips/admin/api',express.json({limit:'256kb'}),(req,res)=>{
     if(!auth(req,res))return;
-    guard(()=>{const outcome=admin.run(req.body);overviewCache=null;return outcome},req,res);
+    // A valid dashboard view token is sufficient; no second admin key.
+    guard(()=>{const outcome=admin.run({...req.body,viewToken:tips.credentials.viewToken});overviewCache=null;return outcome},req,res);
   });
   app.get('/tips/api',(req,res)=>{
     if(!auth(req,res))return;

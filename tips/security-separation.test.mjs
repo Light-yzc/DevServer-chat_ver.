@@ -14,13 +14,12 @@ test('DevSpace native OAuth is independent of private Tips/Web-admin config',()=
     writeFileSync(join(dir,'config.json'),JSON.stringify({port:17677,allowedRoots:[dir]}));
     writeFileSync(join(dir,'security.json'),JSON.stringify({
       version:1,tips:{viewToken:'v'.repeat(48),writeToken:'w'.repeat(64),dispatchToken:'d'.repeat(64)},
-      webAdminKey:'a'.repeat(64),
       // Legacy field must not override native OAuth, even before migration.
       oauthOwnerToken:'old-redundant-wrong-token',
     }));
     const config=loadConfig({...process.env,DEVSPACE_CONFIG_DIR:dir,DEVSPACE_STATE_DIR:join(dir,'state')});
     assert.equal(config.oauth.ownerToken,ownerToken);
-    assert.equal(config.security.webAdminKey,'a'.repeat(64));
+    assert.equal(config.security.tips.viewToken,'v'.repeat(48));
     assert.equal(loadSecurityConfig(dir).tips.dispatchToken,'d'.repeat(64));
     const newDoc=JSON.parse(readFileSync(join(dir,'security.json'),'utf8'));
     delete newDoc.oauthOwnerToken;
@@ -33,7 +32,7 @@ test('user-owned plaintext security keys accept arbitrary nonempty values withou
   const dir=mkdtempSync(join(tmpdir(),'devspace-user-security-'));
   try{
     const doc={version:1,tips:{viewToken:'v',writeToken:'w',dispatchToken:'d'},
-      webAdminKey:'admin',webWakeToken:'short key with spaces ✦'};
+      webWakeToken:'short key with spaces ✦'};
     writeFileSync(join(dir,'security.json'),JSON.stringify(doc));
     assert.deepEqual(loadSecurityConfig(dir),doc);
     const same={...doc,webWakeToken:'x'};

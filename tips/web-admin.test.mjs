@@ -6,11 +6,12 @@ import {join} from 'node:path';
 import {z} from 'zod/v4';
 import {createWebIdentityStore} from '../vendor/devspace/dist/web-identity-store.js';
 import {registerWebIdentityTools} from '../vendor/devspace/dist/web-identity-tool.js';
+import {createTipsV2} from '../vendor/devspace/dist/tips-core.js';
 
-const key='private-admin-key-for-tests-only-123456789';
 function fixture(){
   const dir=mkdtempSync(join(tmpdir(),'tips-admin-test-'));
-  const config={stateDir:dir,security:{webAdminKey:key}};
+  const config={stateDir:dir};
+  const key=createTipsV2(config).credentials.viewToken;
   const store=createWebIdentityStore(config);
   const slot=store.prepare({id:'web-abandoned-01',label:'Abandoned chat'});
   const claim=store.claim({id:slot.identity.id,invite:slot.invite,scope:'old-chat'});
@@ -22,14 +23,14 @@ function fixture(){
     let data;try{data=JSON.parse(text)}catch{data=text}
     return {error:Boolean(r.isError),data};
   };
-  return {store,dir,claim,call,cleanup:()=>rmSync(dir,{recursive:true,force:true})};
+  return {store,dir,claim,key,call,cleanup:()=>rmSync(dir,{recursive:true,force:true})};
 }
-test('one direct revoke with provided admin key cancels another Web chat identity',async()=>{
+test('one direct revoke with Tips view token cancels another Web chat identity',async()=>{
   const x=fixture();try{
     assert.equal((await x.call({action:'revoke',id:'web-abandoned-01'})).error,true);
-    assert.equal((await x.call({action:'revoke',id:'web-abandoned-01',adminKey:'not-the-key'})).error,true);
+    assert.equal((await x.call({action:'revoke',id:'web-abandoned-01',viewToken:'not-the-key'})).error,true);
     assert.equal(x.store.whoami({scope:'old-chat'}).recognized,true);
-    const revoked=await x.call({action:'revoke',id:'web-abandoned-01',adminKey:key,reason:'No longer used'});
+    const revoked=await x.call({action:'revoke',id:'web-abandoned-01',viewToken:x.key,reason:'No longer used'});
     assert.equal(revoked.error,false);
     assert.equal(revoked.data.revoked,true);
     assert.equal(revoked.data.identity.status,'revoked');
@@ -42,29 +43,29 @@ test('one direct revoke with provided admin key cancels another Web chat identit
     const audit=JSON.parse(readFileSync(join(x.dir,'tips/web-identities.json'),'utf8')).adminEvents;
     assert.equal(audit[0].target,'web-abandoned-01');
     assert.equal(audit[0].reason,'No longer used');
-    assert.ok(!JSON.stringify(audit).includes(key));
+    assert.ok(!JSON.stringify(audit).includes(x.key));
   }finally{x.cleanup()}
 });
-test('revoke is permitted without claiming a Web role but requires key every time',async()=>{
+test('revoke is permitted without claiming a Web role but requires view token every time',async()=>{
   const x=fixture();try{
-    const result=await x.call({action:'revoke',id:'web-abandoned-01',adminKey:key});
+    const result=await x.call({action:'revoke',id:'web-abandoned-01',viewToken:x.key});
     assert.equal(result.error,false);
     const result2=await x.call({action:'revoke',id:'web-abandoned-01'});
     assert.equal(result2.error,true);
   }finally{x.cleanup()}
 });
-test('short explicit administrator key is accepted, empty and wrong keys are rejected',async()=>{
+test('short Tips view token is accepted, empty and wrong keys rejected',async()=>{
   const dir=mkdtempSync(join(tmpdir(),'tips-short-admin-test-'));
   try{
     const shortKey='unit-short-key';
-    const config={stateDir:dir,security:{webAdminKey:shortKey}};
+    const config={stateDir:dir,security:{tips:{viewToken:shortKey,writeToken:'test-write',dispatchToken:'test-dispatch'}}};
     const store=createWebIdentityStore(config);
     const slot=store.prepare({id:'web-old-short',label:'Old role'});
     store.claim({id:slot.identity.id,invite:slot.invite,scope:'discarded-chat'});
     const tools={};
     registerWebIdentityTools({registerTool:(id,schema,handler)=>tools[id]=handler},config,z);
     const call=async key=>tools.web_identity(
-      {action:'revoke',id:'web-old-short',adminKey:key},{_meta:{}});
+      {action:'revoke',id:'web-old-short',viewToken:key},{_meta:{}});
     assert.equal((await call('')).isError,true);
     assert.equal((await call('incorrect')).isError,true);
     assert.equal(store.whoami({scope:'discarded-chat'}).recognized,true);

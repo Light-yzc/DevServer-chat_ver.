@@ -1,6 +1,5 @@
-/** Restricted destructive operations shared by MCP and the Tips dashboard.
- * Each request requires the private plaintext administrator key. There is no
- * administrator session/cookie or stored browser grant. */
+/** Tips-view-token-authorized administration for MCP and dashboard.
+ * The same view token provides read AND management access. */
 import {timingSafeEqual,randomUUID} from 'node:crypto';
 import {existsSync,mkdirSync,readFileSync,writeFileSync,renameSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
@@ -34,7 +33,7 @@ export function createTipsAdmin(config,tips){
   function run(input={}){
     if(!input||typeof input!=='object'||Array.isArray(input)||!allowed.has(input.action))
       throw Error('Unknown admin action');
-    if(!equal(input.adminKey,config.security?.webAdminKey))throw Error('Invalid administrator key');
+    if(!equal(input.viewToken,tips.credentials.viewToken))throw Error('Invalid Tips view token');
     if(input.action==='history')return {events:existsSync(auditPath)?JSON.parse(readFileSync(auditPath,'utf8')).slice(0,100):[]};
     const id=input.id;
     if(typeof id!=='string'||id.length<1||id.length>100)throw Error('Target ID required');
@@ -43,8 +42,8 @@ export function createTipsAdmin(config,tips){
     const reason=input.reason??'';
     let result;
     switch(input.action){
-      case 'revoke_web':result=web.revoke(id,input.adminKey,config.security.webAdminKey,reason);break;
-      case 'remove_web':result=web.remove(id,input.adminKey,config.security.webAdminKey,reason);break;
+      case 'revoke_web':result=web.revoke(id,input.viewToken,tips.credentials.viewToken,reason);break;
+      case 'remove_web':result=web.remove(id,input.viewToken,tips.credentials.viewToken,reason);break;
       case 'stop_sub':result=registry.stop(id);break;
       case 'remove_sub':result=registry.remove(id);break;
       case 'archive_task':{

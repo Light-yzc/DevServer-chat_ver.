@@ -26,7 +26,7 @@ test('all 8 advertised coordination tools have directly usable action-level desc
   const x=register();try{
     const expected={
       tips_skills:['list','read','main-batch-triage','agent-coordination','research-safety'],
-      tips_admin:['remove_web','revoke_web','remove_sub','stop_sub','delete_task','delete_message','adminKey'],
+      tips_admin:['remove_web','revoke_web','remove_sub','stop_sub','delete_task','delete_message','viewToken'],
       tips:['list','update','heartbeat','history','blocked'],
       tips_messages:['post','reply','ACK','resolve','wake','controller'],
       tips_exchange:['submit','get','list','accepted','needs_changes'],
@@ -50,7 +50,7 @@ test('all 8 advertised coordination tools have directly usable action-level desc
 test('message sender identities, expiry and completion semantics are unambiguous',()=>{
   const x=register();try{
     assert.match(x.tools.web_identity.description,/NO manual approval/);
-    assert.match(x.tools.web_identity.description,/does NOT automatically renew/);
+    assert.match(x.tools.web_identity.description,/Lease expiration is NOT deletion/);
     assert.match(x.tools.web_mail.description,/no from parameter/);
     assert.match(x.tools.web_mail.description,/no automatic wake/);
     assert.match(x.tools.tips_messages.description,/ordinary post|ordinary mail/i);

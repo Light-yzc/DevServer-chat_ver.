@@ -168,10 +168,10 @@
      <p>此面板为私有内容。输入查看密钥，或打开包含 #密钥 的私人链接。</p>
      <div class="row" style="justify-content:flex-start"><input id="key" type="password" placeholder="查看密钥" autocomplete="off"><button id="connect">解锁看板</button></div>
    </div>
-   <details id="admin-panel" class="admin-panel">
+   <details id="admin-panel" class="admin-panel" hidden>
      <summary>管理员操作 · 清理 Agent / 任务 / 消息</summary>
-     <div class="admin-row"><input type="password" id="admin-key" autocomplete="off" placeholder="私有 Web 管理员密钥（不保存）"><button type="button" id="admin-unlock">验证管理密钥</button><button type="button" id="admin-lock" hidden>退出管理</button><button type="button" id="admin-audit" hidden>审计记录</button></div>
-     <p id="admin-feedback" class="admin-note">仅持有管理密钥时才能操作。Main / tmux 属于进程监测，不支持删注册；Sub 必须停止并退出后才能移除。所有操作均需确认。</p>
+     <div class="admin-row"><button type="button" id="admin-audit">审计记录</button></div>
+     <p id="admin-feedback" class="admin-note">已通过 Tips 查看密钥授权管理操作，无需二次验证。Main / tmux 属于进程监测，不支持删注册；Sub 必须停止并退出后才能移除。所有删除仍需输入完整目标 ID 确认。</p>
      <div id="admin-audit-list" class="admin-note" hidden></div>
    </details>
    <div id="tasks-tab">
@@ -221,33 +221,32 @@
  'use strict';
  const $=id=>document.getElementById(id);
  const statusText={pending:'等待中',running:'运行中',completed:'已完成',failed:'失败',blocked:'阻塞',cancelled:'已取消',paused:'已暂停'};
- let filter='all',mailFilter='all',tab=location.pathname.startsWith('/tips/agents')?'agents':'tasks',data={tasks:[],events:[]},mailbox=[],agentData=null,historyCache={},adminKey='';
+ let filter='all',mailFilter='all',tab=location.pathname.startsWith('/tips/agents')?'agents':'tasks',data={tasks:[],events:[]},mailbox=[],agentData=null,historyCache={},canManage=false;
  let showRetired=false;
  async function adminRequest(action,id='',reason=''){
    const token=decodeURIComponent(location.hash.slice(1));
    if(!token)throw Error('请先解锁查看面板');
    const response=await fetch('/tips/admin/api',{method:'POST',cache:'no-store',
      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-     body:JSON.stringify({action,id,reason,adminKey})});
+     body:JSON.stringify({action,id,reason})});
    const body=await response.json();
    if(!response.ok)throw Error(body.error||'HTTP '+response.status);
    return body;
  }
  function refreshAdminViews(){
-   $('admin-unlock').hidden=!!adminKey;$('admin-lock').hidden=!adminKey;$('admin-audit').hidden=!adminKey;
-   $('admin-key').hidden=!!adminKey;
+   $('admin-panel').hidden=!canManage;
    for(const item of document.querySelectorAll('article.task'))item.dataset.signature='';
    $('inbox').dataset.signature='';render();renderAgents();renderInbox();
  }
  function adminButtons(card,actions,id){
-   if(!adminKey||!actions.length)return;
+   if(!canManage||!actions.length)return;
    const bar=node('div',null,'admin-actions');
    for(const [action,label,enabled=true] of actions){
      const b=node('button',label,action.startsWith('remove')||action.startsWith('delete')?'danger':'');
      b.type='button';b.disabled=!enabled;
      b.title=enabled?'管理员操作，需二次确认':'需要先停止运行任务或等待结束';
      b.addEventListener('click',async()=>{
-       if(!adminKey)return;
+       if(!canManage)return;
        const literal=window.prompt(`执行 ${label} 将操作 ${id}。输入完整 ID 确认：`);
        if(literal!==id)return;
        b.disabled=true;
@@ -368,7 +367,7 @@
          add(head,node('h2',g),node('small',`${summary?.completed??0} / ${summary?.total??0} 完成 · ${summary?.running??0} 运行中`));}
        cards.push(head);lastGroup=g;
      }
-     const signature=JSON.stringify(t)+'|history:'+JSON.stringify(historyCache[t.id]??null)+'|admin:'+Boolean(adminKey),old=existing.get(t.id);
+     const signature=JSON.stringify(t)+'|history:'+JSON.stringify(historyCache[t.id]??null)+'|admin:'+canManage,old=existing.get(t.id);
      cards.push(old?.dataset.signature===signature?old:renderTask(t,signature));
    }
    if(!cards.length)cards.push(node('div','没有符合条件的任务','empty'));
@@ -572,14 +571,6 @@
  $('agent-search').addEventListener('input',renderAgents);
  $('agent-type').addEventListener('change',renderAgents);
  $('show-retired').addEventListener('change',e=>{showRetired=e.target.checked;renderAgents()});
- $('admin-unlock').addEventListener('click',async()=>{
-   const value=$('admin-key').value;
-   if(!value){$('admin-feedback').textContent='请输入管理员密钥';return}
-   adminKey=value;
-   try{await adminRequest('history');$('admin-key').value='';$('admin-feedback').textContent='管理员模式已开启（仅保存在本页面内存中，关闭或刷新即退出）';refreshAdminViews()}
-   catch(e){adminKey='';$('admin-feedback').textContent='密钥验证失败：'+e.message}
- });
- $('admin-lock').addEventListener('click',()=>{adminKey='';$('admin-feedback').textContent='已退出管理员模式';$('admin-audit-list').hidden=true;refreshAdminViews()});
  $('admin-audit').addEventListener('click',async()=>{
    try{const r=await adminRequest('history');const panel=$('admin-audit-list');panel.replaceChildren();
      for(const e of (r.events??[]).slice(0,15))panel.append(node('div',`${time(e.at)} · ${e.action} · ${e.id} · ${e.reason||''}`));
@@ -600,7 +591,7 @@
  $('key').addEventListener('keydown',e=>{if(e.key==='Enter')$('connect').click()});
  async function refresh(){
    const token=decodeURIComponent(location.hash.slice(1));
-   if(!token){$('auth').hidden=false;$('connection').textContent='需要查看密钥';$('dot').classList.remove('ok');return}
+   if(!token){canManage=false;refreshAdminViews();$('auth').hidden=false;$('connection').textContent='需要查看密钥';$('dot').classList.remove('ok');return}
    try{
      const [r,mailResult,agentsResult]=await Promise.all([
        fetch('/tips/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}),
@@ -613,8 +604,9 @@
      if(agentsResult.ok)agentData=await agentsResult.json();
      else $('agent-note').textContent='Agent 目录暂时不可用（HTTP '+agentsResult.status+'），其它面板不受影响';
      $('auth').hidden=true;$('dot').classList.add('ok');$('connection').textContent='已连接 · '+new Date().toLocaleTimeString('zh-CN',{hour12:false});
+     if(!canManage){canManage=true;refreshAdminViews()}
      $('last-update').textContent='最近任务变更 · '+time(data.updatedAt);updateGroups();updateMailSelectors();render();renderAgents();renderInbox();
-   }catch(e){$('error').textContent='读取失败：'+e.message;$('dot').classList.remove('ok');$('connection').textContent='连接异常';if(e.message.includes('401'))$('auth').hidden=false}
+   }catch(e){if(e.message.includes('401')){canManage=false;refreshAdminViews();$('auth').hidden=false}$('error').textContent='读取失败：'+e.message;$('dot').classList.remove('ok');$('connection').textContent='连接异常'}
  }
  if(new URLSearchParams(location.search).get('tab')==='mailbox')tab='mailbox';
  activateTab(tab,false);

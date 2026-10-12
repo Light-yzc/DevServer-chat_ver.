@@ -240,13 +240,30 @@ export function createTipsV2(config){
       }
       const tracked=input.tracked===true;
       if(tracked&&!context.trustedWake)fail('Tracked exchanges require trusted submission');
-      const m={id:randomUUID(),at:now(),from,to,subject,body,priority,taskId:input.taskId??null,
+      const subTarget=/^sub-[a-z0-9_.-]{1,60}$/i.test(to);
+      const taskId=input.taskId??(action==='post'&&subTarget?to:null);
+      const m={id:randomUUID(),at:now(),from,to,subject,body,priority,taskId,
           status:'unread',threadId,replyTo,wakeAuthorized:requested&&Boolean(context.trustedWake),attempts:0,
           trustedSender:context.trustedWake===true,tracked,
           ...(autoBlock?{autoBlock}:{})};
         logMessage(m,action==='reply'?'reply_sent':'submitted',from);
         if(replyTo){const parent=s.messages.find(p=>p.id===replyTo);if(parent)logMessage(parent,'reply_received',from,m.id);}
         s.messages.push(m);s.messages=s.messages.slice(-1200);
+        if(action==='post'&&subTarget){
+          // Web->Local Sub and Main->Local Sub requests always appear in the
+          // task board, even if the subagent worker has not been scheduled.
+          // Do not lie about running/progress merely because a message exists.
+          if(!s.tasks[to]){
+            const task={id:to,title:`Subagent · ${to}`,kind:'progress',group:'Subagents',
+              status:'pending',progress:0,createdAt:m.at,updatedAt:m.at,
+              message:`收到任务请求 · ${subject}`,details:`发起方 ${from} · 消息 ${m.id}`};
+            s.tasks[to]=task;
+            (s.history[to]??=[]).push({at:m.at,status:'pending',progress:0,message:task.message});
+          }else{
+            const task=s.tasks[to];
+            task.logs=[...(task.logs??[]),{at:m.at,text:`新请求 ${m.id} · ${from} · ${subject}`}].slice(-40);
+          }
+        }
         return m;
       });
     }

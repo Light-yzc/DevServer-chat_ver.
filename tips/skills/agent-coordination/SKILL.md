@@ -19,6 +19,7 @@ Main/Sub 是职责而非管理员权限；`controller` 是旧 Web 邮箱，不�
 - `web_mail`：已认领 Web Chat 发/收消息；`tips_messages`：Local 普通消息；`tips_exchange`：旧 Web 控制端向 Local Sub 的可验收事务。
 - `tracked:true` 表示 ACK + verify，**不是** Sol 唤醒。`to=server-controller,wake:true` 且获授权才启动 Local Main。
 - Local Main 可用 `node tips/subagent-cli.mjs list/status/start/message/stop`。尽量委派 Luna，并在真实下发给 Sub 的指令中记录原始消息 ID、Owner、目标、证据和禁止操作。
+- 委派 `sub-*` 时必须让 Tips 任务板显示进度：`subagent(start)` 立即创建同名任务卡；消息任务也自动关联同名卡。Local Sub 在真实阶段或阻塞时用 `tips-cli update <sub-id>` 填写阶段与验证证据。用户应能只看 `/tips` 而无需 SSH；无可量化总量时不要猜百分比。
 - `delivered` 不表示接收方读过；所有完成声明需要有回执和实际证据。
 
 ## 委派前检查

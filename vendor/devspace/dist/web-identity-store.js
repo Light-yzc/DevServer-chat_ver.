@@ -117,12 +117,12 @@ export function createWebIdentityStore(config,options={}){
   }
   // Simple one-operation admin: possession of the private plaintext key is
   // required for EACH revoke. No login, session grant, or approval flow.
-  function revoke(id,adminKey,expectedKey,reason=''){
+  function revoke(id,viewToken,expectedViewToken,reason=''){
     if(!validId(id))fail('Target must be a valid web-* identity');
     if(typeof reason!=='string'||reason.length>400)fail('Invalid reason');
-    if(typeof expectedKey!=='string'||expectedKey.length===0||
-      typeof adminKey!=='string'||adminKey.length===0||!safeEqual(adminKey,expectedKey))
-      fail('Invalid administrator credential');
+    if(typeof expectedViewToken!=='string'||expectedViewToken.length===0||
+      typeof viewToken!=='string'||viewToken.length===0||!safeEqual(viewToken,expectedViewToken))
+      fail('Invalid Tips view token');
     return edit(state=>{
       const target=state.roles[id];
       if(!target)fail('Unknown Web identity');
@@ -130,22 +130,22 @@ export function createWebIdentityStore(config,options={}){
       target.status='revoked';target.scopeHash=null;target.claimKeyHash=null;
       target.inviteHash=null;target.inviteExpiresAt=null;target.leaseExpiresAt=null;
       target.lastSeenAt=stamp(time());
-      (state.adminEvents??=[]).unshift({at:stamp(time()),action:'admin_revoke',actor:'admin-key',target:id,reason});
+      (state.adminEvents??=[]).unshift({at:stamp(time()),action:'admin_revoke',actor:'tips-view-token',target:id,reason});
       state.adminEvents=state.adminEvents.slice(0,200);
       return {revoked:true,identity:expose(target),note:'Identity revoked; message history preserved'};
     });
   }
-  function remove(id,adminKey,expectedKey,reason=''){
+  function remove(id,viewToken,expectedViewToken,reason=''){
     if(!validId(id))fail('Target must be a valid web-* identity');
     if(typeof reason!=='string'||reason.length>400)fail('Invalid reason');
-    if(typeof expectedKey!=='string'||!expectedKey.length||typeof adminKey!=='string'||
-      !adminKey.length||!safeEqual(adminKey,expectedKey))
-      fail('Invalid administrator credential');
+    if(typeof expectedViewToken!=='string'||!expectedViewToken.length||typeof viewToken!=='string'||
+      !viewToken.length||!safeEqual(viewToken,expectedViewToken))
+      fail('Invalid Tips view token');
     return edit(state=>{
       const role=state.roles[id];
       if(!role)fail('Unknown Web identity');
       delete state.roles[id];
-      (state.adminEvents??=[]).unshift({at:stamp(time()),action:'admin_remove',actor:'admin-key',target:id,reason});
+      (state.adminEvents??=[]).unshift({at:stamp(time()),action:'admin_remove',actor:'tips-view-token',target:id,reason});
       state.adminEvents=state.adminEvents.slice(0,200);
       return {removed:true,id,note:'Web role registration removed; Tips message history preserved'};
     });

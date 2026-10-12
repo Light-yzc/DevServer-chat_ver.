@@ -4,7 +4,7 @@ import { mkdtempSync,rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
-import { tipsProtocol,needsDelivery,shouldInjectProtocol,MAIL_REDELIVERY_DELAY_MS,MAX_MAIL_DELIVERIES } from './subagent-protocol.mjs';
+import { tipsProtocol,needsDelivery,shouldInjectProtocol,localMainWakeRequested,MAIL_REDELIVERY_DELAY_MS,MAX_MAIL_DELIVERIES } from './subagent-protocol.mjs';
 
 test('each new thread receives the explicit ACK/RESOLVE/Tips protocol once',()=>{
   const protocol=tipsProtocol('sub-example');
@@ -47,4 +47,16 @@ test('plain HTTP token or completed message never invokes a managed subagent',()
   assert.equal(needsDelivery({status:'resolved',trustedSender:true},now),false);
   assert.equal(needsDelivery({status:'acknowledged',trustedSender:true},now),false);
   assert.equal(needsDelivery({status:'delivered',trustedSender:true,deliveryCount:1,lastDeliveredAt:'invalid'},now),false);
+});
+test('Local Sub only requests Sol wake for explicit high urgency aimed at server-controller',()=>{
+  const urgency={to:'server-controller',priority:'high',wake:true};
+  assert.equal(localMainWakeRequested(urgency),true);
+  for(const candidate of [
+    {...urgency,wake:false},{...urgency,priority:'normal'},
+    {...urgency,priority:'low'},{...urgency,to:'controller'},
+    {...urgency,to:'sub-other'},
+    {to:'server-controller',priority:'high'},
+  ])assert.equal(localMainWakeRequested(candidate),false);
+  const protocol=tipsProtocol('sub-test');
+  assert.match(protocol,/priority:"high",wake:true/);
 });

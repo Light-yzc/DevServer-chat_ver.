@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Private Tips/Web-admin config. OAuth remains native to DevSpace in auth.json.
+/** Private Tips + Web Wake config. OAuth remains native to DevSpace in auth.json.
  * This script never prints credentials. */
 import {existsSync,mkdirSync,readFileSync,writeFileSync,chmodSync,renameSync,rmSync} from 'node:fs';
 import {join,resolve} from 'node:path';
@@ -21,6 +21,10 @@ if(existsSync(path)){
     delete previous.oauthOwnerToken;
     changed=true;
   }
+  if(Object.hasOwn(previous,'webAdminKey')){
+    delete previous.webAdminKey;
+    changed=true;
+  }
   if(!Object.hasOwn(previous,'webWakeToken')){
     // Legacy hash-only relay credentials cannot be decoded. Generate a new
     // plaintext key in the unified config; browsers must pair once with it.
@@ -36,7 +40,7 @@ if(existsSync(path)){
     console.log('Unified private security.json updated; OAuth untouched. If Web Wake was paired with the legacy hash-only token, re-pair browser extension with the configured webWakeToken.');
   }
   chmodSync(path,0o600);
-  console.log('Existing Tips/Web-admin/Web-Wake security.json retained (0600).');
+  console.log('Existing Tips/Web-Wake security.json retained (0600); Tips view key also authorizes management.');
   process.exit(0);
 }
 const oldTips=join(STATE_DIR,'tips','credentials.json');
@@ -46,9 +50,9 @@ const random=n=>randomBytes(n).toString('hex');
 const secret={version:1,tips:{
   viewToken:tips.viewToken??random(24),writeToken:tips.writeToken??random(32),
   dispatchToken:tips.dispatchToken??random(32)},
-  webAdminKey:random(32),webWakeToken:randomBytes(32).toString('base64url')};
+  webWakeToken:randomBytes(32).toString('base64url')};
 // x prevents silent overwrite under concurrent setup runs.
 writeFileSync(path,JSON.stringify(secret,null,2)+'\n',{flag:'wx',mode:0o600});
 chmodSync(path,0o600);
-console.log('Created private Tips/Web-admin/Web-Wake security.json (0600). Native DevSpace OAuth is unchanged.');
-console.log('No secrets printed. Configure your own admin key using npm run admin:key (stdin).');
+console.log('Created private Tips/Web-Wake security.json (0600). Native DevSpace OAuth is unchanged.');
+console.log('No secrets printed. Tips view token is also the management credential.');

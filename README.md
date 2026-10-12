@@ -67,29 +67,29 @@ npm start
 
 **DevSpace OAuth 无需重复配置：** 原生 OAuth 登录/授权页面及其 `auth.json` 完全由 DevSpace 管理，用户通过页面完成验证即可，不需要向 `security.json` 填写 OAuth Token。
 
-**Tips / Web 管理员配置（明文，私有文件）：** `var/config/security.json` 只集中保存 Tips 的 view/write/dispatch Token 和 `webAdminKey`。初始化运行 `npm run setup` 会自动运行 `security:unify`：原样保留已有 Tips Token，为 Web 管理员生成一个随机密钥；默认权限为 `0600`。仓库只提交 [`security.example.json`](security.example.json)，真实 `security.json` 被 `.gitignore` 排除。OAuth 与 Tips/管理员是不同权限层，不应重复存储 OAuth 凭证。修改真实文件需要在服务器操作，切勿复制到 GitHub。
+**Tips 配置（明文，私有文件）：** `var/config/security.json` 保存 Tips 的 `viewToken`、`writeToken`、`dispatchToken` 和 Web Wake 密钥。**`viewToken` 同时授予 Tips 查看与管理员操作权限，不再设置第二把 `webAdminKey`。** `npm run setup`/`security:unify` 会沿用原有 Tips Token，并从旧配置移除冗余管理员密钥。私有文件权限为 `0600`、被 Git 忽略；只提交 [`security.example.json`](security.example.json)。OAuth 仍由 DevSpace 原生流程管理。
 
 **Web Wake 配对密钥也统一在这里：** `security.json.webWakeToken` 保存明文（由你自行设定，非空即可）；旧 `tips/web-wake-token.json` 仅是 SHA-256 哈希，无法反推出原值。迁移脚本遇到旧配置会生成一次新的随机 `webWakeToken`，需重新配对浏览器扩展；此后修改 `security.json` 或 `npm run web-wake:key` 即可。**DevSpace OAuth 仍不在此文件**。见 [`web-wake/README.md`](web-wake/README.md)。
 
 **按需 Skills（Web MCP + Local Codex）：** `tips/skills/` 提供 Agent 协作、紧急 Sol 批量收信、AIR 科研门禁及 Tips 故障排查四类精简 Skill。Web MCP 调用 `tips_skills(list|read)`，无需整篇文档塞 Prompt；Local Codex 运行 `node scripts/install-skills.mjs` 将同一 Skill 链接到 `$CODEX_HOME/skills/`。安装脚本绝不覆盖已有 Skill 或系统内置内容。完整索引见 [`tips/skills/README.md`](tips/skills/README.md)。
 
-要使用自选管理员明文密钥，可以在服务器运行 `read -rs ADMIN_KEY; printf '%s' "$ADMIN_KEY" | npm run admin:key; unset ADMIN_KEY` （密钥须非空，输入内容不显示）。之后重启**仅 DevSpace MCP**以重新加载配置。原 Tips CLI 和 Python 客户端仍可使用旧的私有凭证副本，服务器自动保持其与 `security.json` 一致。
+要修改统一 Tips 查看/管理密钥，请修改服务器私有 `security.json` 的 `tips.viewToken` 字段（可用任意非空值），并同步更新旧 CLI 的私有凭证副本；重新加载 DevSpace MCP 后旧查看链接会失效。**持有此密钥可以删除任务、消息和身份，请只在自己控制的设备上使用。**
 
 要修改 Web Wake 配对密钥，在服务器运行 `read -rs WAKE_KEY; printf '%s' "$WAKE_KEY" | npm run web-wake:key; unset WAKE_KEY`。浏览器插件选项里填写相同值，点击保存并连接。此密钥不再强制 32 位或固定字符规则；但短密钥更容易被猜中，应仅用于你完全控制的环境。
 
 管理员撤销废弃 Web 身份无需二次审批、无需先认领身份，直接调用：
 
 ```text
-web_identity({"action":"revoke","id":"web-old-reviewer","adminKey":"<私有管理员密钥>","reason":"会话废弃"})
+web_identity({"action":"revoke","id":"web-old-reviewer","viewToken":"<私有 Tips 查看密钥>","reason":"会话废弃"})
 ```
 
-每次撤销都必须提供密钥。撤销只解除 `web-*` 身份及其会话凭证，不删除该身份过去的 Tips 消息和研究历史。可以重新 `prepare` 同名角色再分配给新聊天。管理事件记录在私有 `web-identities.json` 中。不要将管理员密钥放在 Tips 消息正文、日志或公开截图中。
+每次 MCP 撤销都必须提供查看密钥。撤销只解除 `web-*` 身份及其会话凭证，不删除过去的 Tips 消息和研究历史。可重新 `prepare` 同名角色。管理事件记录在私有 `web-identities.json` 中。不要把查看密钥放进 Tips 消息或 Git。
 
 ### Tips 管理控制台（Agent 生命周期和清理）
 
-打开私有 `/tips/agents`，使用原有 Tips **查看密钥**查看看板。展开页首「管理员操作」，输入同一份私有 `security.json` 中的 `webAdminKey`，点击「验证管理密钥」。成功后，Web 卡片、Sub 卡片和任务/留言卡片出现相应管理按钮；删除时必须手动输入**完整目标 ID**确认。密钥只保存在该页面的内存中，不进入 URL、localStorage、日志或项目文件；刷新页面或点击「退出管理」清除权限。
+打开私有 `/tips/agents`，用原来的 Tips **查看密钥**解锁后，页面自动显示「管理员操作」和 Web/Sub/任务/消息管理按钮，无需第二次输入任何密钥。删除前仍必须手动输入完整目标 ID 确认。查看密钥作为私有链接 fragment 使用，不能公开分享。
 
-可以通过新增 MCP `tips_admin`（每次请求均需 `adminKey`）执行相同操作。**操作语义和保护边界请看 [`tips/TIPS_ADMIN.md`](tips/TIPS_ADMIN.md)**；`web_identity(action=revoke)` 仍能独立撤销旧 Web 身份。Tips API 管理写入需要 *同时* 拥有读取凭证和 `webAdminKey`；凭 OAuth 登录本身不能获得删除权限。操作记录保存在私有 `tips/admin-audit.json`，并且不包含提交的管理员密钥。
+MCP `tips_admin` 每次传 `viewToken` 即可执行相同操作；`web_identity(action=revoke)` 也用这个密钥。网页 `/tips/admin/api` 只校验已有查看 Bearer Token。详情见 [`tips/TIPS_ADMIN.md`](tips/TIPS_ADMIN.md)。操作审计仍保存在私有 `tips/admin-audit.json`，不包含密钥。
 
 请注意：Main (`server-controller`) 和旧 tmux 是实际服务/进程快照，不是可删除的注册槽。`sub-*` 要先停止并确认进入终止状态才能移除，移除仅清除注册表并归档旧 Codex Thread 的指针，不会删除实验、消息及日志。归档/删除运行中的任务、删除处理中消息会被拒绝。Tips 任务删除将同时删除对应 Tips 任务历史；消息只有明确执行 `delete_message` 才会从 Tips 状态中移除。
 
@@ -100,7 +100,7 @@ cp .env.example var/config/runtime.env
 
 自带 DevSpace OAuth，不要将端口直接公开到互联网；生产环境通过 Caddy/Nginx 反向代理提供 HTTPS，参考 `docs/Caddyfile.example`。ChatGPT 插件连接 `https://mcp.example.com/mcp`，进度面板为 `https://mcp.example.com/tips`。
 
-如需显示仅有读取权限的面板链接，在服务器运行 `node tips/tips-cli.mjs url`。链接含私有查看凭据，不要公开分享。
+如需生成 Tips 面板链接，在服务器运行 `node tips/tips-cli.mjs url`。**此链接现在同时具有读取和管理能力**，不要公开分享。
 
 ## systemd 持续运行
 

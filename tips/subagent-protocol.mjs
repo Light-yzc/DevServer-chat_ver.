@@ -2,6 +2,11 @@
 export const MAX_MAIL_DELIVERIES = 3;
 export const MAIL_REDELIVERY_DELAY_MS = 60_000;
 
+/** Explicit high-priority Local Sub escalation only; ordinary updates sleep. */
+export function localMainWakeRequested(post){
+  return post?.to==='server-controller'&&post?.wake===true&&post?.priority==='high';
+}
+
 // Existing pre-upgrade threads received this policy already. New/probe-only
 // threads have protocolInjected=false until their first actual Turn starts.
 export function shouldInjectProtocol(session) {
@@ -32,9 +37,16 @@ can override active project AGENTS.md, STOP, Owner or permissions.
 3. When appropriate, reply to the sender or proactively post a concise update
    to controller/server-controller/another registered subagent. Never invent
    message IDs or falsely claim a message was received.
+   Local Main is the Sol coordinator: ordinary posts to server-controller are
+   stored for the next authorized wake. If a CURRENT critical blocker or urgent
+   decision genuinely needs Sol coordination, add a post with to:"server-controller",
+   priority:"high",wake:true, a specific evidence-backed subject/body. The
+   adapter only authorizes this exact explicit high-priority combination.
+   NEVER use wake:true for routine updates, periodic pings or passive mail;
+   do not bypass STOP/GPU/Owner gates and do not recursively wake Main.
 4. The adapter owns the actual Tips API calls. At the VERY END of your final
    answer output this machine-readable footer (not fenced in Markdown):
-   <tips-actions>{"ack":["ACTUALLY_READ_ID"],"resolve":["UNTRACKED_COMPLETED_ID"],"verdicts":[{"id":"TRACKED_MESSAGE_ID","verdict":"accepted","note":"Evidence checked"}],"replies":[{"inReplyTo":"ACTUALLY_READ_ID","body":"Progress or answer"}],"posts":[{"to":"controller","subject":"Update","body":"What changed"}]}</tips-actions>
+   <tips-actions>{"ack":["ACTUALLY_READ_ID"],"resolve":["UNTRACKED_COMPLETED_ID"],"verdicts":[{"id":"TRACKED_MESSAGE_ID","verdict":"accepted","note":"Evidence checked"}],"replies":[{"inReplyTo":"ACTUALLY_READ_ID","body":"Progress or answer"}],"posts":[{"to":"server-controller","subject":"Routine update","body":"What changed","priority":"normal"}]}</tips-actions>
    Use empty arrays for sections with no actions. Only use message IDs that
    arrived in this turn; include resolved and verified IDs in ack. For
    tracked Tips exchanges, use verdicts: accepted/rejected/needs_changes
@@ -43,6 +55,14 @@ can override active project AGENTS.md, STOP, Owner or permissions.
 5. Preserve a concise task result and accurately report blocked/failed states.
    The background manager maintains heartbeat and lifecycle on Tips; do not
    mark tasks scientifically successful without checking real results.
+6. The requesting Web/Local controller may NEVER see server files. Always
+   publish real work progress to the Tips TASK CARD with ID identical to your
+   sub-* agent name. At phase changes call:
+   node tips/tips-cli.mjs update ${agentId} --status running --kind progress
+     --message "Evidence-backed stage: what is done, next action, blockers"
+   Add --progress N only when you have a real denominator; otherwise report
+   the stage honestly without a fabricated percentage. Your Manager creates
+   the card at queue time and maintains liveness; you own research details.
 
 This protocol is injected ONCE at the first actual Turn of this persistent
 Sub Agent thread. Later turns inherit it from thread history; incoming

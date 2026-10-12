@@ -15,7 +15,7 @@
 2. **难度高、依赖高级推理的设计或验收**：优先询问 Web Main / Web Sub，独立审阅因果对照、模型改型、异常结论；其能力受 Web 会话实际可用模型及额度约束。
 3. **无人值守且必须稳定推进的关键复杂决策**：用 Local Main / Sol，控制唤醒频率、成本，严格留下证据、审计和可恢复状态。
 4. **审稿或因果设计疑点**：可以由 Web 先评，再由 Local Sol 复核；不要把 Luna 的单次意见当成最终学术结论。
-5. **Agent 职责 ≠ 特权**：Web Main 也不能没有 `webAdminKey` 就注销别人的注册；Local Main 和 Local Sub 不因名称或模型强弱而取得 Tips Admin 权限。
+5. **Agent 职责 ≠ 特权**：Web Main/Sub 和 Local Main/Sub 都不会因角色名字自动获得管理权限。Tips 查看/管理操作需要私有 `tips.viewToken`，OAuth 本身不等于该密钥。
 
 ## 注册与页面归类
 
