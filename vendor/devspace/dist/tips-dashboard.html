@@ -129,7 +129,7 @@
    <section id="mailbox-tab" class="board" hidden>
      <div class="section-title"><div><h2>Agent 消息通道</h2><p class="hint">Main / Sub 双向留言。送达不等于 ACK；只有接收 Agent 主动确认，才算已读取。</p></div><span id="mail-summary" class="pill">等待消息</span></div>
      <div class="toolbar">
-       <div class="filters" id="mail-filters"><button class="active" data-mail-filter="all">全部</button><button data-mail-filter="unread">未读</button><button data-mail-filter="ack">ACK</button><button data-mail-filter="resolved">已解决</button><button data-mail-filter="high">高优先级</button></div>
+       <div class="filters" id="mail-filters"><button class="active" data-mail-filter="all">全部</button><button data-mail-filter="tracked">通信事务</button><button data-mail-filter="unread">未读</button><button data-mail-filter="ack">ACK</button><button data-mail-filter="resolved">已解决</button><button data-mail-filter="high">高优先级</button></div>
        <select id="mail-from" aria-label="筛选发送 Agent"><option value="">全部发送方</option></select>
        <select id="mail-to" aria-label="筛选接收 Agent"><option value="">全部接收方</option></select>
      </div>
@@ -269,7 +269,7 @@
    $('mail-summary').textContent=`未读 ${data.mailbox?.unreadController??0} · 共 ${mailbox.length} 条`;
    const from=$('mail-from').value,to=$('mail-to').value;
    const visible=mailbox.filter(m=>(!from||m.from===from)&&(!to||m.to===to)&&(
-     mailFilter==='all'||(mailFilter==='unread'?['unread','delivered'].includes(m.status):
+     mailFilter==='all'||(mailFilter==='tracked'?m.tracked===true:mailFilter==='unread'?['unread','delivered'].includes(m.status):
        mailFilter==='ack'?m.status==='acknowledged':mailFilter==='resolved'?m.status==='resolved':m.priority==='high')));
    const box=$('inbox'),signature=JSON.stringify(visible);
    if(box.dataset.signature===signature)return;
@@ -286,6 +286,19 @@
      if(m.replyTo)card.append(node('div','回复消息 · '+m.replyTo,'minor'));
      if(m.ackBy)card.append(node('div','读取确认 · '+m.ackBy+' · '+time(m.ackAt),'minor'));
      if(m.note)card.append(node('div','处理说明 · '+m.note,'minor'));
+     if(m.tracked){
+       const verdict=m.verification?.verdict;
+       const label=verdict==='accepted'?'已验收':verdict==='rejected'?'验收未通过':verdict==='needs_changes'?'要求修改':'等待目标 Agent 验收';
+       card.append(node('div','通信事务 · '+label+' · ID '+m.id,'minor'));
+       if(m.verification)card.append(node('div','验收：'+m.verification.by+' · '+time(m.verification.at)+' · '+(m.verification.note||''),'minor'));
+     }
+     if(m.audit?.length){
+       const details=node('details',null,'history-box');
+       details.append(node('summary','通信回执 · '+m.audit.length+' 条'));
+       const log=node('ol');
+       for(const entry of m.audit.slice(-25))log.append(node('li',time(entry.at)+' · '+entry.event+' · '+entry.actor+(entry.note?' · '+entry.note:'')));
+       details.append(log);card.append(details);
+     }
      elems.push(card);
    }
    box.replaceChildren(...(elems.length?elems:[node('div','当前没有符合条件的留言','empty')]));

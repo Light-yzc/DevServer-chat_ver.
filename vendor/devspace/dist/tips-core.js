@@ -183,6 +183,10 @@ export function createTipsV2(config){
   function messages(input={},context={}){
     if(!input||typeof input!=='object'||Array.isArray(input))fail('Expected a message operation object');
     const {action='list'}=input;
+    const logMessage=(m,event,actor,note='')=>{
+      (m.audit??=[]).push({at:now(),event,actor,note:String(note??'').slice(0,500)});
+      m.audit=m.audit.slice(-150);
+    };
     if(action==='list'){
       let arr=read().messages;
       if(input.to)arr=arr.filter(m=>m.to===input.to);
@@ -218,15 +222,19 @@ export function createTipsV2(config){
         }
         autoBlock={taskId:a.taskId,updatedAt:a.updatedAt,hash:a.hash};
       }
+      const tracked=input.tracked===true;
+      if(tracked&&!context.trustedWake)fail('Tracked exchanges require trusted submission');
       const m={id:randomUUID(),at:now(),from,to,subject,body,priority,taskId:input.taskId??null,
           status:'unread',threadId,replyTo,wakeAuthorized:requested&&Boolean(context.trustedWake),attempts:0,
-          trustedSender:context.trustedWake===true,
+          trustedSender:context.trustedWake===true,tracked,
           ...(autoBlock?{autoBlock}:{})};
+        logMessage(m,action==='reply'?'reply_sent':'submitted',from);
+        if(replyTo){const parent=s.messages.find(p=>p.id===replyTo);if(parent)logMessage(parent,'reply_received',from,m.id);}
         s.messages.push(m);s.messages=s.messages.slice(-1200);
         return m;
       });
     }
-    if(['delivered','ack','resolve'].includes(action)){
+    if(['delivered','ack','resolve','verify'].includes(action)){
       return edit(s=>{
         const m=s.messages.find(m=>m.id===input.id);
         if(!m)fail('Message not found');
@@ -240,11 +248,27 @@ export function createTipsV2(config){
           m.lastDeliveredAt=now();
           m.deliveryCount=(m.deliveryCount??0)+1;
           if(deliveredTurn)m.deliveredTurnId=deliveredTurn;
+          logMessage(m,'delivered','dispatcher',deliveredTurn??'');
+        }else if(action==='verify'){
+          if(!m.tracked)fail('Verification only applies to tracked exchanges');
+          if(!context.trustedWake)fail('Verification requires a trusted recipient adapter');
+          const actor=string(input.agentId,'agentId',80);
+          if(actor!==m.to)fail('Only the recipient may verify this exchange');
+          if(m.ackBy!==actor)fail('Recipient must ACK before verifying');
+          const verdict=input.verdict;
+          if(!['accepted','rejected','needs_changes'].includes(verdict))fail('Invalid verification verdict');
+          if(m.verification)return m;
+          const note=string(input.note??'','note',1000);
+          m.verification={verdict,by:actor,at:now(),note};
+          if(verdict==='accepted'){m.status='resolved';m.handledAt=m.verification.at;}
+          logMessage(m,'verified_'+verdict,actor,note);
         }else{
           if(m.status==='resolved')return m;
+          if(action==='resolve'&&m.tracked)fail('Tracked exchanges require recipient verification, not plain resolve');
           m.status=action==='ack'?'acknowledged':'resolved';m.handledAt=now();
           if(action==='ack')m.ackAt=m.handledAt;
           if(input.agentId!==undefined)m.ackBy=string(input.agentId,'agentId',80);
+          logMessage(m,action==='ack'?'acknowledged':'resolved',input.agentId??'agent',input.note??'');
         }
         if(input.note!==undefined)m.note=string(input.note,'note',1000);
         return m;
@@ -267,6 +291,7 @@ export function createTipsV2(config){
           (!m.retryNotBefore||Date.now()>=Date.parse(m.retryNotBefore)));
         if(!msg)return null;
         msg.status='processing';msg.attempts++;msg.claimAt=now();
+        logMessage(msg,'claimed','server-controller',String(msg.attempts));
         return {...msg};
       });
     }
@@ -277,7 +302,7 @@ export function createTipsV2(config){
         if(!m||m.status!=='processing')fail('No matching in-process message');
         m.status=m.attempts>=3?'failed':'unread';
         m.retryNotBefore=m.attempts>=3?null:new Date(Date.now()+Math.min(30,m.attempts*5)*60000).toISOString();
-        m.note=string(input.note??'Retry scheduled','note',1000);return m;
+        m.note=string(input.note??'Retry scheduled','note',1000);logMessage(m,'released','server-controller',m.note);return m;
       });
     }
     fail('Invalid message action');

@@ -27,9 +27,11 @@ Codex App Server turn/steer. Check all delivered messages carefully.
    message IDs or falsely claim a message was received.
 4. The adapter owns the actual Tips API calls. At the VERY END of your final
    answer output this machine-readable footer (not fenced in Markdown):
-   <tips-actions>{"ack":["ACTUALLY_READ_ID"],"resolve":["ACTUALLY_COMPLETED_ID"],"replies":[{"inReplyTo":"ACTUALLY_READ_ID","body":"Progress or answer"}],"posts":[{"to":"controller","subject":"Update","body":"What changed"}]}</tips-actions>
+   <tips-actions>{"ack":["ACTUALLY_READ_ID"],"resolve":["UNTRACKED_COMPLETED_ID"],"verdicts":[{"id":"TRACKED_MESSAGE_ID","verdict":"accepted","note":"Evidence checked"}],"replies":[{"inReplyTo":"ACTUALLY_READ_ID","body":"Progress or answer"}],"posts":[{"to":"controller","subject":"Update","body":"What changed"}]}</tips-actions>
    Use empty arrays for sections with no actions. Only use message IDs that
-   arrived in this turn, and include resolved IDs in ack as well. The adapter
+   arrived in this turn; include resolved and verified IDs in ack. For
+   tracked Tips exchanges, use verdicts: accepted/rejected/needs_changes
+   after personally checking results, not plain resolve. The adapter
    validates receipts and records them against your stable identity.
 5. Preserve a concise task result and accurately report blocked/failed states.
    The background manager maintains heartbeat and lifecycle on Tips; do not

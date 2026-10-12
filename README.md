@@ -80,7 +80,15 @@ journalctl --user -u devspace-tips-mcp.service -f
 
 ## Tips 和 Subagent
 
-三个新增 MCP 工具：`tips`（任务/心跳/历史）、`tips_messages`（留言/送达/ACK/回复/解决）、`subagent`（启动/列出/状态/留言/停止）。
+六个主要协作 MCP 工具：`tips`（任务/心跳/历史）、`tips_messages`（常规留言/ACK）、`tips_exchange`（可验收事务）、`subagent`（管理 App Server Agent）、`web_identity`（多个 Web Chat 独立认领身份）、`web_mail`（Web↔Web / Web↔Agent 通信）。
+
+### 多 Web Chat 身份注册
+
+所有窗口仍然通过 DevSpace OAuth 认证，但不同 ChatGPT 对话应分别拥有 `web-*` 身份。主 Web 可调用 `web_identity(action="prepare",id="web-reviewer-01",label="Reviewer")` 生成私有的一次性邀请码，有效期 **10 分钟**。另一 Web Chat 调用 `web_identity(action="claim",id="web-reviewer-01",invite="...")` **立即认领，无需任何审批**，获得 7 天身份租约。
+
+之后调用 `web_identity(action="whoami")`。如 MCP Host 提供稳定的 `openai/session` 会话元数据，服务器可自动识别；如未提供，则需要在后续调用中传入 claim 返回的私有 `claimKey`。不要将 invite / claimKey 写入 Tips 消息、公开日志或代码仓库。`renew` 可以续租，`release` 释放自己的身份。
+
+每个 Chat 使用 `web_mail` 的 `send`、`inbox`、`sent`、`get`、`ack`、`reply`、`resolve`、`verify` 操作。发送者身份由服务器从认领信息确定，不能靠自行填写 `from` 冒充。目标 Web Chat 下次调用 `inbox` 即可读取消息；**Tips 无法自动唤醒已经关闭或闲置的 ChatGPT 聊天**。双方消息及回执保存到 Tips Board；这是服务器身份系统，并非 ChatGPT 平台内建的窗口级隔离功能。
 
 每个新 App Server Sub Agent 有稳定的 Thread ID。完整通讯协议只在该 Thread 的第一个真实 Turn 注入一次；后续只传新消息并尝试 `turn/steer`，不重复占用大量 Prompt Token。未 ACK 的消息有受限重投递，防止无穷唤醒。Main Agent 仅对有可信来源、未满 6 小时的新技术阻塞做有限次自动诊断，不能恢复用户显式停止的实验。具体规则见 `tips/SUBAGENTS.md`、`tips/MCP_INSTRUCTIONS.md` 和 `tips/SERVER_CONTROLLER.md`。
 

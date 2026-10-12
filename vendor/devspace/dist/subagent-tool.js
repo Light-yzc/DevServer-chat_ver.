@@ -35,6 +35,7 @@ export function registerSubagentTool(server,config,z){
       }
       case 'start':return {accepted:true,agent:agents.start(input),note:'Job is queued; poll status for actual App Server turn results'};
       case 'message':{
+        if(typeof input.from==='string'&&input.from.startsWith('web-'))throw Error('Web identity senders must use web_mail');
         const mail=agents.send(input);
         return {accepted:true,mail,agent:agents.status(input.name),note:'Messages are durable; delivery/ACK happen asynchronously'};
       }

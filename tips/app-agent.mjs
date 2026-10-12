@@ -17,7 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../vendor/devspace/dist/config.js';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
-import { tipsProtocol, needsDelivery } from './subagent-protocol.mjs';
+import { tipsProtocol, needsDelivery, shouldInjectProtocol } from './subagent-protocol.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -74,7 +74,8 @@ async function pushMail(){
   const mails=await unreadMail();
   for(const m of mails.slice().reverse().slice(0,5)){
     if(presented.has(m.id))continue;
-    const text='Tips message ID '+m.id+' from '+m.from+' to '+m.to+'\nSubject: '+m.subject+'\n'+m.body;
+    const text='Tips message ID '+m.id+' from '+m.from+' to '+m.to+'\nSubject: '+m.subject+'\n'+m.body+
+      (m.tracked?'\nTracked exchange: ACK when read, then include verdicts:[{id,verdict:"accepted|rejected|needs_changes",note:"evidence"}] in final tips-actions. Do not use resolve for this tracked request.':'');
     try{
       const response=await ask('turn/steer',{threadId,expectedTurnId:turnId,input:[{type:'text',text}]},12000);
       if(response?.turnId===turnId){
@@ -121,9 +122,17 @@ function finalizeActions(raw){
     catch(e){safeLog({event:'post_failed',to:post.to,error:e.message})}
   }
   for(const id of resolve){
-    if(!allowed(id)||!ack.has(id))continue;
+    if(!allowed(id)||!ack.has(id)||presented.get(id)?.tracked)continue;
     try{tips.messages({action:'resolve',id,agentId:params.name,note:'Subagent confirmed complete in final response'})}
     catch(e){safeLog({event:'resolve_failed',id,error:e.message})}
+  }
+  const verdicts=Array.isArray(actions.verdicts)?actions.verdicts.slice(0,30):[];
+  for(const v of verdicts){
+    if(!v||!allowed(v.id)||!ack.has(v.id)||!presented.get(v.id)?.tracked||
+      !['accepted','rejected','needs_changes'].includes(v.verdict))continue;
+    try{tips.messages({action:'verify',id:v.id,agentId:params.name,verdict:v.verdict,
+      note:String(v.note??'').slice(0,1000)},{trustedWake:true})}
+    catch(e){safeLog({event:'verify_failed',id:v.id,error:e.message})}
   }
   safeLog({event:'tip_actions',acks:[...ack].filter(allowed),resolves:[...resolve].filter(allowed)});
   return readable;
@@ -172,7 +181,8 @@ async function main(){
   const initial=await unreadMail();
   if(initial.length){
     prompt+='\nPending trusted mailbox messages:\n'
-      +initial.slice().reverse().map(m=>'ID '+m.id+' FROM '+m.from+' SUBJECT '+m.subject+'\n'+m.body).join('\n\n');
+      +initial.slice().reverse().map(m=>'ID '+m.id+' FROM '+m.from+' SUBJECT '+m.subject+'\n'+m.body+
+        (m.tracked?'\nTracked exchange: ACK and include a verdicts entry {id,verdict,note} after verifying, do not plain resolve.':'')).join('\n\n');
   }
   if(needsFullProtocol)prompt+='\n'+requiredMailboxInstructions;
   turnStatus=null;active=true;

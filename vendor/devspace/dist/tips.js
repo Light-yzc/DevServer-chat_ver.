@@ -57,11 +57,52 @@ export function registerTipsTool(server,config,z){
       wake:z.boolean().optional(),agentId:z.string().optional(),turnId:z.string().optional(),
     },annotations:{readOnlyHint:false},
   },textResult(args=>{
+    if(['post','reply'].includes(args.action)&&typeof args.from==='string'&&args.from.startsWith('web-')){
+      throw Error('Web Chat identities must send through web_mail to bind the sender to a claimed identity');
+    }
+    if(['ack','resolve','delete'].includes(args.action)&&args.id){
+      const target=tips.messages({action:'get',id:args.id});
+      if(target?.to?.startsWith('web-'))throw Error('Web Chat recipients must use web_mail for authenticated receipts');
+    }
     const result=tips.messages(args,{trustedWake:true});
     if((args.action==='post'||args.action==='reply')&&result.to==='controller'&&result.priority==='high'){
       tips.notify({category:'message',...result});
     }
     return result;
+  }));
+  server.registerTool('tips_exchange',{
+    title:'Audited web-to-App-Server Agent exchange',
+    description:'Create and inspect tracked agent communication transactions, mirrored in the Tips web board. submit sends exactly one trusted Tips message to an existing sub-... App Server agent; the recipient must ACK after reading and explicitly VERIFY accepted/rejected/needs_changes after checking the request, not merely resolve. get returns the original request, audit timestamps, verdict and linked replies; list returns recorded tracked exchanges. This tool does NOT wait for model completion, and web ChatGPT is not automatically awakened by replies. Use the ID from submit to poll get. Ordinary Tips messages remain available separately. The audit lives on the MCP server and is visible on /tips; it is not copied into the ChatGPT conversation history.',
+    inputSchema:{
+      action:z.enum(['submit','get','list']),
+      id:z.string().optional(),
+      from:z.string().optional(),
+      to:z.string().optional(),
+      subject:z.string().optional(),
+      body:z.string().optional(),
+      priority:z.enum(['low','normal','high']).optional(),
+      taskId:z.string().optional(),
+      limit:z.number().int().optional(),
+      status:z.string().optional(),
+    },annotations:{readOnlyHint:false},
+  },textResult(args=>{
+    if(args.action==='submit'){
+      if(typeof args.from==='string'&&args.from.startsWith('web-'))throw Error('Use web_mail for claimed Web Chat senders');
+      if(typeof args.to!=='string'||!/^sub-[a-z0-9_.-]{1,60}$/i.test(args.to))throw Error('Tracked App Server exchange requires a sub- recipient');
+      const message=tips.messages({action:'post',tracked:true,from:args.from??'controller',to:args.to,
+        subject:args.subject??'Tracked agent request',body:args.body,priority:args.priority??'normal',taskId:args.taskId},
+        {trustedWake:true});
+      return {accepted:true,id:message.id,message,webBoard:'/tips',note:'Submitted, not yet verified; poll tips_exchange get until recipient accepts/rejects'};
+    }
+    if(args.action==='get'){
+      const message=tips.messages({action:'get',id:args.id});
+      if(!message||!message.tracked)throw Error('Tracked exchange not found');
+      const thread=tips.messages({action:'list',threadId:message.threadId??message.id,limit:300});
+      return {id:message.id,message,related:thread.filter(x=>x.id!==message.id)};
+    }
+    return tips.messages({action:'list',limit:300})
+      .filter(m=>m.tracked&&(!args.to||m.to===args.to)&&(!args.from||m.from===args.from)&&(!args.status||m.status===args.status))
+      .slice(0,Math.min(100,Math.max(1,args.limit??40)));
   }));
 }
 export function mountTipsRoutes(app,config,express){
@@ -98,6 +139,13 @@ export function mountTipsRoutes(app,config,express){
   app.post('/tips/messages',express.json({limit:'16kb'}),(req,res)=>{
     if(!auth(req,res,true))return;
     guard(()=>{
+      if(['post','reply'].includes(req.body?.action)&&typeof req.body?.from==='string'&&req.body.from.startsWith('web-')){
+        throw Error('Claimed web-* senders must use the identity-bound web_mail MCP tool');
+      }
+      if(['ack','resolve','delete','verify'].includes(req.body?.action)&&req.body?.id){
+        const original=tips.messages({action:'get',id:req.body.id});
+        if(original?.to?.startsWith('web-'))throw Error('Claimed Web recipients must use web_mail receipts');
+      }
       const dispatch = req.header('x-tips-dispatch');
       const trustedWake = Boolean(tips.credentials.dispatchToken)&&typeof dispatch==='string'&&AUTH(dispatch,tips.credentials.dispatchToken);
       const result=tips.messages(req.body,{trustedWake});
