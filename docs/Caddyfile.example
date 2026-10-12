@@ -1,0 +1,10 @@
+# Replace `mcp.example.com` with your own domain and add its DNS record.
+# Keep DevSpace itself bound to localhost, NOT an unauthenticated public port.
+mcp.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:7676
+}
+
+# In DevSpace config, publicBaseUrl must match https://mcp.example.com.
+# Connect the ChatGPT DevSpace plugin at https://mcp.example.com/mcp.
+# Owner OAuth authentication is handled by the DevSpace server itself.

@@ -1,0 +1,41 @@
+# Local machine state / private credentials must never be uploaded.
+.env
+.env.*
+!.env.example
+credentials.json
+notifications.json
+state.json
+*-state.json
+*.secret
+*.key
+*.pem
+
+# Ephemeral agent work and model artifacts
+controller-runtime/
+app-agents/
+subagents/
+*.log
+*.jsonl
+*.tmp
+*.pid
+*.lock
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+# Dependencies / large generated artifacts
+node_modules/
+venv/
+.venv/
+outputs/
+runs/
+checkpoints/
+*.pt
+*.pth
+*.safetensors
+*.gguf
+
+# Local tooling
+.vscode/
+.idea/

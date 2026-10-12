@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>tips · Research control</title>
+  <style>
+    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:dark;background:#0c1017;color:#edf1f8}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse 80% 24% at 50% 0%,#172944 0%,transparent 100%),#0c1017}
+    .layout{max-width:1180px;margin:auto;padding:30px 24px 80px}
+    h1,h2,h3,p{margin-top:0}h1{letter-spacing:-1.5px;font-size:35px;margin-bottom:4px}h1 b{font-weight:800;color:#7ca9ff}
+    h2{font-size:19px;letter-spacing:-.35px;margin:0}.muted,small{color:#9eaac0}small{font-size:12px}
+    header,.row,.toolbar,.section-title{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+    header{margin-bottom:27px}.subtitle{margin:0;color:#a9b8cb;font-size:14px}
+    .live{display:flex;gap:9px;align-items:center;color:#9eabbf;font-size:12px}
+    .dot{width:9px;height:9px;background:#657082;border-radius:50%;display:inline-block}.dot.ok{background:#62dca7;box-shadow:0 0 12px #62dca750}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:26px}
+    .stat{background:#171e2b;border:1px solid #283344;border-radius:14px;padding:18px 20px;min-height:103px}
+    .stat .number{font-size:31px;font-weight:760;letter-spacing:-1px;margin-top:7px}.stat .name{color:#a1aec3;font-size:13px}
+    .stat:first-child{background:linear-gradient(125deg,#203658,#192336);border-color:#345079}
+    .toolbar{margin:0 0 15px}.filters{display:flex;flex-wrap:wrap;gap:7px}
+    button{border:1px solid #344056;background:#202b3e;color:#c1cfe1;border-radius:9px;padding:9px 12px;cursor:pointer;font:inherit;font-size:13px}
+    button.active,button:hover{background:#31558c;border-color:#5984c3;color:white}
+    input{border:1px solid #344056;background:#131c2a;border-radius:9px;color:#f6f7fb;padding:11px 12px;font:inherit;min-width:0}
+    input:focus{outline:2px solid #5b86bc;outline-offset:1px}.toolbar input{width:220px;max-width:100%}
+    #tasks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    article.task{background:#171e2b;border:1px solid #2a3548;border-radius:16px;padding:20px;min-width:0;overflow:hidden;box-shadow:0 4px 20px #070d1618}
+    article.task:hover{border-color:#425573}article.task h3{font-size:17px;line-height:1.4;margin:0;overflow-wrap:anywhere}
+    .task-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:13px}
+    .pill{flex-shrink:0;border:1px solid #47546a;border-radius:7px;padding:5px 7px;font-size:11px;background:#344154;color:#c6d2e5}
+    .pill.running{background:#1b3758;color:#8fbfff;border-color:#346497}
+    .pill.completed{background:#153f32;color:#7be6b1;border-color:#2a6650}
+    .pill.failed{background:#502735;color:#ff98a5;border-color:#7f3449}
+    .pill.blocked{background:#4d3b20;color:#f8d493;border-color:#846432}
+    .message{font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;margin:10px 0;color:#d6dfec}
+    .progress-meta{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.progress-meta strong{font-size:26px;font-variant-numeric:tabular-nums}
+    .track{background:#354158;border-radius:99px;height:9px;overflow:hidden;margin:12px 0 10px}
+    .bar{height:100%;max-width:100%;min-width:0;background:linear-gradient(90deg,#528dff,#7ccaff);border-radius:99px;transition:width .35s ease}
+    .bar.completed{background:#55cd99}.bar.failed{background:#ee8291}
+    .metric{display:flex;align-items:baseline;gap:8px;margin:12px 0 14px;overflow-wrap:anywhere}.metric strong{font-size:39px;letter-spacing:-1px;font-variant-numeric:tabular-nums}.metric .unit{font-size:17px;color:#abb7ca}
+    .checklist{margin:10px 0;padding:0;list-style:none;display:grid;gap:9px}
+    .checklist li{display:flex;align-items:center;gap:10px;font-size:13px;color:#b3bfd2}
+    .checklist li.done{color:#83dda9}.check{border:1px solid #6c7890;border-radius:5px;min-width:18px;height:18px;display:grid;place-items:center;font-size:12px}
+    .done .check{background:#225541;border-color:#398c6c}
+    .logs{border:1px solid #29354b;border-radius:10px;background:#101824;padding:10px 12px;max-height:245px;overflow:auto;display:grid;gap:9px;margin-top:10px}
+    .log-line{font-family:ui-monospace,monospace;font-size:12px;line-height:1.5;overflow-wrap:anywhere;white-space:pre-wrap;color:#becde0}
+    .log-line time{color:#80a5cf;margin-right:8px}.detail{border-top:1px solid #303b4f;margin-top:12px;padding-top:12px;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;color:#c3cfe1}
+    details summary{cursor:pointer;color:#a8c8ef;font-size:13px}
+    .table-wrap{max-width:100%;overflow-x:auto;margin-top:12px}table{border-collapse:collapse;width:100%;font-size:12px;min-width:250px}
+    th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #313d50;white-space:normal;overflow-wrap:anywhere}th{color:#91b6e8;font-weight:600}td{color:#d2dced}
+    a.result-link{display:inline-flex;align-items:center;gap:8px;max-width:100%;text-decoration:none;color:#afceff;background:#203957;padding:10px 13px;border-radius:9px;border:1px solid #40608a;overflow-wrap:anywhere}
+    a.result-link:hover{text-decoration:underline} .timestamp{font-size:11px;color:#8493ab;margin-top:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:7px}
+    .chart{width:100%;height:155px;display:block;overflow:visible;margin-top:8px}.chart-labels{display:flex;justify-content:space-between;align-items:center;gap:12px;color:#96a8bf;font-size:12px;margin-top:4px}
+    .foot{margin-top:28px;background:#141b27;border:1px solid #293347;border-radius:14px;padding:18px}
+    .events{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:10px}.events li{font-size:12px;color:#adbdd1;line-height:1.5;overflow-wrap:anywhere}
+    .events time{color:#768da9;font-variant-numeric:tabular-nums;margin-right:10px}.events strong{color:#dce6f3}
+    .empty{grid-column:1/-1;text-align:center;padding:70px 12px;color:#99abc5;border:1px dashed #3a485c;border-radius:14px}
+    .auth{padding:20px;background:#171e2b;border:1px solid #39475c;border-radius:14px;margin:16px 0}.auth p{font-size:13px;color:#b2c1d5}
+    #error{color:#ff97a7;font-size:13px;margin-top:15px;overflow-wrap:anywhere}
+    /* True black / graphite skin rather than navy blue. */
+    :root{background:#080808;color:#efefef}
+    body{background:#090909;color:#f1f1f1}
+    h1 b{color:#f5f5f5}
+    .subtitle,.muted,small,.stat .name,.live{color:#aaa}
+    .stat,.stat:first-child,article.task,.foot,.auth,.board,.thread{background:#151515;border-color:#2a2a2a}
+    .stat:first-child{background:linear-gradient(120deg,#202020,#151515)}
+    article.task:hover{border-color:#494949}
+    button{background:#1e1e1e;color:#ddd;border-color:#3a3a3a}
+    button.active,button:hover{background:#333;border-color:#737373;color:white}
+    input,select,textarea{background:#101010;color:#f1f1f1;border:1px solid #373737;border-radius:9px;padding:10px;font:inherit}
+    input:focus,textarea:focus,select:focus{outline:2px solid #777;outline-offset:1px}
+    .pill{background:#292929;border-color:#424242;color:#ccc}
+    .pill.running{background:#222;color:#a9dbff;border-color:#41617a}
+    .pill.completed{background:#1d2d24;color:#9ce5b9;border-color:#3a7253}
+    .pill.failed{background:#352124;color:#ff9da6;border-color:#80454c}
+    .pill.blocked{background:#342c20;color:#f1cc82;border-color:#755d38}
+    .track{background:#333}.bar{background:linear-gradient(90deg,#ccc,#fff)}.bar.completed{background:#71d5a0}
+    .logs{background:#101010;border-color:#292929}.detail{border-color:#373737;color:#ccc}
+    .check{border-color:#666} .checklist li{color:#bbb} .message{color:#dedede}
+    .events li,.events strong{color:#bfbfbf}.events time,.timestamp,.chart-labels{color:#999}
+    .empty{border-color:#383838;color:#999}.table-wrap th{color:#ddd}th,td{border-color:#303030}td{color:#d5d5d5}
+    a.result-link{background:#262626;border-color:#454545;color:#eee}
+    .topnav{display:flex;gap:8px;margin:0 0 24px;padding:6px;background:#121212;border:1px solid #292929;border-radius:12px;max-width:max-content}
+    .topnav button{border:0;padding:11px 19px}.topnav button.active{background:#e8e8e8;color:#111}
+    .board{border:1px solid #2a2a2a;border-radius:15px;padding:20px}
+    .inbox{display:grid;gap:11px}.thread{padding:17px;border:1px solid #303030;border-radius:12px;min-width:0}
+    .thread.unread{border-left:3px solid #d7d7d7}.thread.high{border-left:3px solid #eda273}
+    .thread p{white-space:pre-wrap;overflow-wrap:anywhere;margin:12px 0;color:#d7d7d7;font-size:13px;line-height:1.65}
+    .thread h3{font-size:15px;margin:0;overflow-wrap:anywhere}.thread-meta{display:flex;gap:12px;flex-wrap:wrap;color:#999;font-size:12px;margin-top:7px}
+    .group-head{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:13px;padding:19px 2px 5px;flex-wrap:wrap}
+    .group-head h2{font-size:19px;color:#eee}.group-head small{white-space:nowrap}
+    .minor{font-size:12px;color:#aaa;margin:7px 0;overflow-wrap:anywhere}
+    .health{font-size:12px;color:#eab37f;margin:9px 0}
+    .history-box{margin-top:10px;border-top:1px solid #303030;padding-top:12px}
+    .history-box li{font-size:12px;margin:8px 0;color:#aaa;overflow-wrap:anywhere}
+    #group-select{min-width:135px;max-width:180px;font-size:13px;padding:9px}
+    .hint{font-size:13px;color:#999;line-height:1.6;margin:12px 0}
+    [hidden]{display:none!important}
+    @media(max-width:700px){.layout{padding:22px 13px 60px}.stats{grid-template-columns:repeat(2,1fr);gap:9px}.stat{padding:14px;min-height:89px}.stat .number{font-size:26px}#tasks{grid-template-columns:1fr}.toolbar input{flex-grow:1;width:100%}article.task{padding:16px}header{margin-bottom:24px}}
+  </style>
+</head>
+<body>
+ <div class="layout">
+   <header>
+     <div><h1><b>tips</b> / Research control</h1><p class="subtitle">Agent · 实验进度 · 状态历史 · 主控留言</p></div>
+     <div class="live"><span id="dot" class="dot"></span><span id="connection">尚未连接</span></div>
+   </header>
+   <nav class="topnav"><button data-tab="tasks" class="active">任务总览</button><button data-tab="mailbox">主控留言板 <span id="unread-count"></span></button></nav>
+   <div id="auth" class="auth" hidden>
+     <p>此面板为私有内容。输入查看密钥，或打开包含 #密钥 的私人链接。</p>
+     <div class="row" style="justify-content:flex-start"><input id="key" type="password" placeholder="查看密钥" autocomplete="off"><button id="connect">解锁看板</button></div>
+   </div>
+   <div id="tasks-tab">
+   <div class="stats">
+     <section class="stat"><div class="name">全部任务</div><div id="count-all" class="number">—</div></section>
+     <section class="stat"><div class="name">运行中</div><div id="count-running" class="number">—</div></section>
+     <section class="stat"><div class="name">已完成</div><div id="count-completed" class="number">—</div></section>
+     <section class="stat"><div class="name">异常 / 阻塞</div><div id="count-problem" class="number">—</div></section>
+   </div>
+   <div class="toolbar">
+     <div id="filters" class="filters"><button data-filter="all" class="active">全部</button><button data-filter="running">运行中</button><button data-filter="completed">完成</button><button data-filter="problem">异常</button></div>
+     <select id="group-select" aria-label="项目分组"><option value="">全部项目</option></select>
+     <input id="search" placeholder="搜索任务名称 / ID" aria-label="搜索任务" type="search">
+   </div>
+   <main id="tasks"><div class="empty">尚无数据</div></main>
+   <section class="foot"><div class="section-title"><h2>最近更新</h2><small id="last-update">每 5 秒自动刷新</small></div><ol id="events" class="events"></ol><p id="error"></p></section>
+   </div>
+   <section id="mailbox-tab" class="board" hidden>
+     <div class="section-title"><div><h2>Agent 消息通道</h2><p class="hint">Main / Sub 双向留言。送达不等于 ACK；只有接收 Agent 主动确认，才算已读取。</p></div><span id="mail-summary" class="pill">等待消息</span></div>
+     <div class="toolbar">
+       <div class="filters" id="mail-filters"><button class="active" data-mail-filter="all">全部</button><button data-mail-filter="unread">未读</button><button data-mail-filter="ack">ACK</button><button data-mail-filter="resolved">已解决</button><button data-mail-filter="high">高优先级</button></div>
+       <select id="mail-from" aria-label="筛选发送 Agent"><option value="">全部发送方</option></select>
+       <select id="mail-to" aria-label="筛选接收 Agent"><option value="">全部接收方</option></select>
+     </div>
+     <div class="inbox" id="inbox"><div class="empty">暂无留言</div></div>
+     <p class="hint">该网页只读。Agent 使用 <code>tips_messages</code> 或本机 CLI 留言；不触发普通 ChatGPT 自动回复。</p>
+   </section>
+ </div>
+ <script>
+ 'use strict';
+ const $=id=>document.getElementById(id);
+ const statusText={pending:'等待中',running:'运行中',completed:'已完成',failed:'失败',blocked:'阻塞',cancelled:'已取消',paused:'已暂停'};
+ let filter='all',mailFilter='all',tab='tasks',data={tasks:[],events:[]},mailbox=[],historyCache={};
+ // Keep each task's expanded details across polling, card updates and page reloads.
+ let expandedCards=new Set();
+ try{expandedCards=new Set(JSON.parse(sessionStorage.getItem('tips-expanded-cards')||'[]'))}catch{}
+ function saveExpanded(){try{sessionStorage.setItem('tips-expanded-cards',JSON.stringify([...expandedCards]))}catch{}}
+ const node=(tag,text,cls)=>{const el=document.createElement(tag);if(text!==undefined&&text!==null)el.textContent=String(text);if(cls)el.className=cls;return el};
+ const add=(parent,...children)=>{for(const child of children)parent.append(child);return parent};
+ const svgEl=(name,attrs={})=>{const el=document.createElementNS('http://www.w3.org/2000/svg',name);for(const [key,value] of Object.entries(attrs))el.setAttribute(key,String(value));return el};
+ const time=(iso)=>{if(!iso)return '未知';const x=new Date(iso);return Number.isNaN(x.getTime())?'未知':x.toLocaleString('zh-CN',{hour12:false})};
+ function progress(parent,percent,subtitle,status){const p=Math.min(100,Math.max(0,Number(percent)||0));const row=node('div',null,'progress-meta');add(row,node('strong',p+'%'),node('small',subtitle??'完成度'));const bar=node('div',null,'track'),fill=node('div',null,'bar '+(status??''));fill.style.width=p+'%';bar.append(fill);add(parent,row,bar);}
+ function renderTask(t,signature){
+   const card=node('article',null,'task'),head=node('div',null,'task-head'),title=node('h3',t.title||t.id),pill=node('span',statusText[t.status]||t.status,'pill '+t.status);
+   card.dataset.taskId=t.id;
+   card.dataset.signature=signature;
+   add(head,title,pill);card.append(head);
+   const kind=t.kind||'progress';
+   if(kind==='progress')progress(card,t.progress,t.total>0?`${t.current??0} / ${t.total}`:'完成度',t.status);
+   else if(kind==='metric')add(card,add(node('div',null,'metric'),node('strong',t.value??'—'),node('span',t.unit||'','unit')));
+   else if(kind==='checklist'){
+     const items=Array.isArray(t.items)?t.items:[],done=items.filter(x=>x.done).length;
+     progress(card,t.progress??(items.length?Math.round(done/items.length*100):0),`${done} / ${items.length} 阶段`,t.status);
+     const ul=node('ul',null,'checklist');for(const item of items){const li=node('li',null,item.done?'done':'');add(li,node('span',item.done?'✓':'','check'),node('span',item.text));ul.append(li)}card.append(ul);
+   }else if(kind==='log'){
+     const logs=node('div',null,'logs');for(const log of (t.logs??[]).slice(-15)){const ln=node('div',null,'log-line');add(ln,node('time',time(log.at)),node('span',log.text));logs.append(ln)}if(!logs.childNodes.length)logs.append(node('small','暂无日志'));card.append(logs);
+   }else if(kind==='table'){
+     const wrap=node('div',null,'table-wrap'),table=node('table'),cols=Array.isArray(t.columns)?t.columns:[],rows=Array.isArray(t.rows)?t.rows:[];
+     const thead=node('thead'),tr=node('tr');for(const col of cols)tr.append(node('th',col));thead.append(tr);table.append(thead);
+     const tbody=node('tbody');for(const row of rows){const tr=node('tr');for(const cell of row)tr.append(node('td',cell));tbody.append(tr)}table.append(tbody);wrap.append(table);card.append(wrap);
+   }else if(kind==='link'&&typeof t.url==='string'){
+     try{const u=new URL(t.url);if(u.protocol==='https:'||u.protocol==='http:'){const a=node('a','打开结果 →','result-link');a.href=u.href;a.target='_blank';a.rel='noopener noreferrer';card.append(a)}}catch{}
+   }else if(kind==='chart'){
+     const points=Array.isArray(t.points)?t.points.filter(Number.isFinite):[];
+     if(points.length){
+       const graph=svgEl('svg',{viewBox:'0 0 420 155',preserveAspectRatio:'none',class:'chart',role:'img','aria-label':t.yLabel||'数值趋势'});
+       for(const y of [16,74,132])graph.append(svgEl('line',{x1:0,y1:y,x2:420,y2:y,stroke:'#33465f','stroke-width':1,'stroke-dasharray':'3 5'}));
+       const lo=Math.min(...points),hi=Math.max(...points),range=Math.max(hi-lo,0.0000001);
+       const coords=points.map((v,i)=>[(points.length===1?210:i/(points.length-1)*420),132-(v-lo)/range*116]);
+       if(points.length>1)graph.append(svgEl('polyline',{points:coords.map(([x,y])=>`${x.toFixed(2)},${y.toFixed(2)}`).join(' '),fill:'none',stroke:'#78b4ff','stroke-width':3,'strokeLinejoin':'round','strokeLinecap':'round'}));
+       const [x,y]=coords.at(-1);graph.append(svgEl('circle',{cx:x,cy:y,r:4,fill:'#b0d8ff'}));card.append(graph);
+       const labels=node('div',null,'chart-labels');add(labels,node('span',(t.xLabel||'数据点')+' · '+points.length+' 个'),node('span','min '+lo.toPrecision(4)+' / max '+hi.toPrecision(4)));card.append(labels);
+     }else card.append(node('small','暂无曲线数据'));
+   }
+   if(t.message)card.append(node('p',t.message,'message'));
+   if(t.details){
+     const details=node('details'),summary=node('summary','详细说明'),p=node('div',t.details,'detail');
+     add(details,summary,p);
+     details.open=expandedCards.has(t.id);
+     details.addEventListener('toggle',()=>{
+       if(details.open)expandedCards.add(t.id);else expandedCards.delete(t.id);
+       saveExpanded();
+     });
+     card.append(details);
+   }
+   if(t.group||t.parentId)card.append(node('div',(t.group?'项目 · '+t.group:'')+(t.parentId?'  ·  父任务 '+t.parentId:''),'minor'));
+   if(t.dependsOn?.length){
+     const done=new Set((data.tasks??[]).filter(x=>x.status==='completed').map(x=>x.id));
+     const waiting=t.dependsOn.filter(id=>!done.has(id));
+     card.append(node('div','任务依赖 · '+(waiting.length?'尚未完成：'+waiting.join('、'):'所有依赖已完成'),'minor'));
+   }
+   if(t.heartbeatEnabled){
+     const state=t.health==='healthy'?'心跳正常':t.health==='stale'?'心跳超时 / 可能失联':'等待第一次心跳';
+     card.append(node('div','● '+state+(t.lastHeartbeatAt?' · '+time(t.lastHeartbeatAt):''),'health'));
+   }else if(t.status==='running'&&t.progress===100)card.append(node('div','注意：进度 100%，但仍标记为运行中（请核对实际进程）','health'));
+   const hist=node('details',null,'history-box');
+   const histTitle=node('summary','历史记录');hist.open=expandedCards.has('history:'+t.id);
+   hist.addEventListener('toggle',()=>{
+     const k='history:'+t.id;
+     if(hist.open){expandedCards.add(k);if(!historyCache[t.id])void loadHistory(t.id)}
+     else expandedCards.delete(k);
+     saveExpanded();
+   });
+   hist.append(histTitle);
+   const records=historyCache[t.id];
+   if(records){const list=node('ol');for(const e of records.slice(-15).reverse()){
+     list.append(node('li',`${time(e.at)} · ${statusText[e.status]||e.status} · ${e.progress??'—'}% · ${e.message||''}`));
+   }hist.append(list)}
+   else hist.append(node('small','展开后读取历史状态'));
+   card.append(hist);
+   const footer=node('div',null,'timestamp');add(footer,node('span','ID · '+t.id),node('span','更新 · '+time(t.updatedAt)));card.append(footer);
+   return card;
+ }
+ function render(){
+   const tasks=(data.tasks??[]).filter(t=>!t.archived);
+   $('count-all').textContent=tasks.length;
+   $('count-running').textContent=tasks.filter(t=>t.status==='running').length;
+   $('count-completed').textContent=tasks.filter(t=>t.status==='completed').length;
+   $('count-problem').textContent=tasks.filter(t=>['failed','blocked'].includes(t.status)).length;
+   const q=$('search').value.trim().toLowerCase();
+   const selected=$('group-select').value;
+   const visible=tasks.filter(t=>(!selected||(t.group||'未分组')===selected)&&(filter==='all'||(filter==='problem'?['failed','blocked'].includes(t.status)||t.health==='stale':t.status===filter))&&(!q||(t.title||'').toLowerCase().includes(q)||(t.id||'').toLowerCase().includes(q)));
+   // Reuse unchanged task elements. Otherwise an automatic refresh closes
+   // <details> and resets in-card scroll/selection every five seconds.
+   const container=$('tasks');
+   const existing=new Map([...container.querySelectorAll('article.task')].map(el=>[el.dataset.taskId,el]));
+   const previousHeads=new Map([...container.querySelectorAll('.group-head')].map(el=>[el.dataset.groupName,el]));
+   const cards=[];let lastGroup=null;
+   for(const t of [...visible].sort((a,b)=>(a.group||'未分组').localeCompare(b.group||'未分组')||(b.updatedAt||'').localeCompare(a.updatedAt||''))){
+     const g=t.group||'未分组';
+     if(g!==lastGroup){
+       const summary=(data.groups??[]).find(x=>x.name===g);
+       const groupSignature=JSON.stringify(summary),old=previousHeads.get(g);
+       let head=old?.dataset.signature===groupSignature?old:null;
+       if(!head){head=node('div',null,'group-head');head.dataset.groupName=g;head.dataset.signature=groupSignature;
+         add(head,node('h2',g),node('small',`${summary?.completed??0} / ${summary?.total??0} 完成 · ${summary?.running??0} 运行中`));}
+       cards.push(head);lastGroup=g;
+     }
+     const signature=JSON.stringify(t)+'|history:'+JSON.stringify(historyCache[t.id]??null),old=existing.get(t.id);
+     cards.push(old?.dataset.signature===signature?old:renderTask(t,signature));
+   }
+   if(!cards.length)cards.push(node('div','没有符合条件的任务','empty'));
+   if(cards.length!==container.children.length||cards.some((card,i)=>card!==container.children[i]))container.replaceChildren(...cards);
+   const events=$('events');events.replaceChildren();
+   for(const e of (data.events??[]).slice(0,12)){
+     const li=node('li');add(li,node('time',time(e.at)),node('strong',e.id+' · '),node('span',(statusText[e.status]||e.status)+' '+(e.message||'')));events.append(li);
+   }
+   if(!events.childNodes.length)events.append(node('li','暂时没有事件'));
+ }
+ async function loadHistory(id){
+   const token=decodeURIComponent(location.hash.slice(1));
+   try{const r=await fetch(`/tips/api?action=history&id=${encodeURIComponent(id)}&limit=100`,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+     if(!r.ok)throw Error('HTTP '+r.status);historyCache[id]=await r.json();render();}
+   catch(e){historyCache[id]=[{at:new Date().toISOString(),status:'failed',message:'历史读取失败：'+e.message}];render()}
+ }
+ function renderInbox(){
+   $('unread-count').textContent=(data.mailbox?.unreadController??0)>0?' · '+data.mailbox.unreadController:'';
+   $('mail-summary').textContent=`未读 ${data.mailbox?.unreadController??0} · 共 ${mailbox.length} 条`;
+   const from=$('mail-from').value,to=$('mail-to').value;
+   const visible=mailbox.filter(m=>(!from||m.from===from)&&(!to||m.to===to)&&(
+     mailFilter==='all'||(mailFilter==='unread'?['unread','delivered'].includes(m.status):
+       mailFilter==='ack'?m.status==='acknowledged':mailFilter==='resolved'?m.status==='resolved':m.priority==='high')));
+   const box=$('inbox'),signature=JSON.stringify(visible);
+   if(box.dataset.signature===signature)return;
+   box.dataset.signature=signature;
+   const elems=[];
+   for(const m of visible){
+     const card=node('article',null,'thread '+(m.status==='unread'?'unread ':'')+(m.priority==='high'?'high':''));
+     const heading=node('div',null,'row');
+     const statuses={unread:'未读',delivered:'已送达',acknowledged:'ACK 已读取',processing:'处理中',resolved:'已解决',failed:'失败'};
+     add(heading,node('h3',m.subject||'未命名消息'),node('span',statuses[m.status]||m.status,'pill '+(['unread','delivered'].includes(m.status)?'running':'completed')));card.append(heading);
+     const meta=node('div',null,'thread-meta');add(meta,node('span',`发送：${m.from} → ${m.to}`),node('span',time(m.at)),node('span',`优先级：${m.priority}`));card.append(meta);
+     if(m.taskId)card.append(node('div','关联任务 · '+m.taskId,'minor'));
+     card.append(node('p',m.body));
+     if(m.replyTo)card.append(node('div','回复消息 · '+m.replyTo,'minor'));
+     if(m.ackBy)card.append(node('div','读取确认 · '+m.ackBy+' · '+time(m.ackAt),'minor'));
+     if(m.note)card.append(node('div','处理说明 · '+m.note,'minor'));
+     elems.push(card);
+   }
+   box.replaceChildren(...(elems.length?elems:[node('div','当前没有符合条件的留言','empty')]));
+ }
+ function updateMailSelectors(){
+   for(const [id,key,caption] of [['mail-from','from','全部发送方'],['mail-to','to','全部接收方']]){
+     const select=$(id),current=select.value;
+     const names=[...new Set(mailbox.map(m=>m[key]).filter(Boolean))].sort();
+     const sig=names.join('\u0000');if(select.dataset.signature===sig)continue;
+     select.dataset.signature=sig;
+     select.replaceChildren(new Option(caption,''),...names.map(n=>new Option(n,n)));
+     select.value=names.includes(current)?current:'';
+   }
+ }
+ function updateGroups(){
+   const selector=$('group-select'),current=selector.value;
+   const groups=(data.groups??[]).map(g=>g.name).sort();
+   const sig=groups.join('\u0000');if(selector.dataset.signature===sig)return;
+   selector.dataset.signature=sig;
+   const opts=[new Option('全部项目',''),...groups.map(g=>new Option(g,g))];selector.replaceChildren(...opts);
+   selector.value=groups.includes(current)?current:'';
+ }
+ document.querySelector('.topnav').addEventListener('click',e=>{
+   const b=e.target.closest('[data-tab]');if(!b)return;tab=b.dataset.tab;
+   for(const button of document.querySelectorAll('.topnav button'))button.classList.toggle('active',button===b);
+   $('tasks-tab').hidden=tab!=='tasks';$('mailbox-tab').hidden=tab!=='mailbox';
+ });
+ $('mail-filters').addEventListener('click',e=>{
+   const b=e.target.closest('[data-mail-filter]');if(!b)return;mailFilter=b.dataset.mailFilter;
+   for(const button of $('mail-filters').querySelectorAll('button'))button.classList.toggle('active',button===b);renderInbox();
+ });
+ $('mail-from').addEventListener('change',renderInbox);
+ $('mail-to').addEventListener('change',renderInbox);
+ $('group-select').addEventListener('change',render);
+ $('filters').addEventListener('click',e=>{const btn=e.target.closest('button[data-filter]');if(!btn)return;filter=btn.dataset.filter;for(const b of $('filters').querySelectorAll('button'))b.classList.toggle('active',b===btn);render()});
+ $('search').addEventListener('input',render);
+ $('connect').onclick=()=>{location.hash=encodeURIComponent($('key').value.trim());$('key').value='';refresh()};
+ $('key').addEventListener('keydown',e=>{if(e.key==='Enter')$('connect').click()});
+ async function refresh(){
+   const token=decodeURIComponent(location.hash.slice(1));
+   if(!token){$('auth').hidden=false;$('connection').textContent='需要查看密钥';$('dot').classList.remove('ok');return}
+   try{
+     const [r,mailResult]=await Promise.all([
+       fetch('/tips/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}),
+       fetch('/tips/messages?to=all&limit=120',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)}))]);
+     if(!r.ok)throw Error('HTTP '+r.status+(r.status===401?' · 查看密钥无效':''));
+     data=await r.json();
+     if(mailResult.ok){mailbox=await mailResult.json();$('error').textContent='';}
+     else{$('error').textContent='留言板暂时不可用（HTTP '+mailResult.status+'）；任务进度仍可正常查看。';}
+     $('auth').hidden=true;$('dot').classList.add('ok');$('connection').textContent='已连接 · '+new Date().toLocaleTimeString('zh-CN',{hour12:false});
+     $('last-update').textContent='最近任务变更 · '+time(data.updatedAt);updateGroups();updateMailSelectors();render();renderInbox();
+   }catch(e){$('error').textContent='读取失败：'+e.message;$('dot').classList.remove('ok');$('connection').textContent='连接异常';if(e.message.includes('401'))$('auth').hidden=false}
+ }
+ refresh();setInterval(refresh,5000);
+ </script>
+</body>
+</html>

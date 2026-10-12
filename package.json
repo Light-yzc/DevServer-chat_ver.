@@ -1,0 +1,22 @@
+{
+  "name": "devspace-tips-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Self-hosted DevSpace MCP 1.0.8 with Tips research dashboard, bidirectional agent mailbox and Codex App Server subagents",
+  "engines": {"node": ">=22.19 <27"},
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "start": "node scripts/start-stack.mjs",
+    "serve": "node scripts/serve.mjs",
+    "start:main": "node tips/server-controller.mjs",
+    "start:subagents": "node tips/subagent-manager.mjs",
+    "test": "node --test tips/*.test.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "install:user-service": "node scripts/install-service.mjs"
+  },
+  "dependencies": {
+    "@waishnav/devspace": "file:vendor/devspace"
+  }
+}
