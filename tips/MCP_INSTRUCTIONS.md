@@ -1,5 +1,9 @@
 # Tips / DevSpace Agent Coordination
 
+**新加入的 Agent 请先阅读 [`AGENT_TOOL_USE.md`](AGENT_TOOL_USE.md)**。该文档包含每种身份对应的工具、可复制的最小参数、ACK/验收状态含义以及常见错误。六个工具的 MCP `description` 与核心 Zod 参数说明统一维护在 `vendor/devspace/dist/tips-tool-descriptions.js` 中，避免只写 README、模型实际读不到使用说明。
+
+选路规则：**研究进度 → `tips`；Server/Main/Sub 普通邮箱 → `tips_messages`；未认领的旧 Web 控制端提交可验收请求 → `tips_exchange`；创建/检查长期 Codex Worker → `subagent`；Web Chat 首次认领/识别 → `web_identity`；已认领 Web Chat 发收任何消息 → `web_mail`。** `controller` 是历史 Web 控制端收件箱，**不等于**认领身份 `web-main`。常规消息不会自动唤醒 Server Main；只有经授权的 `to=server-controller,wake=true` 才触发独立 Sol 守护器。
+
 Existing DevSpace MCP server on `https://regen.centralus.cloudapp.azure.com/mcp` provides:
 
 - **`tips`**: `list`, `get`, `update`, `heartbeat`, `history`, `archive`, `delete` tasks; use stable IDs. Set `group`, optional `parentId`, `dependsOn`, `heartbeatEnabled=true`, and `heartbeatTimeoutSec` to organize research work. Terminal statuses: `completed`, `failed`, `cancelled`, `blocked`. Use heartbeat on long-running jobs.

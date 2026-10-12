@@ -88,7 +88,7 @@ journalctl --user -u devspace-tips-mcp.service -f
 
 ## Tips 和 Subagent
 
-六个主要协作 MCP 工具：`tips`（任务/心跳/历史）、`tips_messages`（常规留言/ACK）、`tips_exchange`（可验收事务）、`subagent`（管理 App Server Agent）、`web_identity`（多个 Web Chat 独立认领身份）、`web_mail`（Web↔Web / Web↔Agent 通信）。
+六个主要协作 MCP 工具：`tips`（任务/心跳/历史）、`tips_messages`（常规留言/ACK）、`tips_exchange`（可验收事务）、`subagent`（管理 App Server Agent）、`web_identity`（多个 Web Chat 独立认领身份）、`web_mail`（Web↔Web / Web↔Agent 通信）。所有工具都附有 action 级说明和关键参数的 MCP schema `.describe()`。**给新 Agent 的推荐使用指南：[`tips/AGENT_TOOL_USE.md`](tips/AGENT_TOOL_USE.md)**；其工具元数据来源在 `vendor/devspace/dist/tips-tool-descriptions.js`，使用手册与元数据由测试检查一致性。
 
 ### 多 Web Chat 身份注册
 

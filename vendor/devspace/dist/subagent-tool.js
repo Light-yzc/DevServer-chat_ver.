@@ -1,5 +1,6 @@
 import { subagentRegistry } from '../../../tips/subagents.mjs';
 import { createTipsV2 } from './tips-core.js';
+import { TIP_TOOL_DESCRIPTIONS } from './tips-tool-descriptions.js';
 
 function safeTool(handler){return async input=>{
   try{return {content:[{type:'text',text:JSON.stringify(handler(input),null,2)}]}}
@@ -11,16 +12,16 @@ export function registerSubagentTool(server,config,z){
   const agents=subagentRegistry(config,tips);
   server.registerTool('subagent',{
     title:'Codex App Server subagents with Tips mailboxes',
-    description:'Required Tips protocol for ALL managed subagents: start research subagents through this Codex App Server tool. The first actual Turn of a persistent Thread receives the complete Tips mailbox protocol ONCE. Later resumed turns receive only their task and incoming messages, without repeated policy text. While working, the bridge polls trusted incoming messages and attempts turn/steer; when idle, a trusted message wakes the same Codex thread. Delivery is NOT reading: each subagent ACKs only messages actually read, RESOLVEs only completed work, and replies or sends progress updates via Tips; unacknowledged delivered messages have limited redelivery attempts. action=start queues Luna (default) or explicitly requested Sol with independent thread; list/status inspects jobs; message sends trusted Tips mail; stop stops only the managed child. start is asynchronous/queued, not success. Existing codex exec experiment owners are NOT automatically migrated. Default sandbox workspace-write; danger-full-access only when explicitly requested. Respect GPU freezes, approvals, and Sol budgets.',
+    description:TIP_TOOL_DESCRIPTIONS.subagent,
     inputSchema:{
-      action:z.enum(['start','list','status','message','stop']),
-      name:z.string().optional(),
-      goal:z.string().optional(),
-      model:z.enum(['gpt-6-luna','gpt-6.1-sol']).optional(),
-      cwd:z.string().optional(),
-      sandbox:z.enum(['read-only','workspace-write','danger-full-access']).optional(),
+      action:z.enum(['start','list','status','message','stop']).describe('start queues a new Turn; status checks completion; message uses Tips to steer or wake; stop requests termination.'),
+      name:z.string().optional().describe('Stable managed Agent identity, must start with sub-, e.g. sub-air-cpu. Required except list.'),
+      goal:z.string().optional().describe('Concrete bounded task prompt, required for start; do not authorize frozen GPU experiments by implication.'),
+      model:z.enum(['gpt-6-luna','gpt-6.1-sol']).optional().describe('Default Luna. Use Sol only for genuinely difficult checks with explicit budget authorization.'),
+      cwd:z.string().optional().describe('Absolute path within a DevSpace allowedRoots workspace.'),
+      sandbox:z.enum(['read-only','workspace-write','danger-full-access']).optional().describe('Default workspace-write; danger-full-access is high privilege, use only when explicitly needed.'),
       group:z.string().optional(),
-      from:z.string().optional(),
+      from:z.string().optional().describe('Non-web sender ID; claimed web-* must use web_mail to preserve authenticated identity.'),
       subject:z.string().optional(),
       body:z.string().optional(),
       priority:z.enum(['low','normal','high']).optional(),

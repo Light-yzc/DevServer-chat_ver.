@@ -1,5 +1,7 @@
 # Tips MCP Subagents (Codex App Server)
 
+新 Agent 的完整工具参数和 Tips 生命周期示例见 [`AGENT_TOOL_USE.md`](AGENT_TOOL_USE.md)；工具自带的描述由 `vendor/devspace/dist/tips-tool-descriptions.js` 统一提供，Sub Agent 正常首轮仍只注入一次 `tips/subagent-protocol.mjs`。
+
 The **`subagent`** MCP tool adds managed addressable Codex research workers without a new network port. `tips-subagent-manager.service` is a light background launcher. Up to 2 turns run concurrently by default; one Codex App Server instance is started per active turn and its thread is resumed across calls. The manager does not continuously consume model quota while idle.
 
 ## Web ChatGPT / DevSpace MCP
