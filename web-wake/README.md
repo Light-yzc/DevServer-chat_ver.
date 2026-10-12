@@ -78,7 +78,7 @@ For localhost testing, use `ws://127.0.0.1:17679/ws` (the browser extension perm
 
 To change a role's conversation, first **reset its URL binding** in Options and then give the new chat the correct title. A URL pin prevents a second conversation from silently inheriting the old role. No code in this project navigates to a different ChatGPT conversation or manipulates browser tabs beyond reading metadata.
 
-### Updating an existing unpacked installation (0.1.1)
+### Updating an existing unpacked installation
 
 Update the files in the **same local folder** that Edge originally loaded, then
 open `edge://extensions` and click **Reload** on DevSpace Web Wake. Refresh the
@@ -92,6 +92,15 @@ for Send within that composer, and confirms the composer cleared after clicking
 before reporting submission. If Send never becomes available, it removes only
 its unchanged, unsent draft so the pending wake can retry. If a click cannot be
 confirmed, it preserves the draft and pending IDs for manual inspection.
+
+Version 0.1.2 adds a compact status overview, individual identity cards, shortened
+conversation IDs (hover for the full ID), per-identity unbind buttons, and
+collapsible connection settings. Status and tab matches update automatically
+without overwriting settings being edited. Local submitted counts are wake
+records, not MCP acknowledgements.
+
+Version 0.1.3 fixes narrow Edge action popups by setting an explicit 380px width
+on both the document root and body, without a viewport-relative width limit.
 
 ## Operational and security rules
 
