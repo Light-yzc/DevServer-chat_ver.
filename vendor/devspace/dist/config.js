@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { expandHomePath } from "./roots.js";
 import { devspaceAgentsDir, devspaceSkillsDir, loadDevspaceFiles } from "./user-config.js";
 import { resolveSubagentsConfig } from "./local-agent-config.js";
+import { loadSecurityConfig } from './security-config.js';
 const DEFAULT_OAUTH_ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 const DEFAULT_OAUTH_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 const DEFAULT_ARTIFACT_MAX_FILE_BYTES = 100 * 1024 * 1024;
@@ -145,6 +146,7 @@ function defaultAgentDir() {
 }
 export function loadConfig(env = process.env) {
     const files = loadDevspaceFiles(env);
+    const security=loadSecurityConfig(files.dir);
     const host = env.HOST ?? files.config.host ?? "127.0.0.1";
     const port = parsePort(env.PORT ?? files.config.port);
     const publicBaseUrl = parsePublicBaseUrl(env.DEVSPACE_PUBLIC_BASE_URL ?? files.config.publicBaseUrl ?? localPublicBaseUrl(host, port));
@@ -159,7 +161,8 @@ export function loadConfig(env = process.env) {
     return {
         host,
         port,
-        oauth: parseOAuthConfig(env, files.auth.ownerToken),
+        oauth: parseOAuthConfig(env, security?.oauthOwnerToken??files.auth.ownerToken),
+        security,
         allowedRoots: parseAllowedRoots(env.DEVSPACE_ALLOWED_ROOTS ?? files.config.allowedRoots),
         allowedHosts: parseAllowedHosts(env.DEVSPACE_ALLOWED_HOSTS, derivedAllowedHosts),
         publicBaseUrl,

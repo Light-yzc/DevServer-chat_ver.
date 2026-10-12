@@ -65,6 +65,18 @@ npm start
 
 **以上全部被 `.gitignore` 排除。** 不要提交 `auth.json`、`credentials.json`、`runtime.env`、SSH 私钥或任何运行目录。需要自定义代理或 Codex 可执行文件路径时：
 
+**统一密钥配置（明文，私有文件）：** `var/config/security.json` 现在集中保存 DevSpace OAuth ownerToken、Tips 的 view/write/dispatch Token 以及 `webAdminKey`。初始化运行 `npm run setup` 会自动运行 `security:unify`：**读取并原样保留已有 OAuth/Tips Token**，为 Web 管理员生成一个随机密钥；默认权限为 `0600`。仓库只提交 [`security.example.json`](security.example.json)，真实 `security.json` 被 `.gitignore` 排除。独立 OAuth、Tips 读写、dispatch、管理员 key 仍然各司其职，并非同一把可到处使用的万能密钥。修改真实文件需要在服务器操作，切勿复制到 GitHub。
+
+要使用自选管理员明文密钥，可以在服务器运行 `read -rs ADMIN_KEY; printf '%s' "$ADMIN_KEY" | npm run admin:key; unset ADMIN_KEY` （密钥至少 32 字符，输入内容不显示）。之后重启**仅 DevSpace MCP**以重新加载配置。原 Tips CLI 和 Python 客户端仍可使用旧的私有凭证副本，服务器自动保持其与 `security.json` 一致。
+
+管理员撤销废弃 Web 身份无需二次审批、无需先认领身份，直接调用：
+
+```text
+web_identity({"action":"revoke","id":"web-old-reviewer","adminKey":"<私有管理员密钥>","reason":"会话废弃"})
+```
+
+每次撤销都必须提供密钥。撤销只解除 `web-*` 身份及其会话凭证，不删除该身份过去的 Tips 消息和研究历史。可以重新 `prepare` 同名角色再分配给新聊天。管理事件记录在私有 `web-identities.json` 中。不要将管理员密钥放在 Tips 消息正文、日志或公开截图中。
+
 ```bash
 cp .env.example var/config/runtime.env
 # 修改其中 TIPS_CODEX_BIN=...，以及可选的 HTTP_PROXY/HTTPS_PROXY

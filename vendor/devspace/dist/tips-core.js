@@ -76,9 +76,19 @@ export function createTipsV2(config){
   const dir=join(config.stateDir,'tips');
   mkdirSync(dir,{recursive:true,mode:0o700});chmodSync(dir,0o700);
   const stateFile=join(dir,'state.json'),secretsFile=join(dir,'credentials.json');
-  if(!existsSync(secretsFile))writeAtomic(secretsFile,{viewToken:randomBytes(24).toString('hex'),writeToken:randomBytes(32).toString('hex')});
+  if(!existsSync(secretsFile))writeAtomic(secretsFile,config.security?.tips??{viewToken:randomBytes(24).toString('hex'),writeToken:randomBytes(32).toString('hex')});
   if(!existsSync(stateFile))writeAtomic(stateFile,stateDefault());
-  const credentials=json(secretsFile);
+  // Compatibility with existing local Tips CLI/Python clients: keep the
+  // legacy credential *copy* synchronized from the new single source of truth.
+  if(config.security?.tips){
+    withLock(dir,()=>{
+      const legacy=json(secretsFile);
+      if(['viewToken','writeToken','dispatchToken'].some(k=>legacy[k]!==config.security.tips[k])){
+        writeAtomic(secretsFile,{...legacy,...config.security.tips});
+      }
+    });
+  }
+  const credentials=config.security?.tips ? {...config.security.tips} : json(secretsFile);
   if(!credentials.dispatchToken){
     withLock(dir,()=>{
       const latest=json(secretsFile);

@@ -115,6 +115,26 @@ export function createWebIdentityStore(config,options={}){
       role.lastSeenAt=stamp(time());return expose(role);
     });
   }
+  // Simple one-operation admin: possession of the private plaintext key is
+  // required for EACH revoke. No login, session grant, or approval flow.
+  function revoke(id,adminKey,expectedKey,reason=''){
+    if(!validId(id))fail('Target must be a valid web-* identity');
+    if(typeof reason!=='string'||reason.length>400)fail('Invalid reason');
+    if(typeof expectedKey!=='string'||expectedKey.length<32||typeof adminKey!=='string'||
+      adminKey.length<32||adminKey.length>512||!safeEqual(adminKey,expectedKey))
+      fail('Invalid administrator credential');
+    return edit(state=>{
+      const target=state.roles[id];
+      if(!target)fail('Unknown Web identity');
+      if(target.status==='revoked')return {revoked:false,identity:expose(target)};
+      target.status='revoked';target.scopeHash=null;target.claimKeyHash=null;
+      target.inviteHash=null;target.inviteExpiresAt=null;target.leaseExpiresAt=null;
+      target.lastSeenAt=stamp(time());
+      (state.adminEvents??=[]).unshift({at:stamp(time()),action:'admin_revoke',actor:'admin-key',target:id,reason});
+      state.adminEvents=state.adminEvents.slice(0,200);
+      return {revoked:true,identity:expose(target),note:'Identity revoked; message history preserved'};
+    });
+  }
   function list(){const state=read();return Object.values(state.roles).map(expose).sort((a,b)=>a.id.localeCompare(b.id))}
-  return {prepare,claim,whoami,authenticate,renew,release,list};
+  return {prepare,claim,whoami,authenticate,renew,release,list,revoke};
 }

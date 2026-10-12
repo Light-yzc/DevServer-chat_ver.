@@ -38,4 +38,9 @@ console.log('DevSpace + Tips configuration is ready.');
 console.log('Workspace:',root,'\nMCP URL:',config.publicBaseUrl+'/mcp','\nTips:',config.publicBaseUrl+'/tips');
 console.log('Private config:',CONFIG_DIR,'\nPrivate state:',STATE_DIR);
 console.log('OAuth owner token is stored in var/config/auth.json (mode 0600), not printed or committed.');
+// Setup always targets this checkout's private state, even if launched from
+// a shell that inherited a separate production DevSpace environment.
+process.env.DEVSPACE_CONFIG_DIR=CONFIG_DIR;
+process.env.DEVSPACE_STATE_DIR=STATE_DIR;
+await import('./unify-security.mjs');
 console.log('Next: npm run doctor && npm start');

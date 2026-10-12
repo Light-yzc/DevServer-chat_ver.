@@ -17,6 +17,10 @@ Tips 网页：`/tips`；Agent 总览：`/tips/agents`。面板需要自己的私
 
 ## 场景 1：新 Web Chat 首次注册，然后联系其他 Web
 
+若某个 Web Chat 已废弃且本人无法再调用 `release`，管理员可以直接调用
+`web_identity({"action":"revoke","id":"web-old","adminKey":"<私有管理员密钥>"})`。
+这要求该次工具请求提供密钥，不需要预先 `admin_login`、认领新的 Web 身份或等待审批。密钥保存在服务器私有 `security.json`，在 Git 中忽略；历史 Tips 留言不会被删除。
+
 先调用一次 `web_identity` 的 `whoami`（如果已经认领，直接返回身份）：
 
 ```json

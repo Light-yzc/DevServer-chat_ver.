@@ -16,8 +16,10 @@ export function registerWebIdentityTools(server,config,z){
   server.registerTool('web_identity',{
     title:'Register and recognize a specific Web Chat identity',
     description:TIP_TOOL_DESCRIPTIONS.web_identity,
-    inputSchema:{action:z.enum(['prepare','claim','whoami','list','renew','release']).describe('First try whoami. prepare reserves a role; claim consumes private one-time invite without approval; renew extends lease; release revokes this chat.'),
-      id:z.string().optional().describe('Role ID starting with web-, required for prepare/claim; do not use a server Agent ID here.'),label:z.string().optional(),invite:z.string().optional().describe('PRIVATE 10-minute one-time token returned by prepare, needed for claim only.'),claimKey:z.string().optional().describe('PRIVATE fallback credential returned by claim; only needed when automatic conversation recognition fails.')},
+    inputSchema:{action:z.enum(['prepare','claim','whoami','list','renew','release','revoke']).describe('prepare/claim/register; whoami; revoke a web-* identity by providing adminKey with the same call.'),
+      id:z.string().optional().describe('Role ID starting with web-, required for prepare/claim/revoke; do not use a server Agent ID here.'),label:z.string().optional(),invite:z.string().optional().describe('PRIVATE 10-minute one-time token returned by prepare, needed for claim only.'),claimKey:z.string().optional().describe('PRIVATE fallback credential returned by claim; only needed when automatic conversation recognition fails.'),
+      adminKey:z.string().optional().describe('PRIVATE plaintext key from security.json, required with each revoke action. Never put in Tips messages or documents.'),
+      reason:z.string().optional().describe('Optional audit reason for administrator revoke, maximum 400 characters.')},
     annotations:{readOnlyHint:false},
   },result((args,extra)=>{
     const ctx=context(args,extra);
@@ -28,6 +30,10 @@ export function registerWebIdentityTools(server,config,z){
       case 'list':return {roles:store.list(),scopeAvailable:Boolean(ctx.scope)};
       case 'renew':return store.renew(ctx);
       case 'release':return store.release(ctx);
+      case 'revoke':{
+        if(!config.security)throw Error('Administrator credential is not configured');
+        return store.revoke(args.id,args.adminKey,config.security.webAdminKey,args.reason??'');
+      }
     }
   }));
   server.registerTool('web_mail',{

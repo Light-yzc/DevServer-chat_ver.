@@ -37,3 +37,6 @@ const {writeFileSync}=await import('node:fs');
 writeFileSync(configPath,JSON.stringify(cfg,null,2)+'\n',{mode:0o600});
 console.log('Copied config/auth and Tips private state. Existing service was NOT changed.');
 console.log('Review config at '+configPath+' and verify workspace roots and port before starting.');
+process.env.DEVSPACE_CONFIG_DIR=CONFIG_DIR;
+process.env.DEVSPACE_STATE_DIR=STATE_DIR;
+await import('./unify-security.mjs');
