@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 const source=readFileSync(new URL('./extension/content.js',import.meta.url),'utf8');
 const request={type:'DEVSPACE_WAKE',role:'web-test_1',ids:['11111111-1111-1111-1111-111111111111']};
 function fixture({draft='',appearAt=3,clearOnClick=true,editAt=0,form=true}={}){
-  let listener,ticks=0,clicks=0,deletes=0,lookupsBeforeInsert=0;
+  let listener,ticks=0,clicks=0,deletes=0,lookupsBeforeInsert=0,lastSubmittedText='';
   const editor={textContent:draft,isConnected:true,focus(){},querySelector(){return null;},
     closest(selector){return selector==='form'?(form?root:null):root;}};
-  const button={disabled:false,getAttribute(){return null;},click(){clicks++;if(clearOnClick)editor.textContent='';}};
+  const button={disabled:false,getAttribute(){return null;},click(){clicks++;lastSubmittedText=editor.textContent;if(clearOnClick)editor.textContent='';}};
   const root={querySelector(){if(!editor.textContent)lookupsBeforeInsert++;return ticks>=appearAt?button:null;}};
   const document={querySelector(selector){return selector.includes('contenteditable')?editor:null;},
     execCommand(command,_unused,value){if(command==='insertText')editor.textContent=value;
@@ -20,12 +20,23 @@ function fixture({draft='',appearAt=3,clearOnClick=true,editAt=0,form=true}={}){
     setTimeout(callback){ticks++;if(ticks===editAt)editor.textContent='user changed draft';queueMicrotask(callback);},
     chrome:{runtime:{onMessage:{addListener(fn){listener=fn;}}}}});
   return {send:()=>new Promise(resolve=>listener(request,{},resolve)),editor,
-    stats:()=>({clicks,deletes,lookupsBeforeInsert})};
+    stats:()=>({clicks,deletes,lookupsBeforeInsert}),submittedText:()=>lastSubmittedText};
 }
 
 test('waits for Send to appear after insertion and confirms composer cleared',async()=>{
   const f=fixture();assert.equal((await f.send()).status,'sent');
   assert.deepEqual(f.stats(),{clicks:1,deletes:0,lookupsBeforeInsert:0});
+});
+test('wake template asks Web Agent to ACK, continue progress and delegate only within authorization',async()=>{
+  const f=fixture();assert.equal((await f.send()).status,'sent');
+  const prompt=f.submittedText();
+  assert.match(prompt,/DevSpace\/Tips：web-test_1 有新消息（ID：11111111-1111-1111-1111-111111111111）/);
+  assert.match(prompt,/web_mail\(action="inbox"\)/);
+  assert.match(prompt,/处理后 ACK，必要时回复/);
+  assert.match(prompt,/必要时请尝试推进进度，启动 agent 或者发送信息/);
+  assert.match(prompt,/先核对当前任务与执行状态/);
+  assert.match(prompt,/STOP\/GPU 限制/);
+  assert.ok(prompt.length<400,'Keep the wake prompt token-efficient');
 });
 test('supports composer container without a form',async()=>{
   const f=fixture({form:false});assert.equal((await f.send()).status,'sent');

@@ -119,6 +119,13 @@ Version 0.1.4 separates **pending → submitted → done (MCP ACK only)**. The
 extension will not submit a second prompt for a submitted message, regardless
 of whether the Web Agent has ACKed yet. The popup shows all three counts.
 
+Version 0.1.5 updates the *content-script wake notification*: the targeted Web
+Agent should inspect its own `web_mail(inbox)`, ACK processed messages, and
+**proactively advance research** when warranted (coordinate an existing task,
+start/steer an authorized Agent or send a follow-up message). It must check the
+current Owner/STOP/GPU gates before dispatching new work. Only role names and
+message IDs go into the browser prompt—never remote message bodies or secrets.
+
 ## Operational and security rules
 
 - **Never put a Tips message body, shell command, invite or claim key into an automated prompt**. Only an ID and recipient identity are sent to the chat.

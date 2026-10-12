@@ -20,7 +20,7 @@ async function submitWake({role,ids}){
     document.querySelector('[data-testid="composer-attachment"]'))return {status:'busy'};
   if(!editor.closest('form') && !editor.closest('[data-chatgpt-composer]'))return {status:'not_ready',reason:'Composer container not found'};
   submitting=true;
-  const prompt=`DevSpace/Tips：${role} 有新消息（ID：${ids.join(', ')}）。请调用 web_mail(action="inbox") 读取；确认是自己的消息后，有任务就按已有授权执行，处理后 ACK，必要时回复。`;
+  const prompt=`DevSpace/Tips：${role} 有新消息（ID：${ids.join(', ')}）。请调用 web_mail(action="inbox") 核对身份并读取；按已有授权处理后 ACK，必要时回复。必要时请尝试推进进度，启动 agent 或者发送信息；先核对当前任务与执行状态，避免重复派发或违反 STOP/GPU 限制。`;
   try {
     editor.focus();
     // ChatGPT's ProseMirror composer listens for normal contenteditable input.
