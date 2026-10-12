@@ -1,6 +1,7 @@
 import { openAiConversationScopeId } from './request-meta.js';
 import { createWebIdentityStore } from './web-identity-store.js';
 import { createTipsV2 } from './tips-core.js';
+import { TIP_TOOL_DESCRIPTIONS } from './tips-tool-descriptions.js';
 
 function result(fn){return async (args,context)=>{
   try {return {content:[{type:'text',text:JSON.stringify(fn(args,context),null,2)}]}}
@@ -14,9 +15,9 @@ export function registerWebIdentityTools(server,config,z){
   const identity=(args,extra)=>store.authenticate(context(args,extra));
   server.registerTool('web_identity',{
     title:'Register and recognize a specific Web Chat identity',
-    description:'One Web Chat = one claimed web-* role. DevSpace OAuth authenticates server access but multiple ChatGPT chats may share OAuth. action=prepare creates an available role and a PRIVATE single-use invite valid 10 minutes (the main Web Chat can prepare slots). action=claim id+invite self-registers instantly WITHOUT another Web approval, binding this Chat to its OpenAI conversation metadata when available; returns private claimKey as a fallback if conversation metadata is unavailable/changes. On later turns call action=whoami to recognize the chat, optionally including claimKey if not automatically recognized. action=list shows nonsecret role slots; renew extends a seven-day lease; release frees your own role. Do NOT print or share invite/claimKey to Tips boards or Agent message bodies. The service cannot auto-activate an idle ChatGPT chat. If no stable OpenAI session metadata is supplied, identity requires claimKey on each call. No code can prove two ChatGPT tabs differ when both provide identical server-visible metadata.',
-    inputSchema:{action:z.enum(['prepare','claim','whoami','list','renew','release']),
-      id:z.string().optional(),label:z.string().optional(),invite:z.string().optional(),claimKey:z.string().optional()},
+    description:TIP_TOOL_DESCRIPTIONS.web_identity,
+    inputSchema:{action:z.enum(['prepare','claim','whoami','list','renew','release']).describe('First try whoami. prepare reserves a role; claim consumes private one-time invite without approval; renew extends lease; release revokes this chat.'),
+      id:z.string().optional().describe('Role ID starting with web-, required for prepare/claim; do not use a server Agent ID here.'),label:z.string().optional(),invite:z.string().optional().describe('PRIVATE 10-minute one-time token returned by prepare, needed for claim only.'),claimKey:z.string().optional().describe('PRIVATE fallback credential returned by claim; only needed when automatic conversation recognition fails.')},
     annotations:{readOnlyHint:false},
   },result((args,extra)=>{
     const ctx=context(args,extra);
@@ -31,12 +32,12 @@ export function registerWebIdentityTools(server,config,z){
   }));
   server.registerTool('web_mail',{
     title:'Identity-bound Web Chat and Agent mailbox',
-    description:'After web_identity claim, this tool recognizes the Web Chat from OpenAI conversation metadata (or private claimKey fallback). Sender identity is ALWAYS derived from the claimed role, never a caller supplied from field. action=send to a web-*, sub-* or server-controller recipient; optional tracked=true requests recipient ACK and formal verdict. action=inbox/get reads only messages involving this chat; ack/reply/resolve/verify record reading, reply and recipient verdict under the claimed identity. Web-to-Web messages remain on the server until the other chat next calls inbox; Tips cannot wake a closed/inactive ChatGPT window. All sent/received messages are visible on the Tips board with true identities. Do NOT put claimKey inside message body, and do not use ordinary tips_messages to impersonate web-* identities.',
-    inputSchema:{action:z.enum(['send','inbox','sent','get','ack','reply','resolve','verify']),
-      claimKey:z.string().optional(),to:z.string().optional(),id:z.string().optional(),
-      subject:z.string().optional(),body:z.string().optional(),priority:z.enum(['low','normal','high']).optional(),
-      tracked:z.boolean().optional(),wake:z.boolean().optional(),limit:z.number().int().optional(),
-      verdict:z.enum(['accepted','rejected','needs_changes']).optional(),note:z.string().optional()},
+    description:TIP_TOOL_DESCRIPTIONS.web_mail,
+    inputSchema:{action:z.enum(['send','inbox','sent','get','ack','reply','resolve','verify']).describe('send creates mail; inbox/sent list own mail; get inspects one; ack after reading; reply; resolve untracked or verify tracked after ACK.'),
+      claimKey:z.string().optional().describe('PRIVATE fallback Web identity credential; only if whoami does not auto-recognize this Chat.'),to:z.string().optional().describe('Recipient ID: web-*, sub-*, controller (legacy) or server-controller.'),id:z.string().optional().describe('Original message UUID for get/ack/reply/resolve/verify.'),
+      subject:z.string().optional(),body:z.string().optional().describe('Message text. Never include invite, claimKey or credentials.'),priority:z.enum(['low','normal','high']).optional(),
+      tracked:z.boolean().optional().describe('True means the recipient must ACK and issue verify verdict; tracked requests must not use plain resolve.'),wake:z.boolean().optional().describe('Set true only for an authorized urgent message to server-controller; cannot wake another Web Chat.'),limit:z.number().int().optional(),
+      verdict:z.enum(['accepted','rejected','needs_changes']).optional().describe('Required for verify on tracked messages, after ACK.'),note:z.string().optional()},
     annotations:{readOnlyHint:false},
   },result((args,extra)=>{
     const me=identity(args,extra),id=me.id;
