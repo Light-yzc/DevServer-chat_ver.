@@ -20,8 +20,10 @@ if(existsSync(join(CONFIG_DIR,'auth.json'))){
 if(existsSync(join(CONFIG_DIR,'security.json'))){
   const sec=JSON.parse(readFileSync(join(CONFIG_DIR,'security.json'),'utf8'));
   check(sec.version===1&&
-    ['viewToken','writeToken','dispatchToken'].every(k=>sec.tips?.[k]?.length>=32)&&
-    sec.webAdminKey?.length>=32,'Tips and Web-admin keys configured (contents not shown)');
+    ['viewToken','writeToken','dispatchToken'].every(k=>typeof sec.tips?.[k]==='string'&&sec.tips[k].length>0)&&
+    typeof sec.webAdminKey==='string'&&sec.webAdminKey.length>0&&
+    typeof sec.webWakeToken==='string'&&sec.webWakeToken.length>0,
+    'Tips, Web-admin and Web-Wake keys configured (contents not shown)');
   check((statSync(join(CONFIG_DIR,'security.json')).mode&0o077)===0,'Unified security file permissions 0600');
   const oldPath=join(STATE_DIR,'tips','credentials.json');
   if(existsSync(oldPath)){

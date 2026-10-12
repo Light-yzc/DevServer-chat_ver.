@@ -120,8 +120,8 @@ export function createWebIdentityStore(config,options={}){
   function revoke(id,adminKey,expectedKey,reason=''){
     if(!validId(id))fail('Target must be a valid web-* identity');
     if(typeof reason!=='string'||reason.length>400)fail('Invalid reason');
-    if(typeof expectedKey!=='string'||expectedKey.length<32||typeof adminKey!=='string'||
-      adminKey.length<32||adminKey.length>512||!safeEqual(adminKey,expectedKey))
+    if(typeof expectedKey!=='string'||expectedKey.length===0||
+      typeof adminKey!=='string'||adminKey.length===0||!safeEqual(adminKey,expectedKey))
       fail('Invalid administrator credential');
     return edit(state=>{
       const target=state.roles[id];
@@ -135,6 +135,21 @@ export function createWebIdentityStore(config,options={}){
       return {revoked:true,identity:expose(target),note:'Identity revoked; message history preserved'};
     });
   }
+  function remove(id,adminKey,expectedKey,reason=''){
+    if(!validId(id))fail('Target must be a valid web-* identity');
+    if(typeof reason!=='string'||reason.length>400)fail('Invalid reason');
+    if(typeof expectedKey!=='string'||!expectedKey.length||typeof adminKey!=='string'||
+      !adminKey.length||!safeEqual(adminKey,expectedKey))
+      fail('Invalid administrator credential');
+    return edit(state=>{
+      const role=state.roles[id];
+      if(!role)fail('Unknown Web identity');
+      delete state.roles[id];
+      (state.adminEvents??=[]).unshift({at:stamp(time()),action:'admin_remove',actor:'admin-key',target:id,reason});
+      state.adminEvents=state.adminEvents.slice(0,200);
+      return {removed:true,id,note:'Web role registration removed; Tips message history preserved'};
+    });
+  }
   function list(){const state=read();return Object.values(state.roles).map(expose).sort((a,b)=>a.id.localeCompare(b.id))}
-  return {prepare,claim,whoami,authenticate,renew,release,list,revoke};
+  return {prepare,claim,whoami,authenticate,renew,release,list,revoke,remove};
 }

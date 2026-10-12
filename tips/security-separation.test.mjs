@@ -28,3 +28,18 @@ test('DevSpace native OAuth is independent of private Tips/Web-admin config',()=
     assert.equal(loadConfig({...process.env,DEVSPACE_CONFIG_DIR:dir}).oauth.ownerToken,ownerToken);
   }finally{rmSync(dir,{recursive:true,force:true})}
 });
+
+test('user-owned plaintext security keys accept arbitrary nonempty values without fixed-length rules',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'devspace-user-security-'));
+  try{
+    const doc={version:1,tips:{viewToken:'v',writeToken:'w',dispatchToken:'d'},
+      webAdminKey:'admin',webWakeToken:'short key with spaces ✦'};
+    writeFileSync(join(dir,'security.json'),JSON.stringify(doc));
+    assert.deepEqual(loadSecurityConfig(dir),doc);
+    const same={...doc,webWakeToken:'x'};
+    writeFileSync(join(dir,'security.json'),JSON.stringify(same));
+    assert.deepEqual(loadSecurityConfig(dir),same);
+    writeFileSync(join(dir,'security.json'),JSON.stringify({...same,webWakeToken:''}));
+    assert.throws(()=>loadSecurityConfig(dir),/Invalid security.json/);
+  }finally{rmSync(dir,{recursive:true,force:true})}
+});

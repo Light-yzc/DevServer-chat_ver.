@@ -1,6 +1,6 @@
 # DevSpace Web Wake — ordinary ChatGPT Web prototype
 
-This is an **opt-in, experimental Chrome/Edge Manifest V3 extension** plus a **read-only, separately hosted WebSocket relay**. It wakes an open, manually named ChatGPT conversation by submitting **only an instruction to read its own Tips MCP mailbox**. This is **not** an official ChatGPT wake API and is **not** MCP server push to the model. It may fail after ChatGPT UI updates, may be constrained by browser background policies, and automated submissions may be subject to service terms or abuse limits. Do not rely on it for safety-critical execution.
+This is an **opt-in, experimental Chrome/Edge Manifest V3 extension** plus a **read-only WebSocket relay**, which can share DevSpace's original port. It wakes an open, manually named ChatGPT conversation by submitting **only an instruction to read its own Tips MCP mailbox**. This is **not** an official ChatGPT wake API and is **not** MCP server push to the model. It may fail after ChatGPT UI updates, may be constrained by browser background policies, and automated submissions may be subject to service terms or abuse limits. Do not rely on it for safety-critical execution.
 
 ## How addressing works
 
@@ -45,12 +45,23 @@ npm test
 
 # Use the SAME stateDir as the currently running DevSpace MCP; NOT a fresh demo stateDir.
 export TIPS_STATE_DIR="$HOME/.local/share/devspace"
+# For legacy installations without private security.json ONLY:
 node relay.mjs token-init --state-dir "$TIPS_STATE_DIR"
-# Save the displayed secret privately in the extension Options; don't paste into chats or Git.
+# Unified installations should configure webWakeToken, not run token-init.
 node relay.mjs serve --state-dir "$TIPS_STATE_DIR" --host 127.0.0.1 --port 17679
 ```
 
-`token-init` refuses to replace an existing token. The token is an independent read-only relay credential; **do not reuse the Tips write token, MCP OAuth token, or claim key**. It is stored hash-only as `tips/web-wake-token.json` in the real runtime state directory. Avoid running `token-init` during automated tests on production data.
+**Current / recommended:** Web Wake reads the plaintext `webWakeToken` from the private `security.json` in the DevSpace configuration directory. To set your own value, edit that JSON file with permission `0600`, or from the repository root:
+
+```bash
+read -rs WAKE_KEY; printf '%s' "$WAKE_KEY" | npm run web-wake:key; unset WAKE_KEY
+```
+
+Any **non-empty** string is accepted; no fixed minimum length or character rule is imposed. Then enter the exact same value in the extension's Options and click **保存并连接**. The Relay re-reads the key on each *new* socket authentication; previously authenticated sockets remain active until they disconnect. Reconnect the browser / restart the Relay if immediate revocation is needed. Short or predictable tokens are easier to guess.
+
+**Legacy migration:** Older releases saved only a SHA-256 hash at `tips/web-wake-token.json`, which cannot be converted back to plaintext. If `security.json` does not yet have `webWakeToken`, the Relay still supports the old hashed token. Once `webWakeToken` is present, it becomes **authoritative** and old hashed tokens are rejected. `npm run security:unify` generates a new random `webWakeToken` for existing installations, so the browser must be paired once more. Keep the legacy hash file for rollback if necessary; do not commit it. In unified installations `token-init` is disabled to avoid writing another active credential location.
+
+The Web Wake token is an independent Relay credential; **do not confuse it with the native DevSpace OAuth login, Tips write token, or Web administrator key**. The OAuth Token is never part of `security.json`.
 
 ### Reverse proxy (example — do not deploy without reviewing your existing Caddyfile)
 

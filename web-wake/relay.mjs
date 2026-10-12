@@ -4,11 +4,12 @@ import { join, resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
+import { devspaceConfigDir } from '../vendor/devspace/dist/user-config.js';
 import { allowSocketOrigin, collectWakeEvents, createWakeToken, verifyWakeToken } from './relay-core.mjs';
 
 // Mount directly onto the existing DevSpace HTTP server. The public WSS URL
 // shares its HTTPS port and SSH tunnel with /mcp and /tips.
-export function attachWakeRelay(server,{stateDir,path='/web-wake/ws',intervalMs=2000,requireExtensionOrigin=true}) {
+export function attachWakeRelay(server,{stateDir,configDir=devspaceConfigDir(),path='/web-wake/ws',intervalMs=2000,requireExtensionOrigin=true}) {
   const config={stateDir};
   const tips=createTipsV2(config);
   // Read the live Web identity registry directly. No import from the in-progress
@@ -19,7 +20,7 @@ export function attachWakeRelay(server,{stateDir,path='/web-wake/ws',intervalMs=
     const registry=JSON.parse(readFileSync(file,'utf8'));
     return Object.values(registry.roles??{}).map(({id,status,leaseExpiresAt})=>({id,status,leaseExpiresAt}));
   }
-  const sockets=new WebSocketServer({noServer:true,maxPayload:4096});
+  const sockets=new WebSocketServer({noServer:true,maxPayload:256*1024});
   const upgrade=(req,socket,head)=>{
     if(req.url!==path)return;
     if(requireExtensionOrigin&&!allowSocketOrigin(req.headers.origin)){
@@ -38,7 +39,7 @@ export function attachWakeRelay(server,{stateDir,path='/web-wake/ws',intervalMs=
       let request;
       try {request=JSON.parse(String(data));}catch{ws.close(1003,'Bad JSON');return;}
       if(!authenticated){
-        if(request?.type!=='auth'||!verifyWakeToken(stateDir,request.token)){
+        if(request?.type!=='auth'||!verifyWakeToken(stateDir,request.token,{configDir})){
           ws.close(1008,'Invalid pairing token');return;
         }
         authenticated=true;clearTimeout(deadline);active.add(ws);
@@ -71,7 +72,7 @@ export function attachWakeRelay(server,{stateDir,path='/web-wake/ws',intervalMs=
   return {sockets,close};
 }
 
-export function startWakeRelay({stateDir,host='127.0.0.1',port=17679,intervalMs=2000,requireExtensionOrigin=true}) {
+export function startWakeRelay({stateDir,configDir=devspaceConfigDir(),host='127.0.0.1',port=17679,intervalMs=2000,requireExtensionOrigin=true}) {
   const server=createServer((req,res)=>{
     res.setHeader('Cache-Control','no-store');
     res.setHeader('X-Content-Type-Options','nosniff');
@@ -79,7 +80,7 @@ export function startWakeRelay({stateDir,host='127.0.0.1',port=17679,intervalMs=
       res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,service:'web-wake'}));
     } else {res.writeHead(404);res.end();}
   });
-  const relay=attachWakeRelay(server,{stateDir,path:'/ws',intervalMs,requireExtensionOrigin});
+  const relay=attachWakeRelay(server,{stateDir,configDir,path:'/ws',intervalMs,requireExtensionOrigin});
   server.listen(port,host);
   return {server,sockets:relay.sockets,close:async()=>{
     await relay.close();
@@ -95,7 +96,13 @@ if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url))
     process.stderr.write('Supply --state-dir /path/to/devspace/state or TIPS_STATE_DIR (same live instance as Tips).\n');process.exit(2);
   }
   if(mode==='token-init'){
-    try {process.stdout.write(`Copy this PRIVATE token to the extension Options page once:\n${createWakeToken(stateDir)}\n`);}
+    try {
+      // Do not initialize an unusable legacy hash when a unified credential
+      // document is already present. Configure webWakeToken there instead.
+      if(existsSync(join(devspaceConfigDir(),'security.json')))
+        throw Error('Web Wake key is configured in private security.json. Edit webWakeToken there or run npm run web-wake:key; legacy token-init is disabled for unified configurations.');
+      process.stdout.write(`Copy this PRIVATE token to the extension Options page once:\n${createWakeToken(stateDir)}\n`);
+    }
     catch(e){process.stderr.write(`${e.message}\n`);process.exitCode=1;}
   } else if(mode==='serve') {
     const host=option(argv,'--host','127.0.0.1'),port=Number(option(argv,'--port','17679'));

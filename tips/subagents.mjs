@@ -58,6 +58,27 @@ export function subagentRegistry(config,tips){
     else if(item.status==='running'||item.status==='stopping'){item.status='stopping';item.stopRequested=true}
     item.updatedAt=now();return publicAgent(item);
   })}
+  function remove(name){return modify(db=>{
+    if(!valid(name))err('Invalid agent name');
+    const item=db.agents[name];if(!item)err('Unknown subagent');
+    if(['queued','running','stopping'].includes(item.status))err('Cannot remove an active/queued subagent; stop it and wait for a terminal state first');
+    if(item.pid){
+      // A stale registration may still correspond to a real process. Do not
+      // detach a live process from the only registry that can stop it.
+      try{process.kill(item.pid,0);err('Cannot remove an agent with a live PID')}catch(e){if(e.code!=='ESRCH')throw e}
+    }
+    // Detach the saved Codex Thread before making this name reusable. Keep a
+    // timestamped archive so deletion does not silently resume the old thread.
+    const threadFile=join(tips.dir,'app-agents',`${name}.json`);
+    if(existsSync(threadFile)){
+      const archive=join(tips.dir,'app-agents','retired');
+      mkdirSync(archive,{recursive:true,mode:0o700});
+      renameSync(threadFile,join(archive,`${name}-${randomUUID()}.json`));
+    }
+    delete db.agents[name];
+    // Keep experiment artifacts, Tips history and Codex thread files intact.
+    return {removed:true,name,status:item.status,retainedHistory:true};
+  })}
   function update(name,jobId,fields){return modify(db=>{
     const item=db.agents[name];if(!item||item.jobId!==jobId)return null;
     Object.assign(item,fields,{updatedAt:now()});return publicAgent(item);
@@ -68,5 +89,5 @@ export function subagentRegistry(config,tips){
     if(typeof body!=='string'||!body.trim()||body.length>6000)err('Invalid message body');
     return tips.messages({action:'post',from,to:name,subject,body,priority},{trustedWake:true});
   }
-  return {dir,file,start,stop,status,list,update,send,load};
+  return {dir,file,start,stop,remove,status,list,update,send,load};
 }

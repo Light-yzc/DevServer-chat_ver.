@@ -17,9 +17,9 @@ async function refresh(){
 }
 document.addEventListener('DOMContentLoaded',refresh);
 $('save').addEventListener('click',async()=>{
-  const endpoint=$('endpoint').value.trim(),token=$('token').value.trim();
+  const endpoint=$('endpoint').value.trim(),token=$('token').value;
   if(!isEndpointAllowed(endpoint)){ $('status').textContent='不支持此 URL。请使用配置的 HTTPS 域名或本机 127.0.0.1 Relay。';return;}
-  if($('enabled').checked && token.length<32){$('status').textContent='请先填写服务器生成的完整私有令牌。';return;}
+  if($('enabled').checked && !token){$('status').textContent='请填写私有配对令牌，长度和内容由你决定。';return;}
   await chrome.storage.local.set({endpoint,token,enabled:$('enabled').checked,lastStatus:'Connecting…',lastStatusAt:Date.now()});
   await chrome.runtime.sendMessage({type:'DEVSPACE_RECONNECT'});await refresh();
 });

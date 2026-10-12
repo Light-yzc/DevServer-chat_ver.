@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createTipsV2 } from './tips-core.js';
 import { buildAgentOverview } from './tips-agent-overview.js';
+import { createTipsAdmin } from './tips-admin.js';
 import { TIP_TOOL_DESCRIPTIONS } from './tips-tool-descriptions.js';
 
 export { createTipsV2 as createTips } from './tips-core.js';
@@ -24,6 +25,17 @@ const textResult=callback=>async args=>{
 };
 export function registerTipsTool(server,config,z){
   const tips=createTipsV2(config);
+  const admin=createTipsAdmin(config,tips);
+  server.registerTool('tips_admin',{
+    title:'Tips administrator — revoke, remove, archive, stop (private key required)',
+    description:TIP_TOOL_DESCRIPTIONS.tips_admin,
+    inputSchema:{
+      action:z.enum(['history','revoke_web','remove_web','stop_sub','remove_sub','archive_task','delete_task','delete_message']).describe('history reads administrator audit; revoke/remove_web affects Web roles; stop/remove_sub affects managed Local Sub; task/message actions manage Tips records.'),
+      id:z.string().optional().describe('Exact web-*, sub-*, task ID or message UUID to operate on; required except history.'),
+      adminKey:z.string().describe('PRIVATE plaintext admin key required on every call. Do not save in project files or Tips messages.'),
+      reason:z.string().max(400).optional().describe('Short administrator reason, written to audit (never a secret).'),
+    },annotations:{readOnlyHint:false,destructiveHint:true},
+  },textResult(args=>admin.run(args)));
   server.registerTool('tips',{
     title:'Tips research console — tasks',
     description:TIP_TOOL_DESCRIPTIONS.tips,
@@ -109,6 +121,7 @@ export function registerTipsTool(server,config,z){
 }
 export function mountTipsRoutes(app,config,express){
   const tips=createTipsV2(config);
+  const admin=createTipsAdmin(config,tips);
   const headers=res=>{res.set('Cache-Control','no-store');res.set('Referrer-Policy','no-referrer');res.set('X-Content-Type-Options','nosniff');};
   const auth=(req,res,write=false)=>{
     const expected=write?tips.credentials.writeToken:tips.credentials.viewToken;
@@ -137,6 +150,10 @@ export function mountTipsRoutes(app,config,express){
       }
       return overviewCache;
     },req,res);
+  });
+  app.post('/tips/admin/api',express.json({limit:'256kb'}),(req,res)=>{
+    if(!auth(req,res))return;
+    guard(()=>{const outcome=admin.run(req.body);overviewCache=null;return outcome},req,res);
   });
   app.get('/tips/api',(req,res)=>{
     if(!auth(req,res))return;

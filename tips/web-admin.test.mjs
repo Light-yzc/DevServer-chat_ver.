@@ -53,3 +53,27 @@ test('revoke is permitted without claiming a Web role but requires key every tim
     assert.equal(result2.error,true);
   }finally{x.cleanup()}
 });
+test('short explicit administrator key is accepted, empty and wrong keys are rejected',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'tips-short-admin-test-'));
+  try{
+    const shortKey='unit-short-key';
+    const config={stateDir:dir,security:{webAdminKey:shortKey}};
+    const store=createWebIdentityStore(config);
+    const slot=store.prepare({id:'web-old-short',label:'Old role'});
+    store.claim({id:slot.identity.id,invite:slot.invite,scope:'discarded-chat'});
+    const tools={};
+    registerWebIdentityTools({registerTool:(id,schema,handler)=>tools[id]=handler},config,z);
+    const call=async key=>tools.web_identity(
+      {action:'revoke',id:'web-old-short',adminKey:key},{_meta:{}});
+    assert.equal((await call('')).isError,true);
+    assert.equal((await call('incorrect')).isError,true);
+    assert.equal(store.whoami({scope:'discarded-chat'}).recognized,true);
+    const success=await call(shortKey);
+    assert.equal(Boolean(success.isError),false);
+    const result=JSON.parse(success.content[0].text);
+    assert.equal(result.revoked,true);
+    assert.equal(result.identity.status,'revoked');
+    const state=JSON.parse(readFileSync(join(dir,'tips/web-identities.json'),'utf8'));
+    assert.ok(!JSON.stringify(state.adminEvents).includes(shortKey));
+  }finally{rmSync(dir,{recursive:true,force:true})}
+});

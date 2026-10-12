@@ -19,6 +19,8 @@ test('Agent page combines actual Main/Sub/Web/legacy sources without inventing o
     const registry=createWebIdentityStore(x.config);
     const invite=registry.prepare({id:'web-reviewer',label:'Reviewer'});
     registry.claim({id:'web-reviewer',invite:invite.invite,scope:'reviewer-chat'});
+    const webMainInvite=registry.prepare({id:'web-air-main',label:'AIR Web Main'});
+    registry.claim({id:'web-air-main',invite:webMainInvite.invite,scope:'main-chat'});
     x.tips.mutate({action:'update',id:'tips-server-controller',title:'Server main',status:'pending',message:'等待新指令'});
     x.tips.mutate({action:'update',id:'sub-air',status:'running',title:'Sub AIR',message:'正在检查 CPU tests'});
     x.tips.mutate({action:'update',id:'air-goal',status:'running',title:'Research job',message:'正在跑独立实验'});
@@ -33,11 +35,18 @@ test('Agent page combines actual Main/Sub/Web/legacy sources without inventing o
     assert.equal(overview.groups.subs[0].mailbox.unread,1);
     assert.equal(overview.groups.subs[0].mailbox.last.subject,'Please review');
     assert.equal(overview.groups.web[0].status,'claimed');
+    assert.equal(overview.groups.webMain.length,1);
+    assert.equal(overview.groups.webMain[0].id,'web-air-main');
+    assert.equal(overview.groups.webSubs.length,1);
+    assert.equal(overview.groups.webSubs[0].id,'web-reviewer');
+    assert.equal(overview.groups.main[0].tier,'local-main');
+    assert.equal(overview.groups.subs[0].tier,'local-sub');
     assert.match(overview.groups.web[0].summary,/无法从服务器判断/);
     assert.equal(overview.groups.legacy.length,1);
     assert.equal(overview.groups.tracked.length,1);
     const exposed=JSON.stringify(overview);
     assert.ok(!exposed.includes(invite.invite));
+    assert.ok(!exposed.includes(webMainInvite.invite));
     assert.ok(!exposed.includes('Secret conversation content'));
     assert.ok(!exposed.includes('/secret/goal.txt'));
     assert.ok(!exposed.includes('must-not-leak'));

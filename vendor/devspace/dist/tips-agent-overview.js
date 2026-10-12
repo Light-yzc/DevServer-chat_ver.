@@ -24,6 +24,7 @@ export function buildAgentOverview(config,tips,options={}){
   };
   const web=createWebIdentityStore(config).list().map(role=>({
     type:'web',id:role.id,name:role.label||role.id,
+    tier:role.id==='web-main'||/^web-[a-z0-9_.-]+-main$/.test(role.id)?'web-main':'web-sub',
     status:role.status,source:'Web identity registry',
     updatedAt:role.lastSeenAt??role.claimedAt??role.createdAt,
     summary:role.status==='claimed'?'已认领；无法从服务器判断 Web Chat 当前是否打开':role.status==='available'?'等待邀请码认领':role.status==='released'?'已释放':'身份登记',
@@ -36,7 +37,7 @@ export function buildAgentOverview(config,tips,options={}){
     const running=a.status==='running'||a.status==='stopping';
     const summary=running?summarize(card?.message)||'App Server 正在执行一轮任务':a.status==='queued'?'已加入任务队列':
       a.status==='failed'?summarize(a.error)||'最后一轮失败':summarize(a.lastResult)||'暂无近期结果';
-    return {type:'sub',id:a.name,name:a.name,status:a.status,source:'App Server registry',
+    return {type:'sub',tier:'local-sub',id:a.name,name:a.name,status:a.status,source:'App Server registry',
       model:a.model??null,group:a.group??null,updatedAt:a.updatedAt??null,
       summary,jobId:a.jobId??null,revision:a.revision??null,
       mailbox:mailbox(a.name),
@@ -44,7 +45,7 @@ export function buildAgentOverview(config,tips,options={}){
   }).sort((a,b)=>(b.updatedAt??'').localeCompare(a.updatedAt??''));
   const mainService=serviceStatus('tips-server-controller.service');
   const mainTask=taskById.get('tips-server-controller');
-  const main=[{type:'main',id:'server-controller',name:'Server Main · Codex Sol',
+  const main=[{type:'main',tier:'local-main',id:'server-controller',name:'Local Main · Codex Sol',
     status:mainService==='active'?(mainTask?.status==='running'?'running':'listening'):mainService==='inactive'?'offline':'unknown',
     serviceStatus:mainService,model:'gpt-6.1-sol',source:'systemd + Tips',
     summary:summarize(mainTask?.message)||'没有主控状态记录',
@@ -64,10 +65,13 @@ export function buildAgentOverview(config,tips,options={}){
   const managerService=serviceStatus('tips-subagent-manager.service');
   const tracked=tasks.filter(t=>t.status==='running'&&!t.archived&&!t.id.startsWith('sub-')&&t.id!=='tips-server-controller')
     .map(t=>({id:t.id,name:t.title||t.id,status:t.status,summary:summarize(t.message),updatedAt:t.updatedAt,source:'Tips task (not an agent identity)'}));
+  const webMain=web.filter(a=>a.tier==='web-main');
+  const webSubs=web.filter(a=>a.tier==='web-sub');
   return {at:new Date(now()).toISOString(),services:{main:mainService,subagents:managerService},
-    groups:{main,subs,web,legacy,tracked},
+    groups:{main,subs,web,webMain,webSubs,legacy,tracked},
     counts:{main:main.length,subagents:subs.length,web:web.length,legacy:legacy.length,
+      webMain:webMain.length,webSubs:webSubs.length,
       runningSubs:subs.filter(a=>a.status==='running').length,
       claimedWeb:web.filter(a=>a.status==='claimed').length},
-    note:'数据按实际来源区分：Web 已认领不等于在线，tmux 会话不等于推理中的 Agent，Tips 任务也不等于独立 Agent 身份。消息预览仅显示主题。'};
+    note:'Web Main/Sub 按命名约定分类（web-main 或 web-*-main 为 Web Main，其余 Web 为 Sub），这只代表职责，不代表管理员权限。Local Main 为独立 Sol 服务，Local Sub 为持久 App Server。Web 已认领不等于在线，tmux 会话不等于推理中的 Agent，Tips 任务不等于独立 Agent 身份。'};
 }
