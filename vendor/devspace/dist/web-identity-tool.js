@@ -41,7 +41,7 @@ export function registerWebIdentityTools(server,config,z){
     inputSchema:{action:z.enum(['send','inbox','sent','get','ack','reply','resolve','verify']).describe('send creates mail; inbox/sent list own mail; get inspects one; ack after reading; reply; resolve untracked or verify tracked after ACK.'),
       claimKey:z.string().optional().describe('PRIVATE fallback Web identity credential; only if whoami does not auto-recognize this Chat.'),to:z.string().optional().describe('Recipient ID: web-*, sub-*, controller (legacy) or server-controller.'),id:z.string().optional().describe('Original message UUID for get/ack/reply/resolve/verify.'),
       subject:z.string().optional(),body:z.string().optional().describe('Message text. Never include invite, claimKey or credentials.'),priority:z.enum(['low','normal','high']).optional(),
-      tracked:z.boolean().optional().describe('True means the recipient must ACK and issue verify verdict; tracked requests must not use plain resolve.'),wake:z.boolean().optional().describe('Set true only for an authorized urgent message to server-controller; cannot wake another Web Chat.'),limit:z.number().int().optional(),
+      tracked:z.boolean().optional().describe('True means the recipient must ACK and issue verify verdict; tracked requests must not use plain resolve.'),wake:z.boolean().optional().describe('Trusted mail to server-controller wakes Local Sol by DEFAULT. Specify false only to store a passive note. Cannot wake another Web Chat.'),limit:z.number().int().optional(),
       verdict:z.enum(['accepted','rejected','needs_changes']).optional().describe('Required for verify on tracked messages, after ACK.'),note:z.string().optional()},
     annotations:{readOnlyHint:false},
   },result((args,extra)=>{
@@ -61,7 +61,7 @@ export function registerWebIdentityTools(server,config,z){
         if(args.wake===true&&args.to!=='server-controller')throw Error('wake=true is only for server-controller');
         const msg=tips.messages({action:'post',from:id,to:args.to,body:args.body,
           subject:args.subject??`Message from ${id}`,priority:args.priority??'normal',
-          tracked:args.tracked===true,wake:args.wake===true},{trustedWake:true});
+          tracked:args.tracked===true,...(args.wake!==undefined?{wake:args.wake}:{})},{trustedWake:true});
         return {message:msg,authenticatedSender:id};
       }
       case 'inbox':return {identity:id,messages:tips.messages({action:'list',to:id,limit:Math.min(200,Math.max(1,args.limit??50))})};

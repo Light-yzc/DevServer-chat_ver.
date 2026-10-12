@@ -26,6 +26,7 @@
 - Local Main 是单一 `server-controller` 服务；Local Sub 来自 `subagents/registry.json` 的 `sub-*` Codex App Server 注册表。运行中状态只能由真实管理器/进程确认；Tips 任务卡不是启动凭证。
 - `controller` 是**历史 Web 控制端收件箱**，不等于 `web-main`；为防消息路由混乱，优先将 Web↔Agent 消息通过已认领会话的 `web_mail` 发送。
 - Web Wake 只是**浏览器扩展中转**，不能无条件唤醒关闭或未登录的云端聊天。若需跨时段自动推进，仍应让 Local Agent 持久执行。
+- Local Sol 可以通过 `tips/web-handoff.mjs request` 主动把高级推理审查任务交给已认领 Web Main/Sub；会生成 `web-handoff-*` 任务卡。Web Wake 只是尽力提示打开的 Web 会话，**未收到 ACK 的 Web 任务 45 分钟后自动让 Local Sol 再判断一次本地 Luna 后备**，不会假装 Web 已处理。详见 [`WEB_HANDOFF.md`](WEB_HANDOFF.md)。
 
 ## 安全与实验约束
 

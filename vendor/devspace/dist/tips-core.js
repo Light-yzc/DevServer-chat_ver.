@@ -228,9 +228,14 @@ export function createTipsV2(config){
           if(!parent)fail('Reply target not found');
           replyTo=parent.id;threadId=parent.threadId??parent.id;
         }
-      const requested=input.wake===true;
-      if(requested&&to!=='server-controller')fail('Wake is only available for server-controller messages');
-      if(requested&&!context.trustedWake)fail('Wake requires a separately authenticated local dispatcher or MCP call');
+      // Continuity-first policy: every *trusted* new message addressed to
+      // Local Main wakes Sol by default, even routine updates and replies.
+      // Never upgrade plain HTTP/write-token messages into model invocations.
+      // Explicit wake:false remains an opt-out for intentionally passive notes.
+      const requested=to==='server-controller'&&from!=='server-controller'&&
+        context.trustedWake===true&&input.wake!==false;
+      if(input.wake===true&&to!=='server-controller')fail('Wake is only available for server-controller messages');
+      if(input.wake===true&&!context.trustedWake)fail('Wake requires a separately authenticated local dispatcher or MCP call');
       let autoBlock=null;
       if(input.autoBlock!==undefined){
         const a=input.autoBlock;
@@ -277,8 +282,8 @@ export function createTipsV2(config){
         if(action==='triage_controller'){
           // Passive messages must NEVER wake Sol on their own. The existing
           // authorized Sol Turn must explicitly report the review outcome.
-          if(!context.trustedWake||m.to!=='server-controller'||m.wakeAuthorized||m.status!=='unread')
-            fail('Only unread passive Local Main messages may be triaged');
+          if(!context.trustedWake||m.to!=='server-controller'||m.status!=='unread')
+            fail('Only unread queued Local Main messages may be triaged');
           const disposition=input.disposition;
           if(!['ack','resolved','delegated','defer'].includes(disposition))fail('Invalid triage disposition');
           const note=string(input.note,'note',1000);
@@ -305,6 +310,9 @@ export function createTipsV2(config){
           }else if(disposition==='delegated'){
             logMessage(m,'delegated','server-controller',`${m.delegatedTo}: ${note}`);
           }else if(disposition==='defer'){
+            // A reviewed-but-deferred automatic wake must not trigger another
+            // Sol turn immediately. A later new message includes it as backlog.
+            m.wakeAuthorized=false;
             logMessage(m,'deferred','server-controller',note);
           }
           m.triageAt=at;m.triageDisposition=disposition;m.note=note;

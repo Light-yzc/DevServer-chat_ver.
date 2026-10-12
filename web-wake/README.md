@@ -12,6 +12,8 @@ This is an **opt-in, experimental Chrome/Edge Manifest V3 extension** plus a **r
 
 The browser's title match is **routing, not authentication**; the subsequent MCP tools must verify the Web identity. The relay never returns message contents. Local delivery (`submitted`) does **not** mark a Tips message read or complete; only MCP ACK/resolve does.
 
+**Durable retries:** The relay now includes unread messages up to 30 days old while the target Web identity lease is still valid. The extension no longer treats a successful browser composer submit as permanent completion: if the Web Chat fails to ACK, it retries the inbox prompt after 20, 40, 80 and then at most 120 minutes. Actual MCP ACK/resolve clears the retry queue. This is a best-effort browser notification, not a guarantee that cloud inference is running. For autonomous Local Sol→Web coordination and a 45-minute fallback to Local Luna, see [`../tips/WEB_HANDOFF.md`](../tips/WEB_HANDOFF.md).
+
 ## Server installation
 
 ### Preferred: single-port integration (no new SSH tunnel or Caddy route)

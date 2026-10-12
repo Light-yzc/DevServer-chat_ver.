@@ -79,7 +79,7 @@ export function registerTipsTool(server,config,z){
       priority:z.enum(['low','normal','high']).optional(),inReplyTo:z.string().optional().describe('Original message ID when using action=reply; preserves conversation thread.'),
       threadId:z.string().optional(),unreadOnly:z.boolean().optional(),
       limit:z.number().int().optional(),note:z.string().optional(),
-      wake:z.boolean().optional().describe('Set true ONLY for urgent authorized post to server-controller to wake Sol. Ordinary mail does not wake Main.'),agentId:z.string().optional(),turnId:z.string().optional(),
+      wake:z.boolean().optional().describe('Trusted mail addressed to server-controller wakes Local Sol by DEFAULT; use wake=false to suppress for intentionally passive notes. Never set true for other recipients.'),agentId:z.string().optional(),turnId:z.string().optional(),
     },annotations:{readOnlyHint:false},
   },textResult(args=>{
     if(['post','reply'].includes(args.action)&&typeof args.from==='string'&&args.from.startsWith('web-')){

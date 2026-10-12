@@ -78,3 +78,23 @@ test('dashboard mailbox summary separates passive Sol mail, authorized wake, and
     assert.equal(m.unreadController,3);
   }finally{x.cleanup()}
 });
+
+test('trusted messages default to an authorized Sol wake, except explicit opt-out or Main self-notification',()=>{
+  const x=fixture();try{
+    const trusted=x.tips.messages({action:'post',from:'sub-air-review',to:'server-controller',
+      subject:'Routine but actionable',body:'Please coordinate next CPU-only study'},{trustedWake:true});
+    assert.equal(trusted.wakeAuthorized,true);
+    const self=x.tips.messages({action:'post',from:'server-controller',to:'server-controller',
+      subject:'Self note',body:'Do not call Sol recursively'},{trustedWake:true});
+    assert.equal(self.wakeAuthorized,false);
+    const passive=x.tips.messages({action:'post',from:'web-main',to:'server-controller',
+      body:'Passive archive',wake:false},{trustedWake:true});
+    assert.equal(passive.wakeAuthorized,false);
+    const untrusted=x.tips.messages({action:'post',from:'untrusted-http-writer',to:'server-controller',
+      body:'No implicit escalation'});
+    assert.equal(untrusted.wakeAuthorized,false);
+    assert.throws(()=>x.tips.messages({action:'post',from:'untrusted-http-writer',
+      to:'server-controller',body:'Unauthorized explicit wake',wake:true}),/Wake requires/);
+    assert.equal(x.tips.messages({action:'claim'},{trustedWake:true}).id,trusted.id);
+  }finally{x.cleanup()}
+});

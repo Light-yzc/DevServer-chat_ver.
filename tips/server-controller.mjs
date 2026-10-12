@@ -14,6 +14,7 @@ import { createBlockWatch, rejectQueuedAutoBlock } from './block-watch.mjs';
 import { finalizeMainMessage } from './controller-receipts.mjs';
 import {resolveCodexBin} from './codex-bin.mjs';
 import {pendingMainBatch,batchPrompt,applyBatchReceipt} from './main-inbox-batch.mjs';
+import {scanWebHandoffs} from './web-handoff.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -46,6 +47,7 @@ function promptFor(message,batch,receiptFile){
        body:message.body,taskId:message.taskId,priority:message.priority},null,2)
      +`\n\nCurrent relevant task summaries:\n${previous}\n`
      +`\nAvailable on-demand local Agent Skills: ${join(ROOT,'tips','skills')} (see */SKILL.md). Consult agent-coordination for Sub delegation; main-batch-triage for inbox receipts; research-safety for AIR/GPU constraints. Do not assume messages are already authorized work.\n`
+     +`\nSOL ALSO COORDINATES WEB REVIEW: For a difficult task requiring independent high-quality review, use the durable Web handoff helper if a Web role is claimed: echo '{"to":"web-air-main","subject":"...","body":"...","sourceId":"${message.id}"}' | ${process.execPath} ${join(ROOT,'tips','web-handoff.mjs')} request. Prefer stdin JSON created using Python for escaping. It creates a tracked Tips message + progress card; the Web Wake relay will attempt to notify the browser. Do not assume Web is online merely because an identity is claimed. Do NOT wait/block a Sol Turn for an offline Web review. Continue with safe Local Luna work; a lightweight watchdog asks Local Sol ONCE after 45 minutes without Web ACK, after three hours of uncompleted review, or on rejection. Check via the same helper's status command. No repeating the same sourceId/role handoff. Never use this as GPU or STOP authorization.\n`
      +batchPrompt(batch,receiptFile,message.id)
      +`\nRespond at the end with a short concrete Chinese summary: what you checked, files/results, remaining blockers, next steps. Never include secrets.\n`;
 }
@@ -131,7 +133,7 @@ async function handle(message){
   heartbeat.unref();
   let finalized=false;
   try{
-    const batch=pendingMainBatch(tips);
+    const batch=pendingMainBatch(tips,{excludeIds:[message.id]});
     const receiptFile=join(runtime,`${message.id}.batch-receipts.json`);
     // A retried wake must not consume a stale report from a previous Turn.
     rmSync(receiptFile,{force:true});
@@ -180,6 +182,10 @@ async function main(){
         const report=blockWatch.scan();
         if(report.initialized)log('Block watcher initialized: existing tasks baselined, no historical replay');
         for(const queued of report.queued)log('Recent blocker queued',queued.id,queued.messageId);
+        // Persistent, model-free Web handoff tracking. Web Wake is best-effort
+        // browser prompting; only actual Web ACK proves the request was read.
+        const web=scanWebHandoffs(tips);
+        if(web.fallbacks||web.errors.length)log('Web handoff tracking',JSON.stringify(web));
       }
       const msg=tips.messages({action:'claim'},{trustedWake:true});
       if(msg)await handle(msg);

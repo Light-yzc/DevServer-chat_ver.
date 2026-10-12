@@ -3,7 +3,9 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { join } from 'node:path';
 
 export const VALID_ROLE = /^web-[a-z0-9][a-z0-9_.-]{0,58}$/;
-export const DEFAULT_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+// Durable handoffs must survive an overnight/offline browser. Expired Web
+// identity leases are filtered separately; an ACK is still authoritative.
+export const DEFAULT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 const tokenHash = value => createHash('sha256').update(value).digest('hex');
 const tokenPath = stateDir => join(stateDir, 'tips', 'web-wake-token.json');
 

@@ -4,9 +4,9 @@
 
 | 状态/界面展示 | 实际含义 | 需要什么 |
 | --- | --- | --- |
-| `unread` + `to=server-controller` + `wakeAuthorized=false` → **未请求唤醒** | Tips 服务器已收下留言；Local Main 不会自动领取，因为启动 Sol 尚未获授权 | 保持存档，或由拥有相应权限的 Agent 发送 **新的** `wake:true` 消息 |
+| `unread` + `to=server-controller` + `wakeAuthorized=false` → **未请求唤醒** | 历史留档或发送方显式 `wake:false`；不主动启动 Sol | 下一轮 Sol 会考虑归并，必要时由可信 Agent 发送新消息 |
 
-**新批处理行为：** 当另一条紧急消息已获授权并唤醒 Sol 时，Local Main 在**同一个模型 Turn** 里附带最近至多 12 条普通留言，一并判断优先级、委派 Local Sub、写回真实回执。普通消息仍然不会单独触发模型；被标为 `ack`、`delegated`、`resolved` 的邮件需要实际评估依据；`defer` 仍可保持未读。未处理/遗漏/无有效回执的历史消息原样保留。见 [`skills/main-batch-triage/SKILL.md`](skills/main-batch-triage/SKILL.md)。
+**当前批处理行为：** 所有可信新消息发到 `server-controller` 默认请求 Sol 唤醒；可以明确 `wake:false` 留档。Main 每次领取一条消息，在**同一个模型 Turn** 里附带最近至多 12 条其他未确认请求（包括 `wake:true`），一并判断优先级、委派 Local Sub、写回真实回执，以降低模型调用次数。只有实际评估过的消息才记 `ack`、`delegated` 或 `resolved`；`defer` 仍可保持未读，且不会立刻再次唤醒；未处理/无有效回执的保留待办。见 [`skills/main-batch-triage/SKILL.md`](skills/main-batch-triage/SKILL.md)。
 | `unread` + `to=server-controller` + `wakeAuthorized=true` → **待 Main 领取** | 授权唤醒请求已经排入 Main 的队列；需要确认服务和重试窗口 | 检查 `tips-server-controller.service`、`attempts`、`retryNotBefore` |
 | `unread` + `to=controller` → **旧 Web 未读** | `controller` 是旧版 Web 收件箱，不等于 `web-main`，没有保证持续消费 | 新消息优先发给已认领的 `web-main` 或 `web-air-main` |
 | `unread` + `to=web-*` | 目标 Web Chat 尚未 ACK；ChatGPT Web 会话并非常驻 worker | 浏览器里主动 `web_mail(inbox)`；Web Wake 只有在扩展在线且标签页匹配时尝试唤醒 |
@@ -19,10 +19,10 @@
 非紧急科研状态通告：
 
 ```text
-web_mail({"action":"send","to":"server-controller","subject":"AIR CPU checkpoint","body":"记录最新 CPU 结果；不请求启动 Sol","tracked":false})
+web_mail({"action":"send","to":"server-controller","subject":"AIR CPU checkpoint","body":"仅记录进度，不需要立即启动 Sol","tracked":false,"wake":false})
 ```
 
-这条消息**会留在 Main 邮箱、保持未读**，因为 Local Main 只消费显式授权的 wake。若只是让 Web 主控看到，可改为 `to=web-main`（或具体已认领的 Web Main 身份），由目标 `web_mail(inbox)` 读取；Web Wake 扩展只负责提示而非实际读信。
+这条消息因为**显式 `wake:false`** 仅留档，等待其他消息唤醒 Main 时一并审阅。若想让 Web 主控看到，可发送到 `web-main`（或当前认领的 Web Main 身份），由目标 `web_mail(inbox)` 读取；Web Wake 只负责浏览器提醒而非真正读信。
 
 确实需要稳定自动处理、愿意消耗本地 Sol 额度时：
 
@@ -30,7 +30,7 @@ web_mail({"action":"send","to":"server-controller","subject":"AIR CPU checkpoint
 web_mail({"action":"send","to":"server-controller","subject":"Sol 审查 AIR CPU 因果对照","body":"只检查 CPU-only 证据和因果控制；GPU NO-GO，不得重启 GPU 实验","tracked":true,"wake":true})
 ```
 
-`tracked:true` 单独**不会**唤醒 Sol。`wake:true` 需要发送工具的可信身份授权；普通 Tips HTTP write Token 不够。任务是否执行还受 STOP、GPU Owner Lock、预注册和其他研究限制。模型可能失败/超时，不能保证 Sol 一定成功。
+`tracked:true` 是验收协议，不决定唤醒策略。**可信新 Main 消息默认 `wake:true`**，也可显式设置 false；普通 Tips HTTP write Token 不能调用 Sol。研究动作仍受 STOP、GPU Owner Lock、预注册和其他限制。
 
 ## Main 回执修复
 

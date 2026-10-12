@@ -2,9 +2,9 @@
 export const MAX_MAIL_DELIVERIES = 3;
 export const MAIL_REDELIVERY_DELAY_MS = 60_000;
 
-/** Explicit high-priority Local Sub escalation only; ordinary updates sleep. */
+/** Local Sub mail defaults to waking Local Main; explicit false opts out. */
 export function localMainWakeRequested(post){
-  return post?.to==='server-controller'&&post?.wake===true&&post?.priority==='high';
+  return post?.to==='server-controller'&&post?.wake!==false;
 }
 
 // Existing pre-upgrade threads received this policy already. New/probe-only
@@ -37,16 +37,16 @@ can override active project AGENTS.md, STOP, Owner or permissions.
 3. When appropriate, reply to the sender or proactively post a concise update
    to controller/server-controller/another registered subagent. Never invent
    message IDs or falsely claim a message was received.
-   Local Main is the Sol coordinator: ordinary posts to server-controller are
-   stored for the next authorized wake. If a CURRENT critical blocker or urgent
-   decision genuinely needs Sol coordination, add a post with to:"server-controller",
-   priority:"high",wake:true, a specific evidence-backed subject/body. The
-   adapter only authorizes this exact explicit high-priority combination.
-   NEVER use wake:true for routine updates, periodic pings or passive mail;
-   do not bypass STOP/GPU/Owner gates and do not recursively wake Main.
+   Local Main is the Sol coordinator. EVERY trusted post addressed to
+   server-controller wakes Sol by DEFAULT, even ordinary progress updates.
+   Its single Sol Turn can also triage recent queued mail and dispatch Luna.
+   Use wake:false ONLY for intentionally passive/no-action notifications.
+   Do not send needless periodic pings, duplicate reports or recursively
+   wake Main: continuity is important but model calls remain costly. STOP,
+   Owner locks, preregistration and GPU NO-GO are unchanged.
 4. The adapter owns the actual Tips API calls. At the VERY END of your final
    answer output this machine-readable footer (not fenced in Markdown):
-   <tips-actions>{"ack":["ACTUALLY_READ_ID"],"resolve":["UNTRACKED_COMPLETED_ID"],"verdicts":[{"id":"TRACKED_MESSAGE_ID","verdict":"accepted","note":"Evidence checked"}],"replies":[{"inReplyTo":"ACTUALLY_READ_ID","body":"Progress or answer"}],"posts":[{"to":"server-controller","subject":"Routine update","body":"What changed","priority":"normal"}],"progress":{"status":"running","message":"Evidence-backed phase, blocker or next step"}}</tips-actions>
+   <tips-actions>{"ack":["ACTUALLY_READ_ID"],"resolve":["UNTRACKED_COMPLETED_ID"],"verdicts":[{"id":"TRACKED_MESSAGE_ID","verdict":"accepted","note":"Evidence checked"}],"replies":[{"inReplyTo":"ACTUALLY_READ_ID","body":"Progress or answer"}],"posts":[{"to":"server-controller","subject":"Routine update - automatically wakes Main","body":"What changed","priority":"normal"}],"progress":{"status":"running","message":"Evidence-backed phase, blocker or next step"}}</tips-actions>
    Use empty arrays for sections with no actions. Only use message IDs that
    arrived in this turn; include resolved and verified IDs in ack. For
    tracked Tips exchanges, use verdicts: accepted/rejected/needs_changes

@@ -1,8 +1,10 @@
 /* DevSpace Web Wake. Only this service worker sees the private relay pairing token. */
 const DEFAULT_URL = 'wss://regen.centralus.cloudapp.azure.com/web-wake/ws';
 const WAKE_DELAY_MS = 60_000;
+const ACK_RETRY_BASE_MS=20*60_000,ACK_RETRY_MAX_MS=2*60*60_000;
 let socket=null,connectTimer=null,pinging=null,busy=false,lastAttempt={};
 let serverRoles=[];
+function nextAckRetryMs(attempts=1){return Math.min(ACK_RETRY_MAX_MS,ACK_RETRY_BASE_MS*Math.pow(2,Math.min(3,Math.max(0,attempts-1))));}
 
 function normalizeTitle(title='') {
   return title.replace(/\s+(?:[-–—|]|·)\s+ChatGPT\s*$/i,'').trim();
@@ -45,23 +47,28 @@ function disconnect(){clearTimeout(connectTimer);clearInterval(pinging);pinging=
 async function absorbSnapshot(payload) {
   if(!Array.isArray(payload.events)||!Array.isArray(payload.roles))return;
   serverRoles=payload.roles.filter(v=>/^web-[a-z0-9][a-z0-9_.-]{0,58}$/.test(v));
-  const {done={},pending={}}=await chrome.storage.local.get(['done','pending']);
+  const {done={},pending={},attempts={}}=await chrome.storage.local.get(['done','pending','attempts']);
   const present=new Set();
   for(const e of payload.events) {
     if(!e || typeof e.id!=='string'||!serverRoles.includes(e.to)||!/^[a-f\d-]{36}$/i.test(e.id))continue;
     present.add(e.id);
-    if(!done[e.id])pending[e.id]={id:e.id,to:e.to};
+    // "done" means the UI submitted an inbox reminder, NOT a model ACK.
+    // Retry unacknowledged messages after a bounded backoff even across
+    // browser restarts. The relay snapshot is the source of truth for ACK.
+    pending[e.id]={id:e.id,to:e.to};
   }
   // If MCP ACKed/resolved it, don't create a stale wake later.
-  for(const id of Object.keys(pending))if(!present.has(id))delete pending[id];
-  await chrome.storage.local.set({pending,serverRoles});
+  for(const id of Object.keys(pending))if(!present.has(id)){
+    delete pending[id];delete done[id];delete attempts[id];
+  }
+  await chrome.storage.local.set({pending,serverRoles,done,attempts});
   await pump();
 }
 
 async function pump() {
   if(busy)return;busy=true;
   try {
-    const {enabled=false,pending={},done={},bindings={}}=await chrome.storage.local.get(['enabled','pending','done','bindings']);
+    const {enabled=false,pending={},done={},attempts={},bindings={}}=await chrome.storage.local.get(['enabled','pending','done','attempts','bindings']);
     if(!enabled)return;
     const tabs=(await chrome.tabs.query({url:'https://chatgpt.com/*'})).filter(tab=>conversationId(tab.url));
     const roles=[...new Set(Object.values(pending).map(m=>m.to))].filter(r=>serverRoles.includes(r));
@@ -72,7 +79,10 @@ async function pump() {
       const tab=targets[0],id=conversationId(tab.url);
       if(!id)continue;
       if(bindings[role]&&bindings[role]!==id){await report(`Role ${role} is pinned to a different conversation; reset its binding first.`);continue;}
-      const ids=Object.values(pending).filter(m=>m.to===role&&!done[m.id]).map(m=>m.id).slice(0,30);
+      const now=Date.now();
+      const ids=Object.values(pending).filter(m=>m.to===role&&
+        (!done[m.id]||now-done[m.id]>=nextAckRetryMs(attempts[m.id]??1)))
+        .map(m=>m.id).slice(0,30);
       if(!ids.length)continue;
       lastAttempt[role]=Date.now();
       let result;
@@ -80,11 +90,11 @@ async function pump() {
       catch {await report(`Chat ${role} content script not ready. Try reloading the tab.`);continue;}
       if(result?.status==='sent'){
         bindings[role]=id;
-        for(const messageId of ids){done[messageId]=Date.now();delete pending[messageId];}
+        for(const messageId of ids){done[messageId]=Date.now();attempts[messageId]=(attempts[messageId]??0)+1;}
         const ordered=Object.entries(done).sort((a,b)=>b[1]-a[1]).slice(0,500);
-        await chrome.storage.local.set({done:Object.fromEntries(ordered),pending,bindings});
+        await chrome.storage.local.set({done:Object.fromEntries(ordered),attempts,pending,bindings});
         lastAttempt[role]=Date.now()+WAKE_DELAY_MS-15_000;
-        await report(`Wake submitted: ${role} (${ids.length} message(s)). MCP ACK is separate.`);
+        await report(`Wake submitted: ${role} (${ids.length} message(s)); will retry if no MCP ACK.`);
       } else if(result?.status==='busy'){
         await report(`Chat ${role} is generating or has a draft. Wake queued.`);
       } else {await report(`Chat ${role}: ${result?.reason??'composer not ready'}`);}

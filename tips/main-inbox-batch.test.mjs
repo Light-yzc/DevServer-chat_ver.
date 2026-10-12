@@ -15,7 +15,7 @@ test('passive messages do not wake Sol; independent urgent wake collects latest 
   const x=fixture();try{
     for(let i=0;i<MAX_MAIN_BATCH+3;i++)x.post('Old checkpoint '+i);
     const urgent=x.post('URGENT user request',true);
-    const batch=pendingMainBatch(x.tips);
+    const batch=pendingMainBatch(x.tips,{excludeIds:[urgent.id]});
     assert.equal(batch.total,MAX_MAIN_BATCH+3);
     assert.equal(batch.messages.length,MAX_MAIN_BATCH);
     assert.equal(batch.omitted,3);
@@ -26,7 +26,7 @@ test('passive messages do not wake Sol; independent urgent wake collects latest 
     assert.equal(x.tips.messages({action:'get',id:batch.messages[0].id}).status,'unread');
     const prompt=batchPrompt(batch,join(x.dir,'triage.json'),urgent.id);
     assert.match(prompt,/Sol MAIN COORDINATOR/);
-    assert.match(prompt,/NOT a separate wake/);
+    assert.match(prompt,/do NOT start additional model Turns/);
     assert.match(prompt,/Owner locks/);
   }finally{x.cleanup()}
 });
@@ -36,7 +36,7 @@ test('actual Sol disposition ACK/resolve/delegate changes only explicitly review
     const seen=x.post('Review dataset');const finished=x.post('Already completed');
     const work=x.post('Ask Luna to inspect');const left=x.post('Not reviewed');
     const urgent=x.post('Emergency',true);
-    const batch=pendingMainBatch(x.tips),path=join(x.dir,'outcomes.json');
+    const batch=pendingMainBatch(x.tips,{excludeIds:[urgent.id]}),path=join(x.dir,'outcomes.json');
     const evidence=x.tips.messages({action:'post',from:'server-controller',to:'sub-reviewer',
       subject:'Inspect note',body:`Original message ${work.id}, audit CPU artifacts`,tracked:true},{trustedWake:true});
     writeFileSync(path,JSON.stringify({wakeMessageId:urgent.id,outcomes:[
@@ -57,7 +57,7 @@ test('actual Sol disposition ACK/resolve/delegate changes only explicitly review
 test('reports cannot fake delegation, impersonate another Sol wake, or claim unreviewed messages',()=>{
   const x=fixture();try{
     const passive=x.post('Old mail');const urgent=x.post('Urgent wake',true);
-    const batch=pendingMainBatch(x.tips),file=join(x.dir,'batch.json');
+    const batch=pendingMainBatch(x.tips,{excludeIds:[urgent.id]}),file=join(x.dir,'batch.json');
     writeFileSync(file,JSON.stringify({wakeMessageId:'some-other-wake',outcomes:[{id:passive.id,disposition:'resolved',note:'no'}]}));
     assert.equal(applyBatchReceipt(x.tips,batch,file,urgent.id).applied,0);
     const fake=x.tips.messages({action:'post',from:'web-air-main',to:'sub-reviewer',
@@ -84,4 +84,26 @@ test('explicit defer stays unread but records a real reviewer decision',()=>{
     assert.equal(actual.status,'unread');assert.equal(actual.triageDisposition,'defer');
     assert.equal(actual.audit.at(-1).event,'deferred');
   }finally{x.cleanup()}
+});
+
+test('a claimed Sol Turn can truthfully coalesce other authorized wake requests',()=>{
+  const f=fixture();try{
+    const first=f.post('First coordination',true);
+    const second=f.post('Second coordination',true);
+    const third=f.post('Third coordination',true);
+    const claimed=f.tips.messages({action:'claim'},{trustedWake:true});
+    assert.equal(claimed.id,first.id);
+    const batch=pendingMainBatch(f.tips,{excludeIds:[claimed.id]});
+    assert.deepEqual(batch.messages.map(m=>m.id),[second.id,third.id]);
+    const file=join(f.dir,'coalesce.json');
+    writeFileSync(file,JSON.stringify({wakeMessageId:first.id,outcomes:[
+      {id:second.id,disposition:'resolved',note:'Checked and reconciled this request in same Sol turn'},
+      {id:third.id,disposition:'ack',note:'Already assessed, waiting for Luna result'},
+    ]}));
+    const receipt=applyBatchReceipt(f.tips,batch,file,first.id);
+    assert.equal(receipt.applied,2);
+    assert.equal(f.tips.messages({action:'get',id:second.id}).status,'resolved');
+    assert.equal(f.tips.messages({action:'get',id:third.id}).status,'acknowledged');
+    assert.equal(f.tips.messages({action:'claim'},{trustedWake:true}),null,'No duplicate Sol execution from coalesced mail');
+  }finally{f.cleanup()}
 });
