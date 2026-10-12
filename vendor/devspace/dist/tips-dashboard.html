@@ -88,6 +88,45 @@
     .thread.unread{border-left:3px solid #d7d7d7}.thread.high{border-left:3px solid #eda273}
     .thread p{white-space:pre-wrap;overflow-wrap:anywhere;margin:12px 0;color:#d7d7d7;font-size:13px;line-height:1.65}
     .thread h3{font-size:15px;margin:0;overflow-wrap:anywhere}.thread-meta{display:flex;gap:12px;flex-wrap:wrap;color:#999;font-size:12px;margin-top:7px}
+    /* Message direction and agent identity are independent visual cues. */
+    .role--main{--agent-ink:#d6bbff;--agent-bg:#2b2138;--agent-line:#665184}
+    .role--web-main{--agent-ink:#9cc7ff;--agent-bg:#1b3045;--agent-line:#42698c}
+    .role--web{--agent-ink:#87dfd6;--agent-bg:#17332f;--agent-line:#397a71}
+    .role--research{--agent-ink:#95bbff;--agent-bg:#1d2b40;--agent-line:#476795}
+    .role--sub{--agent-ink:#9de3b5;--agent-bg:#1d3227;--agent-line:#40765b}
+    .role--monitor{--agent-ink:#f3c788;--agent-bg:#382b1e;--agent-line:#89633a}
+    .role--other{--agent-ink:#c1c9d5;--agent-bg:#282b30;--agent-line:#565c66}
+    .mail-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-2px 0 15px;color:#a7a7a7;font-size:12px}
+    .mail-legend-title{margin-right:2px}.mail-legend-item{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid var(--agent-line);border-radius:7px;background:var(--agent-bg);color:var(--agent-ink);font-weight:560}
+    .mail-legend-item::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+    .thread{--sender-accent:#747474;border-left:3px solid var(--sender-accent)!important;transition:border-color .2s ease,background .2s ease}
+    .thread:hover{background:#191919;border-top-color:#424242;border-right-color:#424242;border-bottom-color:#424242}
+    .thread.from--main{--sender-accent:#c29bef}.thread.from--web-main{--sender-accent:#80b5f8}
+    .thread.from--web{--sender-accent:#6bd0c4}.thread.from--research{--sender-accent:#729fea}
+    .thread.from--sub{--sender-accent:#78cda0}.thread.from--monitor{--sender-accent:#e7b675}
+    .thread.unread{background:linear-gradient(90deg,#ffffff08,transparent 55%),#151515}
+    .mail-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .mail-title h3{font-size:16px;line-height:1.5;flex:1 1 260px}
+    .mail-flags{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+    .mail-route{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:13px 0 9px;padding:11px 13px;background:#101010;border:1px solid #292929;border-radius:10px}
+    .mail-route-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+    .route-label{font-size:11px;font-weight:700;letter-spacing:.8px;color:#909090;white-space:nowrap}
+    .route-arrow{display:grid;place-items:center;min-width:25px;height:25px;border-radius:50%;background:#292929;border:1px solid #3b3b3b;color:#bbb;font-size:16px}
+    .route-party{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:7px 10px;border:1px solid var(--agent-line);border-radius:8px;background:var(--agent-bg);color:var(--agent-ink);line-height:1.35;text-align:left;overflow-wrap:anywhere;cursor:pointer}
+    .route-party:hover,.route-party:focus-visible{background:var(--agent-bg);border-color:var(--agent-ink);color:var(--agent-ink);outline-offset:2px}
+    .party-role{font-size:10px;font-weight:750;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;opacity:.83}
+    .party-id{font-size:12px;font-weight:650;overflow-wrap:anywhere}
+    .mail-detail-meta{display:flex;align-items:center;gap:11px;flex-wrap:wrap;font-size:12px;color:#a0a0a0;margin:8px 0 0}
+    .priority-high{color:#f0b68b}.priority-high::before{content:"●";font-size:8px;margin-right:5px}
+    .mail-status--unread{border-color:#616875;background:#292c32;color:#e2e5eb}
+    .mail-status--delivered{border-color:#426185;background:#202d3e;color:#add0fa}
+    .mail-status--acknowledged{border-color:#6b5c8d;background:#29243a;color:#d5c4ff}
+    .mail-status--processing{border-color:#8c7145;background:#383022;color:#f2cf98}
+    .mail-status--resolved{border-color:#3c7558;background:#1d3528;color:#a8edc2}
+    .mail-status--failed{border-color:#8e4c59;background:#38232a;color:#ffaab9}
+    .thread .message-body{margin:11px 0 6px;color:#dadada}
+    .agent-recent{margin:10px 0;padding:9px 11px;border:1px solid #303030;border-radius:9px;background:#101010}
+    .agent-recent .mail-route{margin:6px 0 4px;padding:0;border:0;background:transparent}
     .group-head{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:13px;padding:19px 2px 5px;flex-wrap:wrap}
     .group-head h2{font-size:19px;color:#eee}.group-head small{white-space:nowrap}
     .minor{font-size:12px;color:#aaa;margin:7px 0;overflow-wrap:anywhere}
@@ -106,7 +145,7 @@
     .agent-stats{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
     .agent-stats span{font-size:12px;color:#d6d6d6;border:1px solid #393939;border-radius:8px;padding:8px 11px;background:#171717}
     [hidden]{display:none!important}
-    @media(max-width:700px){.layout{padding:22px 13px 60px}.stats{grid-template-columns:repeat(2,1fr);gap:9px}.stat{padding:14px;min-height:89px}.stat .number{font-size:26px}#tasks,.agent-overview{grid-template-columns:1fr}.toolbar input{flex-grow:1;width:100%}article.task{padding:16px}header{margin-bottom:24px}}
+    @media(max-width:700px){.layout{padding:22px 13px 60px}.stats{grid-template-columns:repeat(2,1fr);gap:9px}.stat{padding:14px;min-height:89px}.stat .number{font-size:26px}#tasks,.agent-overview{grid-template-columns:1fr}.toolbar input{flex-grow:1;width:100%}article.task{padding:16px}header{margin-bottom:24px}.mail-route{padding:10px;gap:7px}.mail-route-group{width:100%}.route-arrow{transform:rotate(90deg);margin-left:2px;min-width:23px;height:23px}.party-id{font-size:11px}.mail-title h3{font-size:15px}}
   </style>
 </head>
 <body>
@@ -149,6 +188,15 @@
        <select id="mail-from" aria-label="筛选发送 Agent"><option value="">全部发送方</option></select>
        <select id="mail-to" aria-label="筛选接收 Agent"><option value="">全部接收方</option></select>
        <select id="mail-agent" aria-label="消息任一端 Agent"><option value="">所有通信对象</option></select>
+     </div>
+     <div class="mail-legend" aria-label="Agent 身份颜色说明">
+       <span class="mail-legend-title">身份颜色</span>
+       <span class="mail-legend-item role--research">Web 控制端</span>
+       <span class="mail-legend-item role--web">Web Chat</span>
+       <span class="mail-legend-item role--main">Server Main</span>
+       <span class="mail-legend-item role--sub">Sub Agent</span>
+       <span class="mail-legend-item role--monitor">监控组件</span>
+       <span class="mail-legend-title">· 发 / 收 标签区分方向，点击身份可筛选</span>
      </div>
      <div class="inbox" id="inbox"><div class="empty">暂无留言</div></div>
      <p class="hint">该网页只读。Agent 使用 <code>tips_messages</code> 或本机 CLI 留言；不触发普通 ChatGPT 自动回复。</p>
@@ -282,6 +330,40 @@
    catch(e){historyCache[id]=[{at:new Date().toISOString(),status:'failed',message:'历史读取失败：'+e.message}];render()}
  }
  const agentStatusText={running:'运行中',stopping:'停止中',queued:'排队中',completed:'上轮完成 / 待命',failed:'上轮失败',interrupted:'已中断',stopped:'已停止',listening:'监听待命',offline:'离线',unknown:'状态未知',claimed:'已认领（在线未知）',available:'待认领',released:'已释放',observed:'发现进程'};
+ // Fixed role palette. Never use sender-supplied strings as CSS class names.
+ function agentRole(id){
+   const key=String(id??'').toLowerCase();
+   if(key==='server-controller')return {kind:'main',label:'MAIN'};
+   if(key==='web-main')return {kind:'web-main',label:'WEB MAIN'};
+   if(key.startsWith('web-'))return {kind:'web',label:'WEB'};
+   if(key.startsWith('chatgpt-')||key==='controller')return {kind:'research',label:'WEB'};
+   if(key.startsWith('sub-'))return {kind:'sub',label:'SUB'};
+   if(key==='tips-block-watch'||key.startsWith('tips-'))return {kind:'monitor',label:'SYSTEM'};
+   return {kind:'other',label:'AGENT'};
+ }
+ function agentParty(id,direction){
+   const role=agentRole(id),tag=node('button',null,'route-party role--'+role.kind);
+   tag.type='button';tag.title='筛选'+(direction==='from'?'发送方':'接收方')+' · '+String(id??'未知');
+   tag.setAttribute('aria-label',tag.title);
+   add(tag,node('span',role.label,'party-role'),node('span',id??'未知','party-id'));
+   tag.addEventListener('click',()=>{
+     const select=$('mail-'+direction),other=$('mail-'+(direction==='from'?'to':'from'));
+     const value=String(id??'');
+     if(![...select.options].some(o=>o.value===value))select.add(new Option(value,value));
+     select.value=value;other.value='';$('mail-agent').value='';
+     activateTab('mailbox');renderInbox();
+   });
+   return tag;
+ }
+ function messageRoute(from,to){
+   const route=node('div',null,'mail-route');
+   const source=node('div',null,'mail-route-group');
+   add(source,node('span','发','route-label'),agentParty(from,'from'));
+   const destination=node('div',null,'mail-route-group');
+   add(destination,node('span','收','route-label'),agentParty(to,'to'));
+   add(route,source,node('span','→','route-arrow'),destination);
+   return route;
+ }
  function activateTab(next,updateUrl=true){
    tab=next;
    for(const button of document.querySelectorAll('.topnav button'))button.classList.toggle('active',button.dataset.tab===tab);
@@ -318,7 +400,11 @@
        if(a.summary)card.append(node('p',a.summary,'mini-summary'));
        if(a.mailbox){
          const m=a.mailbox;
-         if(m.last)card.append(node('div','最近消息 · '+m.last.from+' → '+m.last.to+' · '+m.last.subject,'minor'));
+         if(m.last){
+           const recent=node('div',null,'agent-recent');
+           recent.append(node('div','最近消息 · '+m.last.subject,'minor'));
+           recent.append(messageRoute(m.last.from,m.last.to));card.append(recent);
+         }
          card.append(node('div','待确认消息 '+m.unread+' · '+(m.last?'最近 '+time(m.last.at):'暂无留言'),'minor'));
          const controls=node('div',null,'row');const button=node('button','查看通信');
          button.addEventListener('click',()=>{
@@ -351,13 +437,19 @@
    box.dataset.signature=signature;
    const elems=[];
    for(const m of visible){
-     const card=node('article',null,'thread '+(m.status==='unread'?'unread ':'')+(m.priority==='high'?'high':''));
-     const heading=node('div',null,'row');
+     const card=node('article',null,'thread from--'+agentRole(m.from).kind+' '+(m.status==='unread'?'unread ':'')+(m.priority==='high'?'high':''));
+     const heading=node('div',null,'mail-title');
      const statuses={unread:'未读',delivered:'已送达',acknowledged:'ACK 已读取',processing:'处理中',resolved:'已解决',failed:'失败'};
-     add(heading,node('h3',m.subject||'未命名消息'),node('span',statuses[m.status]||m.status,'pill '+(['unread','delivered'].includes(m.status)?'running':'completed')));card.append(heading);
-     const meta=node('div',null,'thread-meta');add(meta,node('span',`发送：${m.from} → ${m.to}`),node('span',time(m.at)),node('span',`优先级：${m.priority}`));card.append(meta);
+     const flags=node('div',null,'mail-flags');
+     const statusKind=Object.hasOwn(statuses,m.status)?m.status:'unknown';
+     flags.append(node('span',statuses[m.status]||m.status,'pill mail-status mail-status--'+statusKind));
+     if(m.tracked)flags.append(node('span','事务','pill'));
+     add(heading,node('h3',m.subject||'未命名消息'),flags);card.append(heading);
+     card.append(messageRoute(m.from,m.to));
+     const meta=node('div',null,'mail-detail-meta');
+     add(meta,node('time',time(m.at)),node('span',`优先级 · ${m.priority}`,m.priority==='high'?'priority-high':''));card.append(meta);
      if(m.taskId)card.append(node('div','关联任务 · '+m.taskId,'minor'));
-     card.append(node('p',m.body));
+     card.append(node('p',m.body,'message-body'));
      if(m.replyTo)card.append(node('div','回复消息 · '+m.replyTo,'minor'));
      if(m.ackBy)card.append(node('div','读取确认 · '+m.ackBy+' · '+time(m.ackAt),'minor'));
      if(m.note)card.append(node('div','处理说明 · '+m.note,'minor'));
