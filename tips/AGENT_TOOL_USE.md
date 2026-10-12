@@ -2,6 +2,8 @@
 
 > 适合刚加入项目的 Web Chat、服务器 Main，以及由 `subagent` 启动的 Codex App Server Worker。本文示例均为**工具输入参数**；不是 shell 命令或可直接在研究文件中运行的代码。新 Agent 先辨认自己是哪种身份，再选工具，不要把所有通信都发给 `server-controller`。
 
+**四种身份职责与模型分工**：[`AGENT_ROLES_AND_MODELS.md`](AGENT_ROLES_AND_MODELS.md)。默认 Local Sub `gpt-6-luna` 承担长时间实验和资料整理；困难推理优先用 Web Main/Sub；无人值守、必须稳定决策时才用消耗本地额度的 Local Main `gpt-6.1-sol`。这些是调度偏好，不改变任何审批和实验冻结规则。
+
 ## 先选对工具
 
 | 你要做的事 | 使用工具 | 不应该用 |
@@ -12,10 +14,32 @@
 | 创建、查看、指挥、停止持久 Sub Agent | `subagent` | 不要新建长期 `codex exec` 循环 |
 | 新 Web Chat 认领身份 / 以后识别自己 | `web_identity` | 共用 OAuth 不等于共用 Web 身份 |
 | 已认领 Web Chat 收发所有方向的消息 | `web_mail` | 不要自填 `from=web-*` 用普通消息工具 |
+| 凭管理员密钥撤销/移除 Agent、归档任务、删除留言 | `tips_admin` | 普通查看密钥、OAuth 或 `tips` 任务更新不应当作管理员权限 |
 
 Tips 网页：`/tips`；Agent 总览：`/tips/agents`。面板需要自己的私有读取凭证。Agent 进度和消息由 **Tips 服务器持久保存**，不是自动写进 ChatGPT 聊天记录；已经关闭的 Web Chat **不会自动被后台消息唤醒**。
 
+## 管理员：废弃 Agent 的清理
+
+最小调用：
+
+```text
+tips_admin({"action":"revoke_web","id":"web-old","adminKey":"<私有管理员密钥>","reason":"retired"})
+tips_admin({"action":"remove_web","id":"web-old","adminKey":"<私有管理员密钥>","reason":"retired"})
+tips_admin({"action":"stop_sub","id":"sub-old","adminKey":"<私有管理员密钥>"})
+# 先 subagent(status) 确认不再 queued/running/stopping，再调用：
+tips_admin({"action":"remove_sub","id":"sub-old","adminKey":"<私有管理员密钥>"})
+tips_admin({"action":"history","adminKey":"<私有管理员密钥>"})
+```
+
+`revoke_web` 只撤销认证、保留角色登记；`remove_web` 将该角色从注册表移除并让此前聊天立即失效，历史 Tips 留言仍在。`remove_sub` 只适用于已结束或已停止的 managed Sub，且会归档旧 Thread 指针，不会杀进程或删除实验成果。`archive_task` 与 `delete_task` 都不允许操作 `running` 任务；后者还会删除 Tips **任务历史**。`delete_message` 不允许删除 `processing` 消息。每次请求必须附带密钥，并记录不含密钥的操作审计。详细的动作矩阵、前端操作、保留策略和权限说明在 [`TIPS_ADMIN.md`](TIPS_ADMIN.md)。
+
+**诊断收件箱“未读”及 `wakeAuthorized` 时，请看 [`MAIN_MAIL_DIAGNOSTICS.md`](MAIN_MAIL_DIAGNOSTICS.md)**。特别注意 `tracked:true` 是验收协议，`wake:true` 才是 Local Sol 的授权唤醒请求。即使发往 `server-controller`，没有 wake 的普通消息也不会自动读取；如果需要 Sol 介入，重新发一条精简、明确授权的新请求，不要无条件重放全部旧邮件。
+
 ## 场景 1：新 Web Chat 首次注册，然后联系其他 Web
+
+若某个 Web Chat 已废弃且本人无法再调用 `release`，管理员可以直接调用
+`web_identity({"action":"revoke","id":"web-old","adminKey":"<私有管理员密钥>"})`。
+这要求该次工具请求提供密钥，不需要预先 `admin_login`、认领新的 Web 身份或等待审批。密钥保存在服务器私有 `security.json`，在 Git 中忽略；历史 Tips 留言不会被删除。
 
 先调用一次 `web_identity` 的 `whoami`（如果已经认领，直接返回身份）：
 

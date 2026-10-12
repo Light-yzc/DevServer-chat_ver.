@@ -21,7 +21,9 @@ test('end-to-end: extension authenticates and receives only wake routing data',a
   const sent=tips.messages({action:'post',from:'server-controller',to:role,
     subject:'Sensitive job',body:'DO_NOT_TRANSMIT_THE_BODY',priority:'high'});
   const token=createWakeToken(stateDir);
-  const relay=startWakeRelay({stateDir,port:0,intervalMs:60000});
+  // Isolate the test from the host's real private security.json. A previously
+  // configured production webWakeToken must never influence fixture auth.
+  const relay=startWakeRelay({stateDir,configDir:join(stateDir,'fixture-config'),port:0,intervalMs:60000});
   let ws;
   try {
     await once(relay.server,'listening');
@@ -53,7 +55,7 @@ test('single-port mount handles Upgrade but leaves existing HTTP pages alone',as
   const stateDir=mkdtempSync(join(tmpdir(),'wake-singleport-'));
   const token=createWakeToken(stateDir);
   const server=createHttpServer((_req,res)=>{res.writeHead(200);res.end('Original DevSpace route');});
-  const relay=attachWakeRelay(server,{stateDir});
+  const relay=attachWakeRelay(server,{stateDir,configDir:join(stateDir,'fixture-config')});
   let ws;
   try {
     server.listen(0,'127.0.0.1');await once(server,'listening');
@@ -70,4 +72,23 @@ test('single-port mount handles Upgrade but leaves existing HTTP pages alone',as
     await new Promise(resolve=>server.close(()=>resolve()));
     rmSync(stateDir,{recursive:true,force:true});
   }
+});
+test('relay authenticates with the configured plaintext Web Wake token instead of legacy hash',async()=>{
+  const stateDir=mkdtempSync(join(tmpdir(),'wake-plaintext-'));
+  const configDir=join(stateDir,'config');mkdirSync(configDir);
+  const old=createWakeToken(stateDir);
+  writeFileSync(join(configDir,'security.json'),JSON.stringify({webWakeToken:'user chosen short token'}));
+  const relay=startWakeRelay({stateDir,configDir,port:0});
+  let bad,good;
+  try{
+    await once(relay.server,'listening');
+    const url=`ws://127.0.0.1:${relay.server.address().port}/ws`;
+    const origin='chrome-extension://abcdefghijklmnopabcdefghijklmnop';
+    bad=new WebSocket(url,{headers:{Origin:origin}});
+    await once(bad,'open');bad.send(JSON.stringify({type:'auth',token:old}));
+    const [denied]=await once(bad,'close');assert.equal(denied,1008);
+    good=new WebSocket(url,{headers:{Origin:origin}});
+    await once(good,'open');good.send(JSON.stringify({type:'auth',token:'user chosen short token'}));
+    const [ready]=await once(good,'message');assert.equal(JSON.parse(String(ready)).type,'ready');
+  }finally{bad?.terminate();good?.terminate();await relay.close();rmSync(stateDir,{recursive:true,force:true})}
 });

@@ -62,9 +62,9 @@ async function refresh(){
 }
 document.addEventListener('DOMContentLoaded',()=>refresh().catch(e=>{$('status').textContent=`读取失败：${e.message}`;}));
 $('save').addEventListener('click',async()=>{
-  const endpoint=$('endpoint').value.trim(),token=$('token').value.trim();
+  const endpoint=$('endpoint').value.trim(),token=$('token').value;
   if(!isEndpointAllowed(endpoint)){$('status').textContent='地址不支持，请使用配置的 WSS 域名或本机 Relay。';return;}
-  if($('enabled').checked&&token.length<32){$('status').textContent='请填写完整的配对令牌。';return;}
+  if($('enabled').checked&&!token){$('status').textContent='请填写配对令牌。';return;}
   $('save').disabled=true;
   try{await chrome.storage.local.set({endpoint,token,enabled:$('enabled').checked,lastStatus:'Connecting…',lastStatusAt:Date.now()});
     await chrome.runtime.sendMessage({type:'DEVSPACE_RECONNECT'});await refresh();

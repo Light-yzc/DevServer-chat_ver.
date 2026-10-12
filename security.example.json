@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "tips": {
+    "viewToken": "YOUR_PRIVATE_VIEW_TOKEN",
+    "writeToken": "YOUR_PRIVATE_WRITE_TOKEN",
+    "dispatchToken": "YOUR_PRIVATE_DISPATCH_TOKEN"
+  },
+  "webAdminKey": "YOUR_PRIVATE_ADMIN_KEY",
+  "webWakeToken": "YOUR_PRIVATE_WEB_WAKE_TOKEN"
+}

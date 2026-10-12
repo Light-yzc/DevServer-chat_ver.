@@ -60,10 +60,36 @@ npm start
 `npm run setup` 生成如下私有文件：
 
 - `var/config/config.json`：监听地址、端口、公开 URL、允许的工作根目录
-- `var/config/auth.json`：随机生成的 OAuth Owner Token，权限 0600
+- `var/config/auth.json`：DevSpace 原生自动生成并管理的 OAuth Owner Token，权限 0600。**用户无需自行填写 Token**，仍通过原有 OAuth 登录/验证页面授权。
 - `var/state/`：OAuth 状态、Tips 消息、Agent Thread ID 等运行数据
 
 **以上全部被 `.gitignore` 排除。** 不要提交 `auth.json`、`credentials.json`、`runtime.env`、SSH 私钥或任何运行目录。需要自定义代理或 Codex 可执行文件路径时：
+
+**DevSpace OAuth 无需重复配置：** 原生 OAuth 登录/授权页面及其 `auth.json` 完全由 DevSpace 管理，用户通过页面完成验证即可，不需要向 `security.json` 填写 OAuth Token。
+
+**Tips / Web 管理员配置（明文，私有文件）：** `var/config/security.json` 只集中保存 Tips 的 view/write/dispatch Token 和 `webAdminKey`。初始化运行 `npm run setup` 会自动运行 `security:unify`：原样保留已有 Tips Token，为 Web 管理员生成一个随机密钥；默认权限为 `0600`。仓库只提交 [`security.example.json`](security.example.json)，真实 `security.json` 被 `.gitignore` 排除。OAuth 与 Tips/管理员是不同权限层，不应重复存储 OAuth 凭证。修改真实文件需要在服务器操作，切勿复制到 GitHub。
+
+**Web Wake 配对密钥也统一在这里：** `security.json.webWakeToken` 保存明文（由你自行设定，非空即可）；旧 `tips/web-wake-token.json` 仅是 SHA-256 哈希，无法反推出原值。迁移脚本遇到旧配置会生成一次新的随机 `webWakeToken`，需重新配对浏览器扩展；此后修改 `security.json` 或 `npm run web-wake:key` 即可。**DevSpace OAuth 仍不在此文件**。见 [`web-wake/README.md`](web-wake/README.md)。
+
+要使用自选管理员明文密钥，可以在服务器运行 `read -rs ADMIN_KEY; printf '%s' "$ADMIN_KEY" | npm run admin:key; unset ADMIN_KEY` （密钥须非空，输入内容不显示）。之后重启**仅 DevSpace MCP**以重新加载配置。原 Tips CLI 和 Python 客户端仍可使用旧的私有凭证副本，服务器自动保持其与 `security.json` 一致。
+
+要修改 Web Wake 配对密钥，在服务器运行 `read -rs WAKE_KEY; printf '%s' "$WAKE_KEY" | npm run web-wake:key; unset WAKE_KEY`。浏览器插件选项里填写相同值，点击保存并连接。此密钥不再强制 32 位或固定字符规则；但短密钥更容易被猜中，应仅用于你完全控制的环境。
+
+管理员撤销废弃 Web 身份无需二次审批、无需先认领身份，直接调用：
+
+```text
+web_identity({"action":"revoke","id":"web-old-reviewer","adminKey":"<私有管理员密钥>","reason":"会话废弃"})
+```
+
+每次撤销都必须提供密钥。撤销只解除 `web-*` 身份及其会话凭证，不删除该身份过去的 Tips 消息和研究历史。可以重新 `prepare` 同名角色再分配给新聊天。管理事件记录在私有 `web-identities.json` 中。不要将管理员密钥放在 Tips 消息正文、日志或公开截图中。
+
+### Tips 管理控制台（Agent 生命周期和清理）
+
+打开私有 `/tips/agents`，使用原有 Tips **查看密钥**查看看板。展开页首「管理员操作」，输入同一份私有 `security.json` 中的 `webAdminKey`，点击「验证管理密钥」。成功后，Web 卡片、Sub 卡片和任务/留言卡片出现相应管理按钮；删除时必须手动输入**完整目标 ID**确认。密钥只保存在该页面的内存中，不进入 URL、localStorage、日志或项目文件；刷新页面或点击「退出管理」清除权限。
+
+可以通过新增 MCP `tips_admin`（每次请求均需 `adminKey`）执行相同操作。**操作语义和保护边界请看 [`tips/TIPS_ADMIN.md`](tips/TIPS_ADMIN.md)**；`web_identity(action=revoke)` 仍能独立撤销旧 Web 身份。Tips API 管理写入需要 *同时* 拥有读取凭证和 `webAdminKey`；凭 OAuth 登录本身不能获得删除权限。操作记录保存在私有 `tips/admin-audit.json`，并且不包含提交的管理员密钥。
+
+请注意：Main (`server-controller`) 和旧 tmux 是实际服务/进程快照，不是可删除的注册槽。`sub-*` 要先停止并确认进入终止状态才能移除，移除仅清除注册表并归档旧 Codex Thread 的指针，不会删除实验、消息及日志。归档/删除运行中的任务、删除处理中消息会被拒绝。Tips 任务删除将同时删除对应 Tips 任务历史；消息只有明确执行 `delete_message` 才会从 Tips 状态中移除。
 
 ```bash
 cp .env.example var/config/runtime.env

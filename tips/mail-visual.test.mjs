@@ -46,3 +46,10 @@ test('identity legend, independent ACK/priority states, and mobile layout are pr
     'mail-status--acknowledged','priority-high','@media(max-width:700px)','messageRoute(m.from,m.to)'])
     assert.ok(html.includes(fragment),fragment);
 });
+test('passive Sol messages and legacy inbox are clearly distinguished from lost mail',()=>{
+  for(const fragment of [
+    "mail-filter=\"passive\"","mail-filter=\"mainready\"",
+    '未请求唤醒','wakeAuthorized=false','不会自动领取或 ACK',
+    '旧 Web 收件箱','未唤醒，尚无法验收',
+  ])assert.ok(html.includes(fragment),fragment);
+});

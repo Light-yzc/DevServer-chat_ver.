@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { allowSocketOrigin, collectWakeEvents, createWakeToken, verifyWakeToken } from './relay-core.mjs';
@@ -12,6 +12,22 @@ test('pairing token is independent, private and not overwritten',()=>{
     assert.equal(verifyWakeToken(dir,t),true);
     assert.equal(verifyWakeToken(dir,'fake'),false);
     assert.throws(()=>createWakeToken(dir),/already exists/);
+  }finally{rmSync(dir,{recursive:true,force:true})}
+});
+test('unified security.json accepts user-set short/nonstandard Web Wake tokens and overrides the legacy hash',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'wake-unified-test-'));
+  const conf=join(dir,'config');mkdirSync(conf);
+  try{
+    const old=createWakeToken(dir);
+    assert.equal(verifyWakeToken(dir,old,{configDir:conf}),true,'legacy fallback before migration');
+    const key='short key with whitespace ☺';
+    writeFileSync(join(conf,'security.json'),JSON.stringify({version:1,webWakeToken:key}));
+    assert.equal(verifyWakeToken(dir,key,{configDir:conf}),true);
+    assert.equal(verifyWakeToken(dir,old,{configDir:conf}),false,'migrated config disallows previous key');
+    assert.equal(verifyWakeToken(dir,'',{configDir:conf}),false);
+    writeFileSync(join(conf,'security.json'),JSON.stringify({version:1,webWakeToken:'x'}));
+    assert.equal(verifyWakeToken(dir,'x',{configDir:conf}),true,'single-char token accepted');
+    assert.equal(verifyWakeToken(dir,key,{configDir:conf}),false,'rotation effective');
   }finally{rmSync(dir,{recursive:true,force:true})}
 });
 test('only claimed and unacknowledged recent messages are routed, without bodies',()=>{

@@ -2,6 +2,8 @@
 
 **vNext:** Black/graphite dashboard with grouping, dependency hints, heartbeat/staleness, persisted status history, per-project summaries, and a durable mailbox shared with web ChatGPT and an optional wake-on-message server Codex controller. See [MCP_INSTRUCTIONS.md](MCP_INSTRUCTIONS.md) and [SERVER_CONTROLLER.md](SERVER_CONTROLLER.md).
 
+**Main mailbox troubleshooting:** See [`MAIN_MAIL_DIAGNOSTICS.md`](MAIN_MAIL_DIAGNOSTICS.md) before treating a message marked unread as a delivery failure. `tracked:true` requests verification; only an explicit authorized `wake:true` starts Local Sol. The Agents/Mail pages distinguish passive Main reports, authorized queued wakes, Web mail, and legacy `controller` messages.
+
 **App Server Subagents:** MCP now exposes `subagent(action=start|list|status|message|stop)`, backed by the `tips-subagent-manager.service` user service, with separate persistent Codex threads and Tips mailbox + in-turn `turn/steer` support. The Board can filter messages by sender and recipient. New research agents should use App Server, while pre-existing `codex exec` workers must transition only at safe checkpoints. See [SUBAGENTS.md](SUBAGENTS.md).
 
 ### Automatic blockers (6-hour freshness gate)

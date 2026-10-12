@@ -18,8 +18,27 @@ export function createWakeToken(stateDir) {
   return token;
 }
 
-export function verifyWakeToken(stateDir, input) {
-  if (typeof input !== 'string' || input.length > 200 || !existsSync(tokenPath(stateDir))) return false;
+export function verifyWakeToken(stateDir, input, {configDir}={}) {
+  if (typeof input !== 'string' || input.length===0) return false;
+  // New installations keep the plaintext token next to Tips/admin credentials.
+  // If explicitly configured, it is authoritative: changing it immediately
+  // revokes the old hashed token rather than secretly leaving two valid keys.
+  if (configDir) {
+    const file=join(configDir,'security.json');
+    if (existsSync(file)) {
+      const security=JSON.parse(readFileSync(file,'utf8'));
+      if (Object.hasOwn(security,'webWakeToken')) {
+        const expected=security.webWakeToken;
+        if (typeof expected!=='string'||!expected.length)return false;
+        const a=Buffer.from(tokenHash(input),'hex');
+        const b=Buffer.from(tokenHash(expected),'hex');
+        return timingSafeEqual(a,b);
+      }
+    }
+  }
+  // Legacy read-only fallback for upgrades that have not configured the new
+  // field yet. Never attempt to recover plaintext from a SHA256 hash.
+  if (!existsSync(tokenPath(stateDir))) return false;
   const expected = JSON.parse(readFileSync(tokenPath(stateDir),'utf8')).sha256;
   if (typeof expected !== 'string' || !/^[a-f0-9]{64}$/.test(expected)) return false;
   const got = Buffer.from(tokenHash(input),'hex');

@@ -144,6 +144,15 @@
     .agent-section-head h2{font-size:18px}
     .agent-stats{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
     .agent-stats span{font-size:12px;color:#d6d6d6;border:1px solid #393939;border-radius:8px;padding:8px 11px;background:#171717}
+    .admin-panel{border:1px solid #3b3442;background:#17151b;border-radius:12px;padding:12px 16px;margin:0 0 16px}
+    .admin-panel summary{cursor:pointer;font-size:13px;font-weight:650;color:#d8c7f6}
+    .admin-panel .admin-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 6px}
+    .admin-panel input{min-width:210px;max-width:100%;flex:1 1 220px;background:#101010;color:#eee;border:1px solid #4b4752;border-radius:8px;padding:10px}
+    .admin-note{font-size:12px;color:#aaa;margin:8px 0;line-height:1.6}
+    .admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+    .admin-actions button{font-size:12px;padding:7px 10px;background:#25212a;border:1px solid #56475b;color:#dec9e9;border-radius:7px}
+    .admin-actions button.danger{color:#f3aeae;border-color:#704448;background:#2b1b20}
+    .admin-actions button:disabled{opacity:.45;cursor:not-allowed}
     [hidden]{display:none!important}
     @media(max-width:700px){.layout{padding:22px 13px 60px}.stats{grid-template-columns:repeat(2,1fr);gap:9px}.stat{padding:14px;min-height:89px}.stat .number{font-size:26px}#tasks,.agent-overview{grid-template-columns:1fr}.toolbar input{flex-grow:1;width:100%}article.task{padding:16px}header{margin-bottom:24px}.mail-route{padding:10px;gap:7px}.mail-route-group{width:100%}.route-arrow{transform:rotate(90deg);margin-left:2px;min-width:23px;height:23px}.party-id{font-size:11px}.mail-title h3{font-size:15px}}
   </style>
@@ -159,6 +168,12 @@
      <p>此面板为私有内容。输入查看密钥，或打开包含 #密钥 的私人链接。</p>
      <div class="row" style="justify-content:flex-start"><input id="key" type="password" placeholder="查看密钥" autocomplete="off"><button id="connect">解锁看板</button></div>
    </div>
+   <details id="admin-panel" class="admin-panel">
+     <summary>管理员操作 · 清理 Agent / 任务 / 消息</summary>
+     <div class="admin-row"><input type="password" id="admin-key" autocomplete="off" placeholder="私有 Web 管理员密钥（不保存）"><button type="button" id="admin-unlock">验证管理密钥</button><button type="button" id="admin-lock" hidden>退出管理</button><button type="button" id="admin-audit" hidden>审计记录</button></div>
+     <p id="admin-feedback" class="admin-note">仅持有管理密钥时才能操作。Main / tmux 属于进程监测，不支持删注册；Sub 必须停止并退出后才能移除。所有操作均需确认。</p>
+     <div id="admin-audit-list" class="admin-note" hidden></div>
+   </details>
    <div id="tasks-tab">
    <div class="stats">
      <section class="stat"><div class="name">全部任务</div><div id="count-all" class="number">—</div></section>
@@ -175,16 +190,16 @@
    <section class="foot"><div class="section-title"><h2>最近更新</h2><small id="last-update">每 5 秒自动刷新</small></div><ol id="events" class="events"></ol><p id="error"></p></section>
    </div>
    <section id="agents-tab" hidden>
-     <div class="section-title"><div><h2>Agent Registry</h2><p class="hint">服务器 Main、App Server Sub、Web Chat 和旧 tmux Worker 分开列出。简报从已有任务状态和 Tips 消息读取，不额外调用模型。</p></div><span class="pill" id="agent-updated">等待数据</span></div>
+     <div class="section-title"><div><h2>Agent Registry · 四类职责</h2><p class="hint">Web Main/Sub 负责高难度推理、总协调及独立审查；Local Main（Sol）负责无人值守关键决策；Local Sub（Luna）适合持续一整天的长期执行。Legacy 进程另行展示。Main/Sub 不表示拥有管理员密钥。</p></div><span class="pill" id="agent-updated">等待数据</span></div>
      <div id="agent-summary" class="agent-stats"></div>
-     <div class="toolbar"><input id="agent-search" type="search" placeholder="搜索 Agent / 模型 / 分组" aria-label="搜索 Agent"><select id="agent-type" aria-label="Agent 类型"><option value="all">全部类型</option><option value="main">Server Main</option><option value="subs">App Server Sub</option><option value="web">Web Chat</option><option value="legacy">旧 Worker / tmux</option><option value="tracked">研究任务（非 Agent）</option></select></div>
+     <div class="toolbar"><input id="agent-search" type="search" placeholder="搜索 Agent / 模型 / 分组" aria-label="搜索 Agent"><select id="agent-type" aria-label="Agent 类型"><option value="all">全部类型</option><option value="webMain">Web Main</option><option value="webSubs">Web Sub</option><option value="main">Local Main</option><option value="subs">Local Sub</option><option value="legacy">Legacy / tmux</option><option value="tracked">研究任务（非 Agent）</option></select><label class="admin-note"><input type="checkbox" id="show-retired"> 显示已释放/撤销 Web 身份</label></div>
      <div id="agent-cards" class="agent-overview"><div class="empty">正在读取 Agent 注册表</div></div>
      <p class="hint" id="agent-note">Web 已认领不等于在线；tmux 存在不代表模型正在推理；状态消息不会自动成为新的控制指令。</p>
    </section>
    <section id="mailbox-tab" class="board" hidden>
      <div class="section-title"><div><h2>Agent 消息通道</h2><p class="hint">Main / Sub 双向留言。送达不等于 ACK；只有接收 Agent 主动确认，才算已读取。</p></div><span id="mail-summary" class="pill">等待消息</span></div>
      <div class="toolbar">
-       <div class="filters" id="mail-filters"><button class="active" data-mail-filter="all">全部</button><button data-mail-filter="tracked">通信事务</button><button data-mail-filter="unread">未读</button><button data-mail-filter="ack">ACK</button><button data-mail-filter="resolved">已解决</button><button data-mail-filter="high">高优先级</button></div>
+       <div class="filters" id="mail-filters"><button class="active" data-mail-filter="all">全部</button><button data-mail-filter="tracked">通信事务</button><button data-mail-filter="passive">Main 未唤醒</button><button data-mail-filter="mainready">Main 待领取</button><button data-mail-filter="unread">未确认</button><button data-mail-filter="ack">ACK</button><button data-mail-filter="resolved">已解决</button><button data-mail-filter="high">高优先级</button></div>
        <select id="mail-from" aria-label="筛选发送 Agent"><option value="">全部发送方</option></select>
        <select id="mail-to" aria-label="筛选接收 Agent"><option value="">全部接收方</option></select>
        <select id="mail-agent" aria-label="消息任一端 Agent"><option value="">所有通信对象</option></select>
@@ -206,7 +221,47 @@
  'use strict';
  const $=id=>document.getElementById(id);
  const statusText={pending:'等待中',running:'运行中',completed:'已完成',failed:'失败',blocked:'阻塞',cancelled:'已取消',paused:'已暂停'};
- let filter='all',mailFilter='all',tab=location.pathname.startsWith('/tips/agents')?'agents':'tasks',data={tasks:[],events:[]},mailbox=[],agentData=null,historyCache={};
+ let filter='all',mailFilter='all',tab=location.pathname.startsWith('/tips/agents')?'agents':'tasks',data={tasks:[],events:[]},mailbox=[],agentData=null,historyCache={},adminKey='';
+ let showRetired=false;
+ async function adminRequest(action,id='',reason=''){
+   const token=decodeURIComponent(location.hash.slice(1));
+   if(!token)throw Error('请先解锁查看面板');
+   const response=await fetch('/tips/admin/api',{method:'POST',cache:'no-store',
+     headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+     body:JSON.stringify({action,id,reason,adminKey})});
+   const body=await response.json();
+   if(!response.ok)throw Error(body.error||'HTTP '+response.status);
+   return body;
+ }
+ function refreshAdminViews(){
+   $('admin-unlock').hidden=!!adminKey;$('admin-lock').hidden=!adminKey;$('admin-audit').hidden=!adminKey;
+   $('admin-key').hidden=!!adminKey;
+   for(const item of document.querySelectorAll('article.task'))item.dataset.signature='';
+   $('inbox').dataset.signature='';render();renderAgents();renderInbox();
+ }
+ function adminButtons(card,actions,id){
+   if(!adminKey||!actions.length)return;
+   const bar=node('div',null,'admin-actions');
+   for(const [action,label,enabled=true] of actions){
+     const b=node('button',label,action.startsWith('remove')||action.startsWith('delete')?'danger':'');
+     b.type='button';b.disabled=!enabled;
+     b.title=enabled?'管理员操作，需二次确认':'需要先停止运行任务或等待结束';
+     b.addEventListener('click',async()=>{
+       if(!adminKey)return;
+       const literal=window.prompt(`执行 ${label} 将操作 ${id}。输入完整 ID 确认：`);
+       if(literal!==id)return;
+       b.disabled=true;
+       try{
+         const response=await adminRequest(action,id,'Tips UI 管理操作');
+         $('admin-feedback').textContent=`完成：${label} · ${id}`;
+         await refresh();
+       }catch(e){$('admin-feedback').textContent=`操作失败：${e.message}`}
+       finally{b.disabled=false}
+     });
+     bar.append(b);
+   }
+   card.append(bar);
+ }
  // Keep each task's expanded details across polling, card updates and page reloads.
  let expandedCards=new Set();
  try{expandedCards=new Set(JSON.parse(sessionStorage.getItem('tips-expanded-cards')||'[]'))}catch{}
@@ -285,6 +340,7 @@
    else hist.append(node('small','展开后读取历史状态'));
    card.append(hist);
    const footer=node('div',null,'timestamp');add(footer,node('span','ID · '+t.id),node('span','更新 · '+time(t.updatedAt)));card.append(footer);
+   adminButtons(card,[['archive_task','归档任务',t.status!=='running'],['delete_task','删除任务记录',t.status!=='running']],t.id);
    return card;
  }
  function render(){
@@ -312,7 +368,7 @@
          add(head,node('h2',g),node('small',`${summary?.completed??0} / ${summary?.total??0} 完成 · ${summary?.running??0} 运行中`));}
        cards.push(head);lastGroup=g;
      }
-     const signature=JSON.stringify(t)+'|history:'+JSON.stringify(historyCache[t.id]??null),old=existing.get(t.id);
+     const signature=JSON.stringify(t)+'|history:'+JSON.stringify(historyCache[t.id]??null)+'|admin:'+Boolean(adminKey),old=existing.get(t.id);
      cards.push(old?.dataset.signature===signature?old:renderTask(t,signature));
    }
    if(!cards.length)cards.push(node('div','没有符合条件的任务','empty'));
@@ -333,11 +389,11 @@
  // Fixed role palette. Never use sender-supplied strings as CSS class names.
  function agentRole(id){
    const key=String(id??'').toLowerCase();
-   if(key==='server-controller')return {kind:'main',label:'MAIN'};
-   if(key==='web-main')return {kind:'web-main',label:'WEB MAIN'};
-   if(key.startsWith('web-'))return {kind:'web',label:'WEB'};
-   if(key.startsWith('chatgpt-')||key==='controller')return {kind:'research',label:'WEB'};
-   if(key.startsWith('sub-'))return {kind:'sub',label:'SUB'};
+   if(key==='server-controller')return {kind:'main',label:'LOCAL MAIN'};
+   if(key==='web-main'||/^web-[a-z0-9_.-]+-main$/.test(key))return {kind:'web-main',label:'WEB MAIN'};
+   if(key.startsWith('web-'))return {kind:'web',label:'WEB SUB'};
+   if(key.startsWith('chatgpt-')||key==='controller')return {kind:'research',label:'LEGACY WEB'};
+   if(key.startsWith('sub-'))return {kind:'sub',label:'LOCAL SUB'};
    if(key==='tips-block-watch'||key.startsWith('tips-'))return {kind:'monitor',label:'SYSTEM'};
    return {kind:'other',label:'AGENT'};
  }
@@ -380,14 +436,15 @@
    $('agent-count').textContent='· '+total;
    $('agent-updated').textContent='刷新 · '+time(agentData.at);
    const summary=$('agent-summary');summary.replaceChildren();
-   const totals=[`Main ${groups.main?.length||0}`,`Sub ${groups.subs?.length||0}`,`Web ${groups.web?.length||0}（已认领 ${agentData.counts?.claimedWeb||0}）`,`旧 Worker ${groups.legacy?.length||0}`,`运行中 Sub ${agentData.counts?.runningSubs||0}`];
+   const activeWeb=(groups.web??[]).filter(a=>a.status==='claimed').length,retiredWeb=(groups.web??[]).filter(a=>['released','revoked'].includes(a.status)).length;
+   const totals=[`Web Main ${groups.webMain?.length||0}`,`Web Sub ${groups.webSubs?.length||0}`,`Local Main ${groups.main?.length||0}`,`Local Sub ${groups.subs?.length||0}`,`Web 已认领 ${activeWeb}`,`Web 已释放/撤销 ${retiredWeb}`,`Legacy ${groups.legacy?.length||0}`];
    for(const value of totals)summary.append(node('span',value));
    const type=$('agent-type').value,q=$('agent-search').value.trim().toLowerCase();
-   const sections=[['main','Server Main · 独立主控'],['subs','App Server Sub · 持久线程'],['web','Web Chats · 独立身份'],['legacy','旧 Worker · tmux 进程'],['tracked','研究中任务 · 非独立 Agent']];
+   const sections=[['webMain','Web Main · 高难度判断 / 总协调'],['webSubs','Web Sub · 独立审查 / 验证'],['main','Local Main · Sol 稳定自动决策'],['subs','Local Sub · Luna 长期任务 / 持久线程'],['legacy','Legacy · 旧 tmux 进程'],['tracked','研究中任务 · 非独立 Agent']];
    const cards=[];
    for(const [kind,label] of sections){
      if(type!=='all'&&type!==kind)continue;
-     const visible=(groups[kind]??[]).filter(a=>!q||[a.id,a.name,a.model,a.group,a.summary].filter(Boolean).join(' ').toLowerCase().includes(q));
+     const visible=(groups[kind]??[]).filter(a=>(!['webMain','webSubs'].includes(kind)||showRetired||!['released','revoked'].includes(a.status))&&(!q||[a.id,a.name,a.model,a.group,a.summary].filter(Boolean).join(' ').toLowerCase().includes(q)));
      if(!visible.length)continue;
      const heading=node('div',null,'agent-section-head');add(heading,node('h2',label),node('small',visible.length+' 项'));cards.push(heading);
      for(const a of visible){
@@ -419,6 +476,11 @@
          controls.append(button);card.append(controls);
        }
        card.append(node('div','来源 · '+a.source+' · '+(a.updatedAt?'更新 '+time(a.updatedAt):'非心跳监控'),'minor'));
+       if(kind==='webMain'||kind==='webSubs')adminButtons(card,[['revoke_web','撤销身份'],['remove_web','移除 Web 注册']],a.id);
+       if(kind==='subs'){
+         const busy=['queued','running','stopping'].includes(a.status);
+         adminButtons(card,[['stop_sub','停止 Sub',busy],['remove_sub','移除 Sub 注册',!busy]],a.id);
+       }
        cards.push(card);
      }
    }
@@ -427,10 +489,14 @@
  }
  function renderInbox(){
    $('unread-count').textContent=(data.mailbox?.unreadController??0)>0?' · '+data.mailbox.unreadController:'';
-   $('mail-summary').textContent=`未读 ${data.mailbox?.unreadController??0} · 共 ${mailbox.length} 条`;
+   const counters=data.mailbox??{};
+   $('mail-summary').textContent=`未确认 ${counters.unreadController??0}（Local Main 未请求唤醒 ${counters.passiveMain??0} · 待领取 ${counters.authorizedMain??0} · 旧 Web 收件箱 ${counters.legacyController??0}）· 当前显示 ${mailbox.length} 条`;
    const from=$('mail-from').value,to=$('mail-to').value,agent=$('mail-agent').value;
    const visible=mailbox.filter(m=>(!from||m.from===from)&&(!to||m.to===to)&&(!agent||m.from===agent||m.to===agent)&&(
-     mailFilter==='all'||(mailFilter==='tracked'?m.tracked===true:mailFilter==='unread'?['unread','delivered'].includes(m.status):
+     mailFilter==='all'||(mailFilter==='tracked'?m.tracked===true:
+       mailFilter==='passive'?m.status==='unread'&&m.to==='server-controller'&&!m.wakeAuthorized:
+       mailFilter==='mainready'?m.status==='unread'&&m.to==='server-controller'&&m.wakeAuthorized:
+       mailFilter==='unread'?['unread','delivered'].includes(m.status):
        mailFilter==='ack'?m.status==='acknowledged':mailFilter==='resolved'?m.status==='resolved':m.priority==='high')));
    const box=$('inbox'),signature=JSON.stringify(visible);
    if(box.dataset.signature===signature)return;
@@ -442,20 +508,29 @@
      const statuses={unread:'未读',delivered:'已送达',acknowledged:'ACK 已读取',processing:'处理中',resolved:'已解决',failed:'失败'};
      const flags=node('div',null,'mail-flags');
      const statusKind=Object.hasOwn(statuses,m.status)?m.status:'unknown';
-     flags.append(node('span',statuses[m.status]||m.status,'pill mail-status mail-status--'+statusKind));
+     const passiveMain=m.status==='unread'&&m.to==='server-controller'&&!m.wakeAuthorized;
+     const readyMain=m.status==='unread'&&m.to==='server-controller'&&m.wakeAuthorized;
+     const legacyInbox=m.status==='unread'&&m.to==='controller';
+     const statusLabel=passiveMain?'未请求唤醒':readyMain?'待 Main 领取':legacyInbox?'旧 Web 未读':(statuses[m.status]||m.status);
+     flags.append(node('span',statusLabel,'pill mail-status mail-status--'+statusKind));
      if(m.tracked)flags.append(node('span','事务','pill'));
      add(heading,node('h3',m.subject||'未命名消息'),flags);card.append(heading);
      card.append(messageRoute(m.from,m.to));
      const meta=node('div',null,'mail-detail-meta');
      add(meta,node('time',time(m.at)),node('span',`优先级 · ${m.priority}`,m.priority==='high'?'priority-high':''));card.append(meta);
      if(m.taskId)card.append(node('div','关联任务 · '+m.taskId,'minor'));
+     if(passiveMain)card.append(node('div','仅存入 Local Main 邮箱：wakeAuthorized=false，Sol 不会自动领取或 ACK。确有需要时请由授权 Web Agent 发送新的 wake=true 请求；历史消息不会自动重放。','minor'));
+     else if(readyMain)card.append(node('div','已经授权唤醒 Local Main，尚未被服务领取；检查 Main 服务、队列与重试状态。','minor'));
+     else if(legacyInbox)card.append(node('div','controller 是旧版 Web 控制端邮箱，没有常驻消费者；请改用已认领的 web-* 身份收信。','minor'));
+     else if(m.status==='unread'&&m.to?.startsWith('web-'))card.append(node('div','Web 收件箱等候目标聊天主动读取和 ACK；Web Wake 只尝试提交提醒，不保证云端聊天已读。','minor'));
+     else if(m.status==='unread'&&m.to?.startsWith('sub-'))card.append(node('div','Local Sub 尚未确认；检查 Subagent Manager 是否已派发相应 Thread。','minor'));
      card.append(node('p',m.body,'message-body'));
      if(m.replyTo)card.append(node('div','回复消息 · '+m.replyTo,'minor'));
      if(m.ackBy)card.append(node('div','读取确认 · '+m.ackBy+' · '+time(m.ackAt),'minor'));
      if(m.note)card.append(node('div','处理说明 · '+m.note,'minor'));
      if(m.tracked){
        const verdict=m.verification?.verdict;
-       const label=verdict==='accepted'?'已验收':verdict==='rejected'?'验收未通过':verdict==='needs_changes'?'要求修改':'等待目标 Agent 验收';
+       const label=verdict==='accepted'?'已验收':verdict==='rejected'?'验收未通过':verdict==='needs_changes'?'要求修改':passiveMain?'未唤醒，尚无法验收':'等待目标 Agent 验收';
        card.append(node('div','通信事务 · '+label+' · ID '+m.id,'minor'));
        if(m.verification)card.append(node('div','验收：'+m.verification.by+' · '+time(m.verification.at)+' · '+(m.verification.note||''),'minor'));
      }
@@ -466,6 +541,7 @@
        for(const entry of m.audit.slice(-25))log.append(node('li',time(entry.at)+' · '+entry.event+' · '+entry.actor+(entry.note?' · '+entry.note:'')));
        details.append(log);card.append(details);
      }
+     adminButtons(card,[['delete_message','删除消息',m.status!=='processing']],m.id);
      elems.push(card);
    }
    box.replaceChildren(...(elems.length?elems:[node('div','当前没有符合条件的留言','empty')]));
@@ -493,6 +569,21 @@
  });
  $('agent-search').addEventListener('input',renderAgents);
  $('agent-type').addEventListener('change',renderAgents);
+ $('show-retired').addEventListener('change',e=>{showRetired=e.target.checked;renderAgents()});
+ $('admin-unlock').addEventListener('click',async()=>{
+   const value=$('admin-key').value;
+   if(!value){$('admin-feedback').textContent='请输入管理员密钥';return}
+   adminKey=value;
+   try{await adminRequest('history');$('admin-key').value='';$('admin-feedback').textContent='管理员模式已开启（仅保存在本页面内存中，关闭或刷新即退出）';refreshAdminViews()}
+   catch(e){adminKey='';$('admin-feedback').textContent='密钥验证失败：'+e.message}
+ });
+ $('admin-lock').addEventListener('click',()=>{adminKey='';$('admin-feedback').textContent='已退出管理员模式';$('admin-audit-list').hidden=true;refreshAdminViews()});
+ $('admin-audit').addEventListener('click',async()=>{
+   try{const r=await adminRequest('history');const panel=$('admin-audit-list');panel.replaceChildren();
+     for(const e of (r.events??[]).slice(0,15))panel.append(node('div',`${time(e.at)} · ${e.action} · ${e.id} · ${e.reason||''}`));
+     if(!r.events?.length)panel.append(node('div','暂无管理操作'));panel.hidden=false;
+   }catch(e){$('admin-feedback').textContent='审计读取失败：'+e.message}
+ });
  $('mail-agent').addEventListener('change',renderInbox);
  $('mail-filters').addEventListener('click',e=>{
    const b=e.target.closest('[data-mail-filter]');if(!b)return;mailFilter=b.dataset.mailFilter;

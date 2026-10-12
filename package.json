@@ -8,6 +8,9 @@
   "engines": {"node": ">=22.19 <27"},
   "scripts": {
     "setup": "node scripts/setup.mjs",
+    "security:unify": "node scripts/unify-security.mjs",
+    "admin:key": "node scripts/set-admin-key.mjs",
+    "web-wake:key": "node scripts/set-web-wake-token.mjs",
     "start": "node scripts/start-stack.mjs",
     "serve": "node scripts/serve.mjs",
     "start:main": "node tips/server-controller.mjs",
