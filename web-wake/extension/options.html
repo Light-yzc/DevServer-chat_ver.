@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DevSpace Web Wake</title>
+  <style>
+    :root{color-scheme:dark}body{font:14px system-ui,-apple-system,sans-serif;background:#17191e;color:#e9ebf0;margin:0;width:360px;max-width:100%}
+    main{padding:18px}h2{font-size:18px;margin:0 0 8px}p{color:#aeb5c5;line-height:1.5}
+    label{display:block;margin-top:14px;font-weight:600}input[type=text],input[type=password]{display:block;box-sizing:border-box;width:100%;padding:9px 10px;margin-top:5px;background:#252a33;color:#fff;border:1px solid #414958;border-radius:7px;font:12px ui-monospace,monospace}
+    input[type=checkbox]{accent-color:#7da9ff}button{margin-top:12px;border:0;border-radius:7px;background:#407bee;color:#fff;padding:9px 12px;font-weight:600;cursor:pointer}button.secondary{background:#333b49}button:disabled{opacity:.5}
+    code{font:12px ui-monospace,monospace;color:#b5d7ff}#status,#roles{white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;margin-top:10px;background:#242a34;border-radius:7px;line-height:1.6}small{color:#adb5c5}
+  </style>
+</head>
+<body><main>
+  <h2>DevSpace Web Wake</h2>
+  <p>通过手工命名的 ChatGPT 标签页，唤醒已认领身份的 Web Agent。仅接收消息 ID，完整消息由 ChatGPT 自己通过 MCP 读取。</p>
+  <label for="endpoint">Relay WebSocket 地址</label>
+  <input id="endpoint" type="text" spellcheck="false" autocomplete="off">
+  <label for="token">私有配对令牌（不会提交给聊天页面）</label>
+  <input id="token" type="password" spellcheck="false" autocomplete="off">
+  <label><input id="enabled" type="checkbox"> 启用自动唤醒（实验性）</label>
+  <button id="save">保存并连接</button> <button id="refresh" class="secondary">刷新状态</button>
+  <div id="status" aria-live="polite">未配置</div>
+  <label>已认领的 Web 身份 / 标签页绑定</label>
+  <div id="roles">等待连接</div>
+  <label for="resetRole">解除指定身份的聊天 URL 绑定</label>
+  <input id="resetRole" type="text" placeholder="web-reviewer-01" spellcheck="false">
+  <button id="reset" class="secondary">解除绑定</button>
+  <p><small>首次绑定后，该身份固定到对应的聊天 URL。不要在多个标签页使用同一个身份名称。自动提交依赖 ChatGPT 页面结构，更新后可能需要调整。</small></p>
+</main><script src="options.js"></script></body>
+</html>
