@@ -1,0 +1,30 @@
+---
+name: agent-coordination
+description: Read before coordinating AIR Web/Main and Local/Sub agents, assigning Luna workers, or using Tips ACK/verify and delegation.
+---
+
+# AIR Agent 调度与通信
+
+## 四类职责
+
+- **Web Main**：`web-main`, `web-*-main`。高难度推理、路线选择、总审查；不消耗服务器本地 Sol 额度，但需要活跃 Web Chat。
+- **Web Sub**：其他 `web-*`。独立审稿、交叉验证，需通过 `web_identity` 认领。
+- **Local Main**：`server-controller`, `gpt-6.1-sol`。**研究总调度**，审查、拆任务、发送指令、监督 Local Sub。平时睡眠，授权紧急唤醒时一并处理普通积压邮件。
+- **Local Sub**：`sub-*`, 默认 `gpt-6-luna`。持久 Codex App Server，低成本长期执行。高难度需要时再调用 Sol。
+
+Main/Sub 是职责而非管理员权限；`controller` 是旧 Web 邮箱，不等于任何当前的 Main 身份。
+
+## 工具和协议
+
+- `web_mail`：已认领 Web Chat 发/收消息；`tips_messages`：Local 普通消息；`tips_exchange`：旧 Web 控制端向 Local Sub 的可验收事务。
+- `tracked:true` 表示 ACK + verify，**不是** Sol 唤醒。`to=server-controller,wake:true` 且获授权才启动 Local Main。
+- Local Main 可用 `node tips/subagent-cli.mjs list/status/start/message/stop`。尽量委派 Luna，并在真实下发给 Sub 的指令中记录原始消息 ID、Owner、目标、证据和禁止操作。
+- `delivered` 不表示接收方读过；所有完成声明需要有回执和实际证据。
+
+## 委派前检查
+
+1. 查看已有 Agent、Owner 和正在执行的 GPU/CPU 任务，避免重复跑。
+2. 核对 STOP、GPU NO-GO 和用户预注册/验收限制。
+3. 写清任务、输入、产物、允许的资源、验证步骤。跟进 ACK 和结果，不要把发送指令当作任务成功。
+
+更多：`tips/AGENT_ROLES_AND_MODELS.md`、`tips/AGENT_TOOL_USE.md`、`tips/SUBAGENTS.md`、`tips/MCP_INSTRUCTIONS.md`、`tips/skills/main-batch-triage/SKILL.md`。

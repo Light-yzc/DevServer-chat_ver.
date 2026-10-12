@@ -5,13 +5,14 @@
  * The server controller uses an isolated persistent Codex thread, not ChatGPT's thread.
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../vendor/devspace/dist/config.js';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { createBlockWatch, rejectQueuedAutoBlock } from './block-watch.mjs';
 import { finalizeMainMessage } from './controller-receipts.mjs';
+import {pendingMainBatch,batchPrompt,applyBatchReceipt} from './main-inbox-batch.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -35,7 +36,7 @@ function safeWrite(path,value){writeFileSync(path,JSON.stringify(value,null,2)+'
 function session(){try{return JSON.parse(readFileSync(sessionFile,'utf8')).threadId??null;}catch{return null;}}
 function recordSession(threadId){safeWrite(sessionFile,{threadId,model,at:new Date().toISOString()});}
 
-function promptFor(message){
+function promptFor(message,batch,receiptFile){
   const policy=readFileSync(instructions,'utf8');
   const previous=tips.snapshot().tasks.filter(t=>t.group==='AIR-LIFE').slice(0,15)
     .map(t=>`${t.id}: ${t.status} (${t.progress??0}%)`).join('\n');
@@ -43,10 +44,12 @@ function promptFor(message){
      +JSON.stringify({id:message.id,from:message.from,subject:message.subject,
        body:message.body,taskId:message.taskId,priority:message.priority},null,2)
      +`\n\nCurrent relevant task summaries:\n${previous}\n`
+     +`\nAvailable on-demand local Agent Skills: ${join(ROOT,'tips','skills')} (see */SKILL.md). Consult agent-coordination for Sub delegation; main-batch-triage for inbox receipts; research-safety for AIR/GPU constraints. Do not assume messages are already authorized work.\n`
+     +batchPrompt(batch,receiptFile,message.id)
      +`\nRespond at the end with a short concrete Chinese summary: what you checked, files/results, remaining blockers, next steps. Never include secrets.\n`;
 }
 
-async function callCodex(message){
+async function callCodex(message,batch,receiptFile){
   const prefix=message.id;
   const outputFile=join(runtime,`${prefix}.final.txt`);
   const logFile=join(runtime,`${prefix}.jsonl`);
@@ -59,7 +62,7 @@ async function callCodex(message){
     args=['exec','--dangerously-bypass-approvals-and-sandbox',
       '--skip-git-repo-check','-C',WORKSPACE,'-m',model,'--json','-o',outputFile,'-'];
   }
-  const prompt=promptFor(message);
+  const prompt=promptFor(message,batch,receiptFile);
   log(`Starting ${dryRun?'DRY RUN':'Codex'} for message ${message.id}, ${previous?'resumed':'new'} session`);
   if(dryRun)return {ok:true,summary:'DRY RUN: message safely claimed; no Codex call made',threadId:previous};
   return new Promise(resolve=>{
@@ -127,8 +130,17 @@ async function handle(message){
   heartbeat.unref();
   let finalized=false;
   try{
-    const result=await callCodex(message);
+    const batch=pendingMainBatch(tips);
+    const receiptFile=join(runtime,`${message.id}.batch-receipts.json`);
+    // A retried wake must not consume a stale report from a previous Turn.
+    rmSync(receiptFile,{force:true});
+    const result=await callCodex(message,batch,receiptFile);
     if(result.ok){
+      // Only apply the batch after a successful independently authorized Sol
+      // execution; the urgent wake receipt is managed separately below.
+      const triage=dryRun?{included:batch.messages.length,applied:0,deferred:0,rejected:0,missing:batch.messages.length}:
+        applyBatchReceipt(tips,batch,receiptFile,message.id);
+      log('Passive message batch (no additional Sol wake)',JSON.stringify(triage));
       finalizeMainMessage(tips,message,{verdict:'accepted',note:bounded(result.summary,900)});
       finalized=true;
       // The internal block watcher has no mailbox reader; original task audit

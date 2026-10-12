@@ -22,9 +22,10 @@ function register(){
   return {tools,cleanup:()=>rmSync(dir,{recursive:true,force:true})};
 }
 
-test('all 6 advertised coordination tools have directly usable action-level descriptions',()=>{
+test('all 8 advertised coordination tools have directly usable action-level descriptions',()=>{
   const x=register();try{
     const expected={
+      tips_skills:['list','read','main-batch-triage','agent-coordination','research-safety'],
       tips_admin:['remove_web','revoke_web','remove_sub','stop_sub','delete_task','delete_message','adminKey'],
       tips:['list','update','heartbeat','history','blocked'],
       tips_messages:['post','reply','ACK','resolve','wake','controller'],
@@ -33,7 +34,7 @@ test('all 6 advertised coordination tools have directly usable action-level desc
       web_identity:['prepare','claim','whoami','renew','release','claimKey'],
       web_mail:['send','inbox','sent','get','ack','reply','resolve','verify'],
     };
-    assert.equal(Object.keys(TIP_TOOL_DESCRIPTIONS).length,7);
+    assert.equal(Object.keys(TIP_TOOL_DESCRIPTIONS).length,8);
     for(const [tool,terms] of Object.entries(expected)){
       const definition=x.tools[tool];
       assert.ok(definition,`${tool} registered`);
@@ -64,6 +65,7 @@ test('message sender identities, expiry and completion semantics are unambiguous
 test('tool action guidance corresponds to actual Zod enum actions',()=>{
   const x=register();try{
     for(const [tool,actions] of Object.entries({
+      tips_skills:['list','read'],
       tips_admin:['history','revoke_web','remove_web','stop_sub','remove_sub','archive_task','delete_task','delete_message'],
       tips:['list','get','update','heartbeat','history','archive','delete'],
       tips_messages:['list','get','post','reply','ack','resolve','delete'],

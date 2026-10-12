@@ -4,6 +4,7 @@ import { createTipsV2 } from './tips-core.js';
 import { buildAgentOverview } from './tips-agent-overview.js';
 import { createTipsAdmin } from './tips-admin.js';
 import { TIP_TOOL_DESCRIPTIONS } from './tips-tool-descriptions.js';
+import {createTipsSkills} from './tips-skills.js';
 
 export { createTipsV2 as createTips } from './tips-core.js';
 const AUTH = (received, expected) => {
@@ -26,6 +27,16 @@ const textResult=callback=>async args=>{
 export function registerTipsTool(server,config,z){
   const tips=createTipsV2(config);
   const admin=createTipsAdmin(config,tips);
+  const skills=createTipsSkills(config);
+  server.registerTool('tips_skills',{
+    title:'Tips Agent Skills — discover and read optional research/coordination guidance',
+    description:TIP_TOOL_DESCRIPTIONS.tips_skills,
+    inputSchema:{
+      action:z.enum(['list','read']).describe('list available Agent Skills; read one named SKILL.md by allowlisted name.'),
+      name:z.enum(['agent-coordination','main-batch-triage','research-safety','tips-troubleshooting']).optional()
+        .describe('Required for read. Read only when this topic applies; never include private keys in Skills.'),
+    },annotations:{readOnlyHint:true},
+  },textResult(args=>skills.run(args)));
   server.registerTool('tips_admin',{
     title:'Tips administrator — revoke, remove, archive, stop (private key required)',
     description:TIP_TOOL_DESCRIPTIONS.tips_admin,

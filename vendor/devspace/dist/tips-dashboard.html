@@ -511,7 +511,7 @@
      const passiveMain=m.status==='unread'&&m.to==='server-controller'&&!m.wakeAuthorized;
      const readyMain=m.status==='unread'&&m.to==='server-controller'&&m.wakeAuthorized;
      const legacyInbox=m.status==='unread'&&m.to==='controller';
-     const statusLabel=passiveMain?'未请求唤醒':readyMain?'待 Main 领取':legacyInbox?'旧 Web 未读':(statuses[m.status]||m.status);
+     const statusLabel=passiveMain?(m.triageDisposition==='defer'?'Main 已暂缓（仍待办）':'未请求唤醒'):readyMain?'待 Main 领取':legacyInbox?'旧 Web 未读':(statuses[m.status]||m.status);
      flags.append(node('span',statusLabel,'pill mail-status mail-status--'+statusKind));
      if(m.tracked)flags.append(node('span','事务','pill'));
      add(heading,node('h3',m.subject||'未命名消息'),flags);card.append(heading);
@@ -519,7 +519,7 @@
      const meta=node('div',null,'mail-detail-meta');
      add(meta,node('time',time(m.at)),node('span',`优先级 · ${m.priority}`,m.priority==='high'?'priority-high':''));card.append(meta);
      if(m.taskId)card.append(node('div','关联任务 · '+m.taskId,'minor'));
-     if(passiveMain)card.append(node('div','仅存入 Local Main 邮箱：wakeAuthorized=false，Sol 不会自动领取或 ACK。确有需要时请由授权 Web Agent 发送新的 wake=true 请求；历史消息不会自动重放。','minor'));
+     if(passiveMain)card.append(node('div',m.triageDisposition==='defer'?'Local Main 曾在另一次授权紧急唤醒中检查此消息，决定暂缓；后续可再评估。':'仅存入 Local Main 邮箱：wakeAuthorized=false，Sol 不会单独启动。下一次授权紧急唤醒时，Main 会在同一 Sol Turn 内批量审查并协调 Sub；旧任务不会自动重跑。','minor'));
      else if(readyMain)card.append(node('div','已经授权唤醒 Local Main，尚未被服务领取；检查 Main 服务、队列与重试状态。','minor'));
      else if(legacyInbox)card.append(node('div','controller 是旧版 Web 控制端邮箱，没有常驻消费者；请改用已认领的 web-* 身份收信。','minor'));
      else if(m.status==='unread'&&m.to?.startsWith('web-'))card.append(node('div','Web 收件箱等候目标聊天主动读取和 ACK；Web Wake 只尝试提交提醒，不保证云端聊天已读。','minor'));
@@ -527,6 +527,8 @@
      card.append(node('p',m.body,'message-body'));
      if(m.replyTo)card.append(node('div','回复消息 · '+m.replyTo,'minor'));
      if(m.ackBy)card.append(node('div','读取确认 · '+m.ackBy+' · '+time(m.ackAt),'minor'));
+     if(m.delegatedTo)card.append(node('div',`Local Main 已委派 · ${m.delegatedTo} · 指令 ${m.delegationMessageId||'未标记'}`,'minor'));
+     if(m.triageAt)card.append(node('div',`批量分拣 · ${m.triageDisposition||'pending'} · ${time(m.triageAt)}`,'minor'));
      if(m.note)card.append(node('div','处理说明 · '+m.note,'minor'));
      if(m.tracked){
        const verdict=m.verification?.verdict;

@@ -1,16 +1,18 @@
 # Tips / DevSpace Agent Coordination
 
-**新加入的 Agent 请先阅读 [`AGENT_TOOL_USE.md`](AGENT_TOOL_USE.md)**。该文档包含每种身份对应的工具、可复制的最小参数、ACK/验收状态含义以及常见错误。七个 Tips 协作 MCP 工具的 `description` 与核心 Zod 参数说明统一维护在 `vendor/devspace/dist/tips-tool-descriptions.js` 中，避免只写 README、模型实际读不到使用说明。拥有私有管理员密钥才能执行 `tips_admin`，操作详见 [`TIPS_ADMIN.md`](TIPS_ADMIN.md)。
+**新加入的 Agent 请先阅读 [`AGENT_TOOL_USE.md`](AGENT_TOOL_USE.md)**。该文档包含每种身份对应的工具、可复制的最小参数、ACK/验收状态含义以及常见错误。八个 Tips 协作 MCP 工具的 `description` 与核心 Zod 参数说明统一维护在 `vendor/devspace/dist/tips-tool-descriptions.js` 中，避免只写 README、模型实际读不到使用说明。新增只读 `tips_skills` 供 Web Agent **按需查阅** Skills；Local Agent 则读取 `$CODEX_HOME/skills/` 中对应 Skill。目录见 [`skills/README.md`](skills/README.md)。拥有私有管理员密钥才能执行 `tips_admin`，操作详见 [`TIPS_ADMIN.md`](TIPS_ADMIN.md)。
 
 **四类协作角色模型分工**见 [`AGENT_ROLES_AND_MODELS.md`](AGENT_ROLES_AND_MODELS.md)：Web Main（总协调与高难度推理）、Web Sub（独立审查）、Local Main（Sol：关键且稳定的无人值守决策，消耗本地额度）、Local Sub（Luna：可持续一天的低成本长任务）。Main/Sub 是职责而非管理员权限。
 
 选路规则：**研究进度 → `tips`；Server/Main/Sub 普通邮箱 → `tips_messages`；未认领的旧 Web 控制端提交可验收请求 → `tips_exchange`；创建/检查长期 Codex Worker → `subagent`；Web Chat 首次认领/识别 → `web_identity`；已认领 Web Chat 发收任何消息 → `web_mail`。** `controller` 是历史 Web 控制端收件箱，**不等于**认领身份 `web-main`。常规消息不会自动唤醒 Server Main；只有经授权的 `to=server-controller,wake=true` 才触发独立 Sol 守护器。
 
-**为何 Main 邮箱出现大量“未读”**：`server-controller` 的 Local Main 守护器为节约 Sol 额度，仅 `claim` 已授权 `wake=true` 的消息。`web_mail(send,to=server-controller,tracked=true)` 只表示要求正式验收，**不会自动唤醒**；必须另外显式指定 `wake:true` 才会授权启动 Sol。`wakeAuthorized=false` 的消息会留在 Tips 数据库、状态仍为 `unread`，并非丢失，也不会在之后自动重放。旧 `controller` 收件箱是旧版 Web 客户端，通常没有常驻收信进程。对于不需消耗 Sol 的纯通知，建议向当前认领的 `web-main`/`web-air-main` 发送 Web mail（Web Wake 浏览器扩展在可用时尝试唤醒），或让 Local Luna Sub 消化；只有真正关键的自动决策才有意识地使用 Sol `wake:true`。**不要为清空“未读”批量唤醒、ACK 或删除旧消息。**
+**Local Main 同时是研究总调度者**：普通发给 `server-controller` 的留言会积压在 Tips 中，`tracked:true` 只是验收协议，不能单独唤醒 Sol。只有收到**另一条**显式获授权的 `wake:true` 紧急请求，Local Main 才启动 Sol，并在同一 Turn 附带最多 12 条普通留言：核对当前任务 Owner、安排 Luna Local Sub、下达真实指令、记录真实回执。已结束或不准入的实验不能因为旧消息而重跑；未处理的留言保留未读。旧 `controller` 是历史 Web 邮箱，非 Local Main。完整流程见 [`skills/main-batch-triage/SKILL.md`](skills/main-batch-triage/SKILL.md) 和 [`MAIN_MAIL_DIAGNOSTICS.md`](MAIN_MAIL_DIAGNOSTICS.md)。
 
 **Main tracked 事务回执**：已授权启动并成功处理的 tracked 消息由 Local Main 守护器原子记入 `acknowledged` + `verified_accepted`；不符合自动阻塞门禁的任务为 `verified_rejected`，不等同于科学实验成功。无 tracked 的任务只记 ACK + `resolved`。内部私有动作 `finalize_controller` 只允许已领取的授权 Main 消息，由守护器调用，不应作为普通 MCP 调用或用于伪造回执。详见 [`MAIN_MAIL_DIAGNOSTICS.md`](MAIN_MAIL_DIAGNOSTICS.md)。
 
 Existing DevSpace MCP server on `https://regen.centralus.cloudapp.azure.com/mcp` provides:
+
+- **`tips_skills`**: `list` lists which Skill describes a needed subject; `read,name=agent-coordination|main-batch-triage|research-safety|tips-troubleshooting` returns a short SKILL.md on demand. No secrets, model execution or arbitrary file access.
 
 - **`tips`**: `list`, `get`, `update`, `heartbeat`, `history`, `archive`, `delete` tasks; use stable IDs. Set `group`, optional `parentId`, `dependsOn`, `heartbeatEnabled=true`, and `heartbeatTimeoutSec` to organize research work. Terminal statuses: `completed`, `failed`, `cancelled`, `blocked`. Use heartbeat on long-running jobs.
 - **`tips_messages`**: `list`, `get`, `post`, `reply`, `ack`, `resolve`, `delete`. Addresses: `controller` = the web ChatGPT supervising the project; `server-controller` = the on-demand Sol Codex controller; worker IDs = individual agents. Include sender, taskId, clear subject, concise body, and priority. `list to=controller unreadOnly=true` finds pending human/web-main-agent messages.

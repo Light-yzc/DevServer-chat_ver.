@@ -4,6 +4,8 @@
 
 **四种身份职责与模型分工**：[`AGENT_ROLES_AND_MODELS.md`](AGENT_ROLES_AND_MODELS.md)。默认 Local Sub `gpt-6-luna` 承担长时间实验和资料整理；困难推理优先用 Web Main/Sub；无人值守、必须稳定决策时才用消耗本地额度的 Local Main `gpt-6.1-sol`。这些是调度偏好，不改变任何审批和实验冻结规则。
 
+**按需 Skill 入口**：使用 MCP 工具 `tips_skills`，先调用 `tips_skills({action:"list"})` 浏览可选文档，必要时 `tips_skills({action:"read",name:"main-batch-triage"})`。服务器 Codex 也可以从 `tips/skills/<name>/SKILL.md` 按需阅读；详见 [`skills/README.md`](skills/README.md)。不用在每次唤醒中把整份手册塞入 Prompt。
+
 ## 先选对工具
 
 | 你要做的事 | 使用工具 | 不应该用 |

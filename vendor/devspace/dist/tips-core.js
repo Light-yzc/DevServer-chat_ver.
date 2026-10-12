@@ -250,11 +250,45 @@ export function createTipsV2(config){
         return m;
       });
     }
-    if(['delivered','ack','resolve','verify','finalize_controller'].includes(action)){
+    if(['delivered','ack','resolve','verify','finalize_controller','triage_controller'].includes(action)){
       return edit(s=>{
         const m=s.messages.find(m=>m.id===input.id);
         if(!m)fail('Message not found');
-        if(action==='finalize_controller'){
+        if(action==='triage_controller'){
+          // Passive messages must NEVER wake Sol on their own. The existing
+          // authorized Sol Turn must explicitly report the review outcome.
+          if(!context.trustedWake||m.to!=='server-controller'||m.wakeAuthorized||m.status!=='unread')
+            fail('Only unread passive Local Main messages may be triaged');
+          const disposition=input.disposition;
+          if(!['ack','resolved','delegated','defer'].includes(disposition))fail('Invalid triage disposition');
+          const note=string(input.note,'note',1000);
+          if(!note.trim())fail('A concrete triage note is required');
+          const at=now();
+          if(disposition==='delegated'){
+            const child=s.messages.find(v=>v.id===input.evidenceId);
+            if(!child||child.from!=='server-controller'||!child.to.startsWith('sub-')||
+              !child.body.includes(m.id)||Date.parse(child.at)<Date.parse(m.at))
+              fail('Delegation requires real Local Main -> Local Sub mail mentioning the original message ID');
+            m.delegatedTo=child.to;m.delegationMessageId=child.id;
+          }
+          if(disposition!=='defer'){
+            m.ackBy='server-controller';m.ackAt=at;
+            m.status='acknowledged';
+            logMessage(m,'acknowledged','server-controller',note);
+          }
+          if(disposition==='resolved'){
+            if(m.tracked){
+              m.verification={verdict:'accepted',by:'server-controller',at,note};
+              logMessage(m,'verified_accepted','server-controller',note);
+            }else logMessage(m,'resolved','server-controller',note);
+            m.status='resolved';m.handledAt=at;
+          }else if(disposition==='delegated'){
+            logMessage(m,'delegated','server-controller',`${m.delegatedTo}: ${note}`);
+          }else if(disposition==='defer'){
+            logMessage(m,'deferred','server-controller',note);
+          }
+          m.triageAt=at;m.triageDisposition=disposition;m.note=note;
+        }else if(action==='finalize_controller'){
           // Atomic receipt for the standalone Local Main worker. It is not an
           // external/MCP action: only the authorized worker can finalize its
           // *already claimed* message. Prevent half-ACKed tracked exchanges.

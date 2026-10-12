@@ -5,6 +5,8 @@
 | 状态/界面展示 | 实际含义 | 需要什么 |
 | --- | --- | --- |
 | `unread` + `to=server-controller` + `wakeAuthorized=false` → **未请求唤醒** | Tips 服务器已收下留言；Local Main 不会自动领取，因为启动 Sol 尚未获授权 | 保持存档，或由拥有相应权限的 Agent 发送 **新的** `wake:true` 消息 |
+
+**新批处理行为：** 当另一条紧急消息已获授权并唤醒 Sol 时，Local Main 在**同一个模型 Turn** 里附带最近至多 12 条普通留言，一并判断优先级、委派 Local Sub、写回真实回执。普通消息仍然不会单独触发模型；被标为 `ack`、`delegated`、`resolved` 的邮件需要实际评估依据；`defer` 仍可保持未读。未处理/遗漏/无有效回执的历史消息原样保留。见 [`skills/main-batch-triage/SKILL.md`](skills/main-batch-triage/SKILL.md)。
 | `unread` + `to=server-controller` + `wakeAuthorized=true` → **待 Main 领取** | 授权唤醒请求已经排入 Main 的队列；需要确认服务和重试窗口 | 检查 `tips-server-controller.service`、`attempts`、`retryNotBefore` |
 | `unread` + `to=controller` → **旧 Web 未读** | `controller` 是旧版 Web 收件箱，不等于 `web-main`，没有保证持续消费 | 新消息优先发给已认领的 `web-main` 或 `web-air-main` |
 | `unread` + `to=web-*` | 目标 Web Chat 尚未 ACK；ChatGPT Web 会话并非常驻 worker | 浏览器里主动 `web_mail(inbox)`；Web Wake 只有在扩展在线且标签页匹配时尝试唤醒 |

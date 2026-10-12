@@ -71,6 +71,8 @@ npm start
 
 **Web Wake 配对密钥也统一在这里：** `security.json.webWakeToken` 保存明文（由你自行设定，非空即可）；旧 `tips/web-wake-token.json` 仅是 SHA-256 哈希，无法反推出原值。迁移脚本遇到旧配置会生成一次新的随机 `webWakeToken`，需重新配对浏览器扩展；此后修改 `security.json` 或 `npm run web-wake:key` 即可。**DevSpace OAuth 仍不在此文件**。见 [`web-wake/README.md`](web-wake/README.md)。
 
+**按需 Skills（Web MCP + Local Codex）：** `tips/skills/` 提供 Agent 协作、紧急 Sol 批量收信、AIR 科研门禁及 Tips 故障排查四类精简 Skill。Web MCP 调用 `tips_skills(list|read)`，无需整篇文档塞 Prompt；Local Codex 运行 `node scripts/install-skills.mjs` 将同一 Skill 链接到 `$CODEX_HOME/skills/`。安装脚本绝不覆盖已有 Skill 或系统内置内容。完整索引见 [`tips/skills/README.md`](tips/skills/README.md)。
+
 要使用自选管理员明文密钥，可以在服务器运行 `read -rs ADMIN_KEY; printf '%s' "$ADMIN_KEY" | npm run admin:key; unset ADMIN_KEY` （密钥须非空，输入内容不显示）。之后重启**仅 DevSpace MCP**以重新加载配置。原 Tips CLI 和 Python 客户端仍可使用旧的私有凭证副本，服务器自动保持其与 `security.json` 一致。
 
 要修改 Web Wake 配对密钥，在服务器运行 `read -rs WAKE_KEY; printf '%s' "$WAKE_KEY" | npm run web-wake:key; unset WAKE_KEY`。浏览器插件选项里填写相同值，点击保存并连接。此密钥不再强制 32 位或固定字符规则；但短密钥更容易被猜中，应仅用于你完全控制的环境。
