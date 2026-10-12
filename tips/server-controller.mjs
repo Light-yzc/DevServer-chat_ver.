@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../vendor/devspace/dist/config.js';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { createBlockWatch, rejectQueuedAutoBlock } from './block-watch.mjs';
+import { finalizeMainMessage } from './controller-receipts.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -112,7 +113,7 @@ async function handle(message){
   // launching any Sol process. A queued request is never grandfathered in.
   const skip=rejectQueuedAutoBlock(tips,message,Date.now());
   if(skip){
-    tips.messages({action:'resolve',id:message.id,note:`Auto wake skipped: ${skip}`});
+    finalizeMainMessage(tips,message,{verdict:'rejected',note:`Auto wake skipped: ${skip}`});
     log('Skipped stale/unsafe automatic blocker',message.id,skip);
     busy=false;
     return;
@@ -124,13 +125,21 @@ async function handle(message){
     try{tips.mutate({action:'heartbeat',id:controllerId});}catch{}
   },25000);
   heartbeat.unref();
+  let finalized=false;
   try{
     const result=await callCodex(message);
     if(result.ok){
-      tips.messages({action:'reply',from:'server-controller',to:message.from,
-        inReplyTo:message.id,taskId:message.taskId??undefined,
-        subject:`已处理：${message.subject}`,body:result.summary});
-      tips.messages({action:'resolve',id:message.id,note:bounded(result.summary,900)});
+      finalizeMainMessage(tips,message,{verdict:'accepted',note:bounded(result.summary,900)});
+      finalized=true;
+      // The internal block watcher has no mailbox reader; original task audit
+      // already contains the result. Avoid creating permanently unread replies.
+      if(message.from!=='tips-block-watch'){
+        try{
+          tips.messages({action:'reply',from:'server-controller',to:message.from,
+            inReplyTo:message.id,taskId:message.taskId??undefined,
+            subject:`已处理：${message.subject}`,body:result.summary});
+        }catch(err){log('Reply delivery failed, completion receipt retained',message.id,bounded(err.message,250));}
+      }
       tips.mutate({action:'update',id:controllerId,status:'pending',progress:100,
         message:`已处理 ${message.subject}，耗时 ${Math.round((Date.now()-started)/1000)} 秒。等待下次唤醒。`});
       log('Resolved',message.id);
@@ -140,7 +149,7 @@ async function handle(message){
       log('Task failed',message.id,bounded(result.summary,200));
     }
   }catch(error){
-    try{tips.messages({action:'release',id:message.id,note:bounded(error.message,500)},{trustedWake:true});}catch{}
+    if(!finalized){try{tips.messages({action:'release',id:message.id,note:bounded(error.message,500)},{trustedWake:true});}catch{}}
     tips.mutate({action:'update',id:controllerId,status:'blocked',message:'主控异常：'+bounded(error.message,500)});
     log('Worker exception',bounded(error.message,300));
   }finally{clearInterval(heartbeat);busy=false;}

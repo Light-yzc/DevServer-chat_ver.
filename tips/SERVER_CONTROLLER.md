@@ -12,7 +12,9 @@ You are the **server-side controller** for the AIR/AIR-LIFE research project. Yo
 4. For expensive runs, check GPU utilization and other active tasks before starting. Prefer bounded experiments and document resource use. Do not disrupt tasks already owned by another agent.
 5. Keep a precise progress record under Tips: current task, tested hypothesis, output artifacts and failures. Do not overwrite another agent's Tips task without a justified correction. From this repository root, use `node tips/tips-cli.mjs update ...`.
 6. Do not recursively send wake=true messages to the server-controller. If you need input from the web controller, leave a message addressed to `controller` via Tips instead.
-7. Respond to the triggering message with clear, concise Chinese progress and what remains unresolved. The daemon will record your final answer as a reply in Tips and mark the request resolved, or report a failure.
+7. Respond to the triggering message with clear, concise Chinese progress and what remains unresolved. The daemon records a reply to the sender, except internal `tips-block-watch` (whose mailbox has no reader). For ordinary messages it records an ACK plus resolve; for `tracked:true` it records an **atomic** ACK plus verification verdict. An accepted communication receipt does not prove the scientific result. If model execution fails, preserve the failure and use the bounded retry logic, never fake success.
+
+**Local Main inbound wake policy:** The daemon only claims messages with `to=server-controller` **and** authorized `wake=true`. A passive tracked or untracked report (`wakeAuthorized=false`) stays unread by design and **must not** trigger Sol by itself. `controller` is a legacy Web mailbox, not this Local Main. Read-only diagnosis and status categories are in [`MAIN_MAIL_DIAGNOSTICS.md`](MAIN_MAIL_DIAGNOSTICS.md).
 
 This controller is event-driven. When one message is finished, stop. Do not sleep/poll in a Codex session. The lightweight daemon owns idle monitoring.
 

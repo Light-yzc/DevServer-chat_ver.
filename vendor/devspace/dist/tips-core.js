@@ -103,7 +103,13 @@ export function createTipsV2(config){
     const groups={};
     for(const t of tasks){const name=t.group||'未分组',g=groups[name]??={name,total:0,completed:0,running:0,problem:0};g.total++;if(t.status==='completed')g.completed++;if(t.status==='running')g.running++;if(['failed','blocked'].includes(t.status)||t.health==='stale')g.problem++;}
     return {updatedAt:s.events[0]?.at??null,tasks,groups:Object.values(groups),events:s.events.slice(0,50),
-      mailbox:{total:s.messages.length,unreadController:s.messages.filter(m=>['controller','server-controller'].includes(m.to)&&m.status==='unread').length},
+      mailbox:{
+        total:s.messages.length,
+        unreadController:s.messages.filter(m=>['controller','server-controller'].includes(m.to)&&m.status==='unread').length,
+        passiveMain:s.messages.filter(m=>m.to==='server-controller'&&m.status==='unread'&&!m.wakeAuthorized).length,
+        authorizedMain:s.messages.filter(m=>m.to==='server-controller'&&m.status==='unread'&&m.wakeAuthorized).length,
+        legacyController:s.messages.filter(m=>m.to==='controller'&&m.status==='unread').length,
+      },
       capabilities:{heartbeat:true,group:true,history:true,messages:true,notifications:true}};
   }
   function mutate(input={},context={}){
@@ -244,11 +250,32 @@ export function createTipsV2(config){
         return m;
       });
     }
-    if(['delivered','ack','resolve','verify'].includes(action)){
+    if(['delivered','ack','resolve','verify','finalize_controller'].includes(action)){
       return edit(s=>{
         const m=s.messages.find(m=>m.id===input.id);
         if(!m)fail('Message not found');
-        if(action==='delivered'){
+        if(action==='finalize_controller'){
+          // Atomic receipt for the standalone Local Main worker. It is not an
+          // external/MCP action: only the authorized worker can finalize its
+          // *already claimed* message. Prevent half-ACKed tracked exchanges.
+          if(!context.trustedWake||m.to!=='server-controller'||!m.wakeAuthorized||
+            m.status!=='processing'||!m.claimAt)fail('Only the claimed Local Main may finalize a message');
+          const verdict=input.verdict??'accepted';
+          if(!['accepted','rejected','needs_changes'].includes(verdict))fail('Invalid controller verdict');
+          const note=string(input.note??'','note',1000);
+          const at=now();
+          m.ackBy='server-controller';m.ackAt=at;
+          logMessage(m,'acknowledged','server-controller');
+          if(m.tracked){
+            m.verification={verdict,by:'server-controller',at,note};
+            m.status=verdict==='accepted'?'resolved':'acknowledged';
+            logMessage(m,'verified_'+verdict,'server-controller',note);
+          }else{
+            m.status='resolved';
+            logMessage(m,'resolved','server-controller',note);
+          }
+          m.handledAt=at;m.note=note;
+        }else if(action==='delivered'){
           if(!context.trustedWake)fail('Only a trusted dispatcher may record delivery');
           if(m.status!=='unread'&&m.status!=='delivered')return m;
           const deliveredTurn=input.turnId!==undefined?string(input.turnId,'turnId',100):null;

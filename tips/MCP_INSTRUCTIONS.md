@@ -6,6 +6,10 @@
 
 选路规则：**研究进度 → `tips`；Server/Main/Sub 普通邮箱 → `tips_messages`；未认领的旧 Web 控制端提交可验收请求 → `tips_exchange`；创建/检查长期 Codex Worker → `subagent`；Web Chat 首次认领/识别 → `web_identity`；已认领 Web Chat 发收任何消息 → `web_mail`。** `controller` 是历史 Web 控制端收件箱，**不等于**认领身份 `web-main`。常规消息不会自动唤醒 Server Main；只有经授权的 `to=server-controller,wake=true` 才触发独立 Sol 守护器。
 
+**为何 Main 邮箱出现大量“未读”**：`server-controller` 的 Local Main 守护器为节约 Sol 额度，仅 `claim` 已授权 `wake=true` 的消息。`web_mail(send,to=server-controller,tracked=true)` 只表示要求正式验收，**不会自动唤醒**；必须另外显式指定 `wake:true` 才会授权启动 Sol。`wakeAuthorized=false` 的消息会留在 Tips 数据库、状态仍为 `unread`，并非丢失，也不会在之后自动重放。旧 `controller` 收件箱是旧版 Web 客户端，通常没有常驻收信进程。对于不需消耗 Sol 的纯通知，建议向当前认领的 `web-main`/`web-air-main` 发送 Web mail（Web Wake 浏览器扩展在可用时尝试唤醒），或让 Local Luna Sub 消化；只有真正关键的自动决策才有意识地使用 Sol `wake:true`。**不要为清空“未读”批量唤醒、ACK 或删除旧消息。**
+
+**Main tracked 事务回执**：已授权启动并成功处理的 tracked 消息由 Local Main 守护器原子记入 `acknowledged` + `verified_accepted`；不符合自动阻塞门禁的任务为 `verified_rejected`，不等同于科学实验成功。无 tracked 的任务只记 ACK + `resolved`。内部私有动作 `finalize_controller` 只允许已领取的授权 Main 消息，由守护器调用，不应作为普通 MCP 调用或用于伪造回执。详见 [`MAIN_MAIL_DIAGNOSTICS.md`](MAIN_MAIL_DIAGNOSTICS.md)。
+
 Existing DevSpace MCP server on `https://regen.centralus.cloudapp.azure.com/mcp` provides:
 
 - **`tips`**: `list`, `get`, `update`, `heartbeat`, `history`, `archive`, `delete` tasks; use stable IDs. Set `group`, optional `parentId`, `dependsOn`, `heartbeatEnabled=true`, and `heartbeatTimeoutSec` to organize research work. Terminal statuses: `completed`, `failed`, `cancelled`, `blocked`. Use heartbeat on long-running jobs.

@@ -199,7 +199,7 @@
    <section id="mailbox-tab" class="board" hidden>
      <div class="section-title"><div><h2>Agent 消息通道</h2><p class="hint">Main / Sub 双向留言。送达不等于 ACK；只有接收 Agent 主动确认，才算已读取。</p></div><span id="mail-summary" class="pill">等待消息</span></div>
      <div class="toolbar">
-       <div class="filters" id="mail-filters"><button class="active" data-mail-filter="all">全部</button><button data-mail-filter="tracked">通信事务</button><button data-mail-filter="unread">未读</button><button data-mail-filter="ack">ACK</button><button data-mail-filter="resolved">已解决</button><button data-mail-filter="high">高优先级</button></div>
+       <div class="filters" id="mail-filters"><button class="active" data-mail-filter="all">全部</button><button data-mail-filter="tracked">通信事务</button><button data-mail-filter="passive">Main 未唤醒</button><button data-mail-filter="mainready">Main 待领取</button><button data-mail-filter="unread">未确认</button><button data-mail-filter="ack">ACK</button><button data-mail-filter="resolved">已解决</button><button data-mail-filter="high">高优先级</button></div>
        <select id="mail-from" aria-label="筛选发送 Agent"><option value="">全部发送方</option></select>
        <select id="mail-to" aria-label="筛选接收 Agent"><option value="">全部接收方</option></select>
        <select id="mail-agent" aria-label="消息任一端 Agent"><option value="">所有通信对象</option></select>
@@ -489,10 +489,14 @@
  }
  function renderInbox(){
    $('unread-count').textContent=(data.mailbox?.unreadController??0)>0?' · '+data.mailbox.unreadController:'';
-   $('mail-summary').textContent=`未读 ${data.mailbox?.unreadController??0} · 共 ${mailbox.length} 条`;
+   const counters=data.mailbox??{};
+   $('mail-summary').textContent=`未确认 ${counters.unreadController??0}（Local Main 未请求唤醒 ${counters.passiveMain??0} · 待领取 ${counters.authorizedMain??0} · 旧 Web 收件箱 ${counters.legacyController??0}）· 当前显示 ${mailbox.length} 条`;
    const from=$('mail-from').value,to=$('mail-to').value,agent=$('mail-agent').value;
    const visible=mailbox.filter(m=>(!from||m.from===from)&&(!to||m.to===to)&&(!agent||m.from===agent||m.to===agent)&&(
-     mailFilter==='all'||(mailFilter==='tracked'?m.tracked===true:mailFilter==='unread'?['unread','delivered'].includes(m.status):
+     mailFilter==='all'||(mailFilter==='tracked'?m.tracked===true:
+       mailFilter==='passive'?m.status==='unread'&&m.to==='server-controller'&&!m.wakeAuthorized:
+       mailFilter==='mainready'?m.status==='unread'&&m.to==='server-controller'&&m.wakeAuthorized:
+       mailFilter==='unread'?['unread','delivered'].includes(m.status):
        mailFilter==='ack'?m.status==='acknowledged':mailFilter==='resolved'?m.status==='resolved':m.priority==='high')));
    const box=$('inbox'),signature=JSON.stringify(visible);
    if(box.dataset.signature===signature)return;
@@ -504,20 +508,29 @@
      const statuses={unread:'未读',delivered:'已送达',acknowledged:'ACK 已读取',processing:'处理中',resolved:'已解决',failed:'失败'};
      const flags=node('div',null,'mail-flags');
      const statusKind=Object.hasOwn(statuses,m.status)?m.status:'unknown';
-     flags.append(node('span',statuses[m.status]||m.status,'pill mail-status mail-status--'+statusKind));
+     const passiveMain=m.status==='unread'&&m.to==='server-controller'&&!m.wakeAuthorized;
+     const readyMain=m.status==='unread'&&m.to==='server-controller'&&m.wakeAuthorized;
+     const legacyInbox=m.status==='unread'&&m.to==='controller';
+     const statusLabel=passiveMain?'未请求唤醒':readyMain?'待 Main 领取':legacyInbox?'旧 Web 未读':(statuses[m.status]||m.status);
+     flags.append(node('span',statusLabel,'pill mail-status mail-status--'+statusKind));
      if(m.tracked)flags.append(node('span','事务','pill'));
      add(heading,node('h3',m.subject||'未命名消息'),flags);card.append(heading);
      card.append(messageRoute(m.from,m.to));
      const meta=node('div',null,'mail-detail-meta');
      add(meta,node('time',time(m.at)),node('span',`优先级 · ${m.priority}`,m.priority==='high'?'priority-high':''));card.append(meta);
      if(m.taskId)card.append(node('div','关联任务 · '+m.taskId,'minor'));
+     if(passiveMain)card.append(node('div','仅存入 Local Main 邮箱：wakeAuthorized=false，Sol 不会自动领取或 ACK。确有需要时请由授权 Web Agent 发送新的 wake=true 请求；历史消息不会自动重放。','minor'));
+     else if(readyMain)card.append(node('div','已经授权唤醒 Local Main，尚未被服务领取；检查 Main 服务、队列与重试状态。','minor'));
+     else if(legacyInbox)card.append(node('div','controller 是旧版 Web 控制端邮箱，没有常驻消费者；请改用已认领的 web-* 身份收信。','minor'));
+     else if(m.status==='unread'&&m.to?.startsWith('web-'))card.append(node('div','Web 收件箱等候目标聊天主动读取和 ACK；Web Wake 只尝试提交提醒，不保证云端聊天已读。','minor'));
+     else if(m.status==='unread'&&m.to?.startsWith('sub-'))card.append(node('div','Local Sub 尚未确认；检查 Subagent Manager 是否已派发相应 Thread。','minor'));
      card.append(node('p',m.body,'message-body'));
      if(m.replyTo)card.append(node('div','回复消息 · '+m.replyTo,'minor'));
      if(m.ackBy)card.append(node('div','读取确认 · '+m.ackBy+' · '+time(m.ackAt),'minor'));
      if(m.note)card.append(node('div','处理说明 · '+m.note,'minor'));
      if(m.tracked){
        const verdict=m.verification?.verdict;
-       const label=verdict==='accepted'?'已验收':verdict==='rejected'?'验收未通过':verdict==='needs_changes'?'要求修改':'等待目标 Agent 验收';
+       const label=verdict==='accepted'?'已验收':verdict==='rejected'?'验收未通过':verdict==='needs_changes'?'要求修改':passiveMain?'未唤醒，尚无法验收':'等待目标 Agent 验收';
        card.append(node('div','通信事务 · '+label+' · ID '+m.id,'minor'));
        if(m.verification)card.append(node('div','验收：'+m.verification.by+' · '+time(m.verification.at)+' · '+(m.verification.note||''),'minor'));
      }

@@ -33,6 +33,8 @@ tips_admin({"action":"history","adminKey":"<私有管理员密钥>"})
 
 `revoke_web` 只撤销认证、保留角色登记；`remove_web` 将该角色从注册表移除并让此前聊天立即失效，历史 Tips 留言仍在。`remove_sub` 只适用于已结束或已停止的 managed Sub，且会归档旧 Thread 指针，不会杀进程或删除实验成果。`archive_task` 与 `delete_task` 都不允许操作 `running` 任务；后者还会删除 Tips **任务历史**。`delete_message` 不允许删除 `processing` 消息。每次请求必须附带密钥，并记录不含密钥的操作审计。详细的动作矩阵、前端操作、保留策略和权限说明在 [`TIPS_ADMIN.md`](TIPS_ADMIN.md)。
 
+**诊断收件箱“未读”及 `wakeAuthorized` 时，请看 [`MAIN_MAIL_DIAGNOSTICS.md`](MAIN_MAIL_DIAGNOSTICS.md)**。特别注意 `tracked:true` 是验收协议，`wake:true` 才是 Local Sol 的授权唤醒请求。即使发往 `server-controller`，没有 wake 的普通消息也不会自动读取；如果需要 Sol 介入，重新发一条精简、明确授权的新请求，不要无条件重放全部旧邮件。
+
 ## 场景 1：新 Web Chat 首次注册，然后联系其他 Web
 
 若某个 Web Chat 已废弃且本人无法再调用 `release`，管理员可以直接调用
