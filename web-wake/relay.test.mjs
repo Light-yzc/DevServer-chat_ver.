@@ -5,9 +5,10 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocket } from 'ws';
+import { createServer as createHttpServer } from 'node:http';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { createWakeToken } from './relay-core.mjs';
-import { startWakeRelay } from './relay.mjs';
+import { attachWakeRelay, startWakeRelay } from './relay.mjs';
 
 test('end-to-end: extension authenticates and receives only wake routing data',async()=>{
   const stateDir=mkdtempSync(join(tmpdir(),'wake-relay-'));
@@ -44,6 +45,29 @@ test('end-to-end: extension authenticates and receives only wake routing data',a
   }finally{
     if(ws)ws.terminate();
     await relay.close();
+    rmSync(stateDir,{recursive:true,force:true});
+  }
+});
+
+test('single-port mount handles Upgrade but leaves existing HTTP pages alone',async()=>{
+  const stateDir=mkdtempSync(join(tmpdir(),'wake-singleport-'));
+  const token=createWakeToken(stateDir);
+  const server=createHttpServer((_req,res)=>{res.writeHead(200);res.end('Original DevSpace route');});
+  const relay=attachWakeRelay(server,{stateDir});
+  let ws;
+  try {
+    server.listen(0,'127.0.0.1');await once(server,'listening');
+    const port=server.address().port;
+    const response=await fetch(`http://127.0.0.1:${port}/tips`);
+    assert.equal(await response.text(),'Original DevSpace route');
+    ws=new WebSocket(`ws://127.0.0.1:${port}/web-wake/ws`,{headers:{Origin:'chrome-extension://abcdefghijklmnopabcdefghijklmnop'}});
+    await once(ws,'open');
+    ws.send(JSON.stringify({type:'auth',token}));
+    const [packet]=await once(ws,'message');
+    assert.equal(JSON.parse(String(packet)).type,'ready');
+  } finally {
+    if(ws)ws.terminate();await relay.close();
+    await new Promise(resolve=>server.close(()=>resolve()));
     rmSync(stateDir,{recursive:true,force:true});
   }
 });

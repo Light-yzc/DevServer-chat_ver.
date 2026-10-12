@@ -6,7 +6,9 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { allowSocketOrigin, collectWakeEvents, createWakeToken, verifyWakeToken } from './relay-core.mjs';
 
-export function startWakeRelay({stateDir,host='127.0.0.1',port=17679,intervalMs=2000,requireExtensionOrigin=true}) {
+// Mount directly onto the existing DevSpace HTTP server. The public WSS URL
+// shares its HTTPS port and SSH tunnel with /mcp and /tips.
+export function attachWakeRelay(server,{stateDir,path='/web-wake/ws',intervalMs=2000,requireExtensionOrigin=true}) {
   const config={stateDir};
   const tips=createTipsV2(config);
   // Read the live Web identity registry directly. No import from the in-progress
@@ -17,20 +19,16 @@ export function startWakeRelay({stateDir,host='127.0.0.1',port=17679,intervalMs=
     const registry=JSON.parse(readFileSync(file,'utf8'));
     return Object.values(registry.roles??{}).map(({id,status,leaseExpiresAt})=>({id,status,leaseExpiresAt}));
   }
-  const server=createServer((req,res)=>{
-    res.setHeader('Cache-Control','no-store');
-    res.setHeader('X-Content-Type-Options','nosniff');
-    if(req.url==='/health' && req.method==='GET'){
-      res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,service:'web-wake'}));
-    } else {res.writeHead(404);res.end();}
-  });
   const sockets=new WebSocketServer({noServer:true,maxPayload:4096});
-  server.on('upgrade',(req,socket,head)=>{
-    if(req.url!=='/ws' || (requireExtensionOrigin&&!allowSocketOrigin(req.headers.origin))){
+  const upgrade=(req,socket,head)=>{
+    if(req.url!==path)return;
+    if(requireExtensionOrigin&&!allowSocketOrigin(req.headers.origin)){
       socket.destroy();return;
     }
-    sockets.handleUpgrade(req,socket,head,ws=>sockets.emit('connection',ws,req));
-  });
+    try{sockets.handleUpgrade(req,socket,head,ws=>sockets.emit('connection',ws,req));}
+    catch{socket.destroy();}
+  };
+  server.on('upgrade',upgrade);
   function emit(ws,payload){if(ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify(payload));}
   const active=new Set();
   sockets.on('connection',ws=>{
@@ -61,11 +59,32 @@ export function startWakeRelay({stateDir,host='127.0.0.1',port=17679,intervalMs=
     } catch(err){emit(ws,{type:'error',message:'Tips state temporarily unavailable'});}
   }
   const refresh=setInterval(()=>{for(const ws of active)flush(ws);},intervalMs);
+  refresh.unref();
+  let stopped=false;
+  const close=()=>new Promise(resolve=>{
+    if(stopped){resolve();return;}
+    stopped=true;clearInterval(refresh);server.off('upgrade',upgrade);
+    for(const ws of sockets.clients)ws.terminate();
+    sockets.close(()=>resolve());
+  });
+  server.once('close',()=>{void close();});
+  return {sockets,close};
+}
+
+export function startWakeRelay({stateDir,host='127.0.0.1',port=17679,intervalMs=2000,requireExtensionOrigin=true}) {
+  const server=createServer((req,res)=>{
+    res.setHeader('Cache-Control','no-store');
+    res.setHeader('X-Content-Type-Options','nosniff');
+    if(req.url==='/health' && req.method==='GET'){
+      res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,service:'web-wake'}));
+    } else {res.writeHead(404);res.end();}
+  });
+  const relay=attachWakeRelay(server,{stateDir,path:'/ws',intervalMs,requireExtensionOrigin});
   server.listen(port,host);
-  return {server,sockets,close:()=>new Promise((accept,reject)=>{
-    clearInterval(refresh);for(const ws of sockets.clients)ws.terminate();
-    sockets.close(()=>server.close(err=>err?reject(err):accept()));
-  })};
+  return {server,sockets:relay.sockets,close:async()=>{
+    await relay.close();
+    await new Promise((resolve,reject)=>server.close(err=>err?reject(err):resolve()));
+  }};
 }
 
 function option(argv,key,fallback){const i=argv.indexOf(key);return i>=0?argv[i+1]:fallback;}

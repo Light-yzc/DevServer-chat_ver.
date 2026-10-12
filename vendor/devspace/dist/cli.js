@@ -240,6 +240,13 @@ async function serve() {
         console.log(`logging: ${config.logging.level} ${config.logging.format}`);
         console.log(`subagent providers: ${formatLocalAgentProviderStatusSummary(localAgentProviders)}`);
     });
+    // Opt-in single-port Web Wake: only the /web-wake/ws Upgrade path is
+    // handled by this addon. All MCP and Tips HTTP routes stay unchanged.
+    if (process.env.DEVSPACE_WEB_WAKE_MODULE) {
+        const { attachWakeRelay } = await import(process.env.DEVSPACE_WEB_WAKE_MODULE);
+        attachWakeRelay(httpServer, { stateDir: config.stateDir });
+        console.log("web wake: mounted /web-wake/ws on the existing HTTP port");
+    }
     let shuttingDown = false;
     const shutdown = async () => {
         if (shuttingDown)

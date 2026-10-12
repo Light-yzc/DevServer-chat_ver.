@@ -12,7 +12,29 @@ This is an **opt-in, experimental Chrome/Edge Manifest V3 extension** plus a **r
 
 The browser's title match is **routing, not authentication**; the subsequent MCP tools must verify the Web identity. The relay never returns message contents. Local delivery (`submitted`) does **not** mark a Tips message read or complete; only MCP ACK/resolve does.
 
-## Install on the server (prototype, no live deployment yet)
+## Server installation
+
+### Preferred: single-port integration (no new SSH tunnel or Caddy route)
+
+The checked-in `vendor/devspace/dist/cli.js` supports **opt-in** mounting on the
+existing DevSpace HTTP server. Set this environment variable in the DevSpace
+launcher and restart that server:
+
+```bash
+export DEVSPACE_WEB_WAKE_MODULE=/absolute/path/to/devspace-tips-mcp/web-wake/relay.mjs
+devspace serve
+```
+
+This attaches the WebSocket Upgrade handler at `/web-wake/ws` to the existing
+port (normally 7676). HTTP requests for `/mcp`, `/tips` and other original routes
+continue through Express unchanged. The original HTTPS Caddy reverse proxy and
+SSH tunnel work for WSS automatically when they forward every URL path.
+
+If using a **separately installed global** DevSpace CLI, deploy the updated
+`vendor/devspace/dist/cli.js` to that installation after saving a backup.
+No second Relay process is necessary. Leave the existing paired token intact.
+
+### Alternative: separate listener
 
 From the repository root:
 
