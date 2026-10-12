@@ -146,7 +146,10 @@ export function createTipsV2(config){
       }
       if(input.kind!==undefined){if(!KINDS.has(input.kind))fail('Invalid kind');t.kind=input.kind;}
       if(input.status!==undefined){if(!STATES.has(input.status))fail('Invalid status');t.status=input.status;}
-      if(input.progress!==undefined){if(!Number.isInteger(input.progress)||input.progress<0||input.progress>100)fail('Invalid progress');t.progress=input.progress;}
+      // Internal Local Sub queueing explicitly declares that a meaningful
+      // denominator does not exist yet. Never show a fabricated 0% on Tips.
+      if(input.progressMeasured===false&&context.trustedUpdate===true)t.progressMeasured=false;
+      if(input.progress!==undefined){if(!Number.isInteger(input.progress)||input.progress<0||input.progress>100)fail('Invalid progress');t.progress=input.progress;t.progressMeasured=true;}
       for(const key of ['current','total']){
         if(input[key]!==undefined){if(typeof input[key]!=='number'||!Number.isFinite(input[key])||input[key]<0)fail('Invalid '+key);t[key]=input[key];}
       }
@@ -180,9 +183,9 @@ export function createTipsV2(config){
       if(input.heartbeat===true){t.heartbeatEnabled=true;t.lastHeartbeatAt=now();t.staleNotifiedAt=null;}
       if(input.archived!==undefined){if(typeof input.archived!=='boolean')fail('archived must be boolean');t.archived=input.archived;}
       if(input.progress===undefined){
-        if(input.current!==undefined||input.total!==undefined){if(t.total>0)t.progress=Math.min(100,Math.round(t.current/t.total*100));}
-        else if(input.items!==undefined&&t.items.length)t.progress=Math.round(t.items.filter(x=>x.done).length/t.items.length*100);
-        else if(input.status==='completed')t.progress=100;
+        if(input.current!==undefined||input.total!==undefined){if(t.total>0){t.progress=Math.min(100,Math.round(t.current/t.total*100));t.progressMeasured=true;}}
+        else if(input.items!==undefined&&t.items.length){t.progress=Math.round(t.items.filter(x=>x.done).length/t.items.length*100);t.progressMeasured=true;}
+        else if(input.status==='completed'&&t.progressMeasured!==false)t.progress=100;
       }
       if(t.status==='running'&&old.status!=='running')t.startedAt=now();
       if(['completed','failed','cancelled'].includes(t.status)&&old.status!==t.status)t.finishedAt=now();
@@ -255,7 +258,7 @@ export function createTipsV2(config){
           // Do not lie about running/progress merely because a message exists.
           if(!s.tasks[to]){
             const task={id:to,title:`Subagent · ${to}`,kind:'progress',group:'Subagents',
-              status:'pending',progress:0,createdAt:m.at,updatedAt:m.at,
+              status:'pending',progress:0,progressMeasured:false,createdAt:m.at,updatedAt:m.at,
               message:`收到任务请求 · ${subject}`,details:`发起方 ${from} · 消息 ${m.id}`};
             s.tasks[to]=task;
             (s.history[to]??=[]).push({at:m.at,status:'pending',progress:0,message:task.message});

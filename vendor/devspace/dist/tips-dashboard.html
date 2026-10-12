@@ -169,7 +169,7 @@
      <div class="row" style="justify-content:flex-start"><input id="key" type="password" placeholder="查看密钥" autocomplete="off"><button id="connect">解锁看板</button></div>
    </div>
    <details id="admin-panel" class="admin-panel" hidden>
-     <summary>管理员操作 · 清理 Agent / 任务 / 消息</summary>
+     <summary>管理员操作 · 展开后显示撤销、停止与删除</summary>
      <div class="admin-row"><button type="button" id="admin-audit">审计记录</button></div>
      <p id="admin-feedback" class="admin-note">已通过 Tips 查看密钥授权管理操作，无需二次验证。Main / tmux 属于进程监测，不支持删注册；Sub 必须停止并退出后才能移除。所有删除仍需输入完整目标 ID 确认。</p>
      <div id="admin-audit-list" class="admin-note" hidden></div>
@@ -223,6 +223,7 @@
  const statusText={pending:'等待中',running:'运行中',completed:'已完成',failed:'失败',blocked:'阻塞',cancelled:'已取消',paused:'已暂停'};
  let filter='all',mailFilter='all',tab=location.pathname.startsWith('/tips/agents')?'agents':'tasks',data={tasks:[],events:[]},mailbox=[],agentData=null,historyCache={},canManage=false;
  let showRetired=false;
+ const adminMode=()=>canManage&&$('admin-panel').open;
  async function adminRequest(action,id='',reason=''){
    const token=decodeURIComponent(location.hash.slice(1));
    if(!token)throw Error('请先解锁查看面板');
@@ -235,18 +236,19 @@
  }
  function refreshAdminViews(){
    $('admin-panel').hidden=!canManage;
+   if(!canManage)$('admin-panel').open=false;
    for(const item of document.querySelectorAll('article.task'))item.dataset.signature='';
    $('inbox').dataset.signature='';render();renderAgents();renderInbox();
  }
  function adminButtons(card,actions,id){
-   if(!canManage||!actions.length)return;
+   if(!adminMode()||!actions.length)return;
    const bar=node('div',null,'admin-actions');
    for(const [action,label,enabled=true] of actions){
      const b=node('button',label,action.startsWith('remove')||action.startsWith('delete')?'danger':'');
      b.type='button';b.disabled=!enabled;
      b.title=enabled?'管理员操作，需二次确认':'需要先停止运行任务或等待结束';
      b.addEventListener('click',async()=>{
-       if(!canManage)return;
+       if(!adminMode())return;
        const literal=window.prompt(`执行 ${label} 将操作 ${id}。输入完整 ID 确认：`);
        if(literal!==id)return;
        b.disabled=true;
@@ -276,7 +278,10 @@
    card.dataset.signature=signature;
    add(head,title,pill);card.append(head);
    const kind=t.kind||'progress';
-   if(kind==='progress')progress(card,t.progress,t.total>0?`${t.current??0} / ${t.total}`:'完成度',t.status);
+   if(kind==='progress'){
+     if(t.progressMeasured===false)card.append(node('div','阶段进度 · 尚未量化（查看下方最新状态和心跳）','progress-meta'));
+     else progress(card,t.progress,t.total>0?`${t.current??0} / ${t.total}`:'完成度',t.status);
+   }
    else if(kind==='metric')add(card,add(node('div',null,'metric'),node('strong',t.value??'—'),node('span',t.unit||'','unit')));
    else if(kind==='checklist'){
      const items=Array.isArray(t.items)?t.items:[],done=items.filter(x=>x.done).length;
@@ -303,6 +308,13 @@
      }else card.append(node('small','暂无曲线数据'));
    }
    if(t.message)card.append(node('p',t.message,'message'));
+   if(t.id?.startsWith('sub-')&&Array.isArray(t.logs)&&t.logs.length){
+     const details=node('details',null,'history-box');
+     details.append(node('summary',`近期指令 · ${t.logs.length} 条`));
+     const recent=node('ol');
+     for(const entry of t.logs.slice(-5).reverse())recent.append(node('li',`${time(entry.at)} · ${entry.text}`));
+     details.append(recent);card.append(details);
+   }
    if(t.details){
      const details=node('details'),summary=node('summary','详细说明'),p=node('div',t.details,'detail');
      add(details,summary,p);
@@ -367,7 +379,7 @@
          add(head,node('h2',g),node('small',`${summary?.completed??0} / ${summary?.total??0} 完成 · ${summary?.running??0} 运行中`));}
        cards.push(head);lastGroup=g;
      }
-     const signature=JSON.stringify(t)+'|history:'+JSON.stringify(historyCache[t.id]??null)+'|admin:'+canManage,old=existing.get(t.id);
+     const signature=JSON.stringify(t)+'|history:'+JSON.stringify(historyCache[t.id]??null)+'|admin:'+adminMode(),old=existing.get(t.id);
      cards.push(old?.dataset.signature===signature?old:renderTask(t,signature));
    }
    if(!cards.length)cards.push(node('div','没有符合条件的任务','empty'));
@@ -497,7 +509,7 @@
        mailFilter==='mainready'?m.status==='unread'&&m.to==='server-controller'&&m.wakeAuthorized:
        mailFilter==='unread'?['unread','delivered'].includes(m.status):
        mailFilter==='ack'?m.status==='acknowledged':mailFilter==='resolved'?m.status==='resolved':m.priority==='high')));
-   const box=$('inbox'),signature=JSON.stringify(visible);
+   const box=$('inbox'),signature=JSON.stringify(visible)+'|admin:'+adminMode();
    if(box.dataset.signature===signature)return;
    box.dataset.signature=signature;
    const elems=[];
@@ -571,6 +583,7 @@
  $('agent-search').addEventListener('input',renderAgents);
  $('agent-type').addEventListener('change',renderAgents);
  $('show-retired').addEventListener('change',e=>{showRetired=e.target.checked;renderAgents()});
+ $('admin-panel').addEventListener('toggle',()=>{if(canManage)refreshAdminViews()});
  $('admin-audit').addEventListener('click',async()=>{
    try{const r=await adminRequest('history');const panel=$('admin-audit-list');panel.replaceChildren();
      for(const e of (r.events??[]).slice(0,15))panel.append(node('div',`${time(e.at)} · ${e.action} · ${e.id} · ${e.reason||''}`));

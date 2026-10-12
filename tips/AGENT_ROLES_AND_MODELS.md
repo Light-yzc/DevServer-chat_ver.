@@ -17,6 +17,8 @@
 4. **审稿或因果设计疑点**：可以由 Web 先评，再由 Local Sol 复核；不要把 Luna 的单次意见当成最终学术结论。
 5. **Agent 职责 ≠ 特权**：Web Main/Sub 和 Local Main/Sub 都不会因角色名字自动获得管理权限。Tips 查看/管理操作需要私有 `tips.viewToken`，OAuth 本身不等于该密钥。
 
+**长期可靠性约定：** 只看服务器 `/tips` 也要能确认每个 `sub-*` 任务的排队、运行、心跳、阶段、阻塞、回执和本轮结果。`subagent(start)`/向 `sub-*` 发指令自动关联同名任务卡；Local Sub 在原有 `<tips-actions>` 尾部附 `progress` 就能报告里程碑，避免为了汇报再启动模型。不能量化就显示阶段而非编造比例。服务断开时可由 Manager 与持久 Thread 恢复执行，但 Web Chat 和云端页面不保证始终在线，也不能保证任何研究任务绝对不中断。
+
 ## 注册与页面归类
 
 - Tips `Agent Registry` 页面有 **Web Main / Web Sub / Local Main / Local Sub** 四个分组与筛选器；另列 `Legacy/tmux`（只是系统观察到的进程）和 `研究任务`（不是 Agent）。

@@ -20,6 +20,11 @@ Main/Sub 是职责而非管理员权限；`controller` 是旧 Web 邮箱，不�
 - `tracked:true` 表示 ACK + verify，**不是** Sol 唤醒。`to=server-controller,wake:true` 且获授权才启动 Local Main。
 - Local Main 可用 `node tips/subagent-cli.mjs list/status/start/message/stop`。尽量委派 Luna，并在真实下发给 Sub 的指令中记录原始消息 ID、Owner、目标、证据和禁止操作。
 - 委派 `sub-*` 时必须让 Tips 任务板显示进度：`subagent(start)` 立即创建同名任务卡；消息任务也自动关联同名卡。Local Sub 在真实阶段或阻塞时用 `tips-cli update <sub-id>` 填写阶段与验证证据。用户应能只看 `/tips` 而无需 SSH；无可量化总量时不要猜百分比。
+- 为省 Token，Local Sub 还可在已有最终 `<tips-actions>` JSON 中增加 `progress:{status,message,current?,total?}`，与 ACK / 消息一起写回同一任务卡，**不增加新模型调用**。执行中由 App Server 事件和 Manager 心跳更新阶段与存活状态。
+
+## 长期稳定与成本优先级
+
+先复用已有 Agent 与 Codex Thread；Local Luna 承担可持续的实验、资料与自动化执行；高难度推理优先向已认领 Web Main/Sub 委派、由浏览器在线时读取，Web 不保证无人值守；当无人值守必须立即决策且符合当前门禁时，使用 Local Sol Main。普通留言积累到下一次真正授权的紧急 Sol 唤醒，一并处理，不周期性消耗 Sol。每项工作保留 Tips 卡片、阶段证据、失败原因、可恢复检查点和负责人。严禁盲目轮询模型、重复跑实验或伪造完成比例。
 - `delivered` 不表示接收方读过；所有完成声明需要有回执和实际证据。
 
 ## 委派前检查

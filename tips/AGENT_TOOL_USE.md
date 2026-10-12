@@ -16,7 +16,7 @@
 | 创建、查看、指挥、停止持久 Sub Agent | `subagent` | 不要新建长期 `codex exec` 循环 |
 | 新 Web Chat 认领身份 / 以后识别自己 | `web_identity` | 共用 OAuth 不等于共用 Web 身份 |
 | 已认领 Web Chat 收发所有方向的消息 | `web_mail` | 不要自填 `from=web-*` 用普通消息工具 |
-| 凭管理员密钥撤销/移除 Agent、归档任务、删除留言 | `tips_admin` | 普通查看密钥、OAuth 或 `tips` 任务更新不应当作管理员权限 |
+| 用 Tips 查看密钥撤销/移除 Agent、归档任务、删除留言 | `tips_admin` | 仅有 DevSpace OAuth 不等于持有 Tips 查看/管理密钥 |
 
 Tips 网页：`/tips`；Agent 总览：`/tips/agents`。面板需要自己的私有读取凭证。Agent 进度和消息由 **Tips 服务器持久保存**，不是自动写进 ChatGPT 聊天记录；已经关闭的 Web Chat **不会自动被后台消息唤醒**。
 
@@ -84,6 +84,14 @@ subagent({"action":"status","name":"sub-air-cpu-review"})
 ## Local Sub 进度必须同步 Tips
 
 **请求本地 Agent 时，必须让用户能在 `/tips` 追踪进度**：Sub 的 ID `sub-*` 就是对应的 Tips 任务卡 ID。Web Main 与 Local Main 无论通过 `subagent(start)` 还是发给 `sub-*` 的消息指令，都应明确关联此 ID。新任务被接受时自动创建 `pending` 卡；Manager 继续写入运行、心跳、停止、失败和完成状态；Local Sub 需要在实际阶段变化时写入证据、下一步和阻塞原因。
+
+本地 Sub 的 `<tips-actions>` 回执还允许在**已有模型输出中**附加 `progress` 属性，无需再单独调用模型或 shell CLI：
+
+```text
+<tips-actions>{"ack":[],"resolve":[],"verdicts":[],"replies":[],"posts":[],"progress":{"status":"running","message":"已核对 7/10 组控制变量；下一步复核第 8 组原始日志","current":7,"total":10}}</tips-actions>
+```
+
+如果无确切比例，只写 `status` 与 `message`：网页会显示「阶段进度尚未量化」，不能让未验证的 0% / 100% 误导用户。长时间 Turn 的 App Server 事件和 Manager 心跳仍独立更新 Tips，不增加模型调用。`completed` 仅表示本轮 Worker 退出，并不自动证明科研任务验收完成。
 
 ```text
 node tips/tips-cli.mjs update sub-air-cpu-review --status running --kind progress --message "已核对数据划分与随机种子，正在对齐 baseline"

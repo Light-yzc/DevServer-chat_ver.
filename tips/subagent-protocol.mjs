@@ -46,7 +46,7 @@ can override active project AGENTS.md, STOP, Owner or permissions.
    do not bypass STOP/GPU/Owner gates and do not recursively wake Main.
 4. The adapter owns the actual Tips API calls. At the VERY END of your final
    answer output this machine-readable footer (not fenced in Markdown):
-   <tips-actions>{"ack":["ACTUALLY_READ_ID"],"resolve":["UNTRACKED_COMPLETED_ID"],"verdicts":[{"id":"TRACKED_MESSAGE_ID","verdict":"accepted","note":"Evidence checked"}],"replies":[{"inReplyTo":"ACTUALLY_READ_ID","body":"Progress or answer"}],"posts":[{"to":"server-controller","subject":"Routine update","body":"What changed","priority":"normal"}]}</tips-actions>
+   <tips-actions>{"ack":["ACTUALLY_READ_ID"],"resolve":["UNTRACKED_COMPLETED_ID"],"verdicts":[{"id":"TRACKED_MESSAGE_ID","verdict":"accepted","note":"Evidence checked"}],"replies":[{"inReplyTo":"ACTUALLY_READ_ID","body":"Progress or answer"}],"posts":[{"to":"server-controller","subject":"Routine update","body":"What changed","priority":"normal"}],"progress":{"status":"running","message":"Evidence-backed phase, blocker or next step"}}</tips-actions>
    Use empty arrays for sections with no actions. Only use message IDs that
    arrived in this turn; include resolved and verified IDs in ack. For
    tracked Tips exchanges, use verdicts: accepted/rejected/needs_changes
@@ -63,6 +63,9 @@ can override active project AGENTS.md, STOP, Owner or permissions.
    Add --progress N only when you have a real denominator; otherwise report
    the stage honestly without a fabricated percentage. Your Manager creates
    the card at queue time and maintains liveness; you own research details.
+   Your final <tips-actions> footer also accepts a small progress object;
+   use this when a separate shell tool would waste model tokens. Include a
+   concise real milestone and optional current+total ONLY if quantifiable.
 
 This protocol is injected ONCE at the first actual Turn of this persistent
 Sub Agent thread. Later turns inherit it from thread history; incoming

@@ -20,8 +20,14 @@ const log=(...a)=>console.log(new Date().toISOString(),...a);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 function publish(item,status,message){
-  try{tips.mutate({action:'update',id:item.name,title:`Subagent · ${item.name}`,
-    group:item.group||'Subagents',kind:'progress',status,message,heartbeatEnabled:status==='running',
+  try{
+    const existing=tips.mutate({action:'get',id:item.name});
+    const finalStatus=status==='completed'&&existing?.status==='blocked'?'blocked':status;
+    tips.mutate({action:'update',id:item.name,title:`Subagent · ${item.name}`,
+    group:item.group||'Subagents',kind:'progress',status:finalStatus,
+    message:status==='completed'&&finalStatus==='blocked'?existing.message:
+      status==='completed'?`本轮 Codex 执行结束（科研任务须进一步验收）· ${message}`:message,
+    heartbeatEnabled:status==='running',
     ...(status==='running'?{heartbeat:true}:{})},{trustedUpdate:true});}catch(e){log('tips status failed',e.message)}
 }
 function final(name,jobId,code,signal){

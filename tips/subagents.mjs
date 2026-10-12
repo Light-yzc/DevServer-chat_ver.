@@ -53,7 +53,7 @@ export function subagentRegistry(config,tips){
     // including the time spent QUEUED before an App Server process exists.
     // Lifecycle heartbeats/status are maintained by the manager thereafter.
     tips.mutate({action:'update',id:name,title:`Subagent · ${name}`,
-      kind:'progress',group,status:'pending',progress:0,archived:false,
+      kind:'progress',group,status:'pending',progressMeasured:false,archived:false,
       message:`已排队 · ${model} · 等待 Local Sub Manager 分配执行`,
       details:goal.slice(0,2200),heartbeatEnabled:false},{trustedUpdate:true});
     return started;

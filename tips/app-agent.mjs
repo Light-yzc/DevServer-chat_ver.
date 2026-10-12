@@ -19,6 +19,7 @@ import {resolveCodexBin} from './codex-bin.mjs';
 import { loadConfig } from '../vendor/devspace/dist/config.js';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { tipsProtocol, needsDelivery, shouldInjectProtocol,localMainWakeRequested } from './subagent-protocol.mjs';
+import {applySubagentProgress} from './subagent-progress.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -99,6 +100,10 @@ function finalizeActions(raw){
   const readable=raw.slice(0,found.index).trimEnd();
   let actions;try{actions=JSON.parse(found[1])}catch(e){safeLog({event:'action_footer_error',text:e.message});return readable;}
   if(!actions||typeof actions!=='object')return readable;
+  if(actions.progress){
+    try{applySubagentProgress(tips,params.name,actions.progress)}
+    catch(e){safeLog({event:'progress_footer_rejected',error:String(e.message).slice(0,200)})}
+  }
   const allowed=id=>typeof id==='string'&&presented.has(id);
   const ack=new Set(Array.isArray(actions.ack)?actions.ack.slice(0,40):[]);
   const resolve=new Set(Array.isArray(actions.resolve)?actions.resolve.slice(0,40):[]);
@@ -193,7 +198,7 @@ async function main(){
   console.log('App Server ready:',params.name,'thread:',threadId,'resumed:',Boolean(previousThreadId));
   if(params.probe)return;
   let prompt=readFileSync(params.promptFile,'utf8');
-  prompt+=`\nREQUIRED VISIBLE TIPS PROGRESS: This Local Sub task has a Tips task card ID ${params.name}. The user follows progress in /tips and may never open server logs. At actual milestones, blockers, and roughly every meaningful phase, update this SAME card via an available shell tool: node ${join(ROOT,'tips','tips-cli.mjs')} update ${params.name} --status running --kind progress --message "Current stage and verified evidence". When a real total/plan exists, also use --progress 0..100; otherwise do not invent percentages. For blockers use --status blocked and detail the reason; do not claim scientific completion merely because one Codex turn ends. The manager separately publishes queued, running, heartbeat, completion and failure. Do not write keys into Tips.\n`;
+  prompt+=`\nTips progress required: the user reads ONLY /tips, card ID ${params.name}. At real milestones use tips-cli update, or include a final <tips-actions> JSON property "progress":{"status":"running|blocked|completed","message":"evidence, current phase, next step"} (optional current+total if measurable). No guessed percentages; no extra Sol calls.\n`;
   // Existing persistent Codex Threads were initialized before wake escalation
   // existed. A short per-Turn reminder upgrades them without reinjecting the
   // full protocol or spending a separate model call.

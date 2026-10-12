@@ -22,6 +22,7 @@ test('register, queue, finish, and resume persistent agent ID',()=>{
     assert.equal(queued.status,'pending');
     assert.equal(queued.kind,'progress');
     assert.equal(queued.progress,0);
+    assert.equal(queued.progressMeasured,false);
     assert.match(queued.message,/已排队/);
     assert.match(queued.details,/Summarize AIR docs/);
     assert.equal(t.registry.list().length,1);
@@ -31,6 +32,7 @@ test('register, queue, finish, and resume persistent agent ID',()=>{
     const next=t.registry.start({name:'sub-check',goal:'Second task',cwd:t.root});
     assert.notEqual(next.jobId,x.jobId);assert.equal(next.revision,2);
     assert.equal(t.tips.mutate({action:'get',id:'sub-check'}).progress,0);
+    assert.equal(t.tips.mutate({action:'get',id:'sub-check'}).progressMeasured,false);
     assert.equal(t.registry.stop('sub-check').status,'stopped');
   }finally{t.cleanup()}
 });
