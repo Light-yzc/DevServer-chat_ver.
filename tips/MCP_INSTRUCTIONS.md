@@ -10,9 +10,9 @@
 
 选路规则：**研究进度 → `tips`；Server/Main/Sub 邮箱 → `tips_messages`；旧 Web 控制端向 Sub 提交验收请求 → `tips_exchange`；创建/检查长期 Codex Worker → `subagent`；Web Chat 首次认领/识别 → `web_identity`；已认领 Web Chat 发收消息 → `web_mail`。** `controller` 是历史 Web 收件箱，**不等于**认领身份 `web-main`。可信新消息发往 `server-controller` **默认请求唤醒 Sol**，仅 `wake:false` 明确关闭。
 
-**连续性默认**：可信 Agent 给 `server-controller` 的**每条新消息**默认请求唤醒，明确 `wake:false` 才只存档。服务器尽可能在一个 Sol Turn 中合并多个排队消息。Sol 可以用 [`WEB_HANDOFF.md`](WEB_HANDOFF.md) 的 `tips/web-handoff.mjs` 主动请求 Web Main/Sub 复核；Web Wake 仅尝试提示匹配的**已打开**聊天。Web 45 分钟没 ACK、或 ACK 后 3 小时没验收，轻量 watcher 自动触发**一次** Sol 后备调度，不表示可以启动禁止的 GPU 实验。
+**连续性默认（节省 Sol）**：可信 Agent 给 `server-controller` 的普通新消息仍请求唤醒，但在 **10 分钟窗口内合并**；真实 `priority:high` 和独立授权安全事件立即处理。`wake:false` 只存档。服务器尽可能在一个 Sol Turn 中合并多个排队消息。Sol 可以用 [`WEB_HANDOFF.md`](WEB_HANDOFF.md) 的 `tips/web-handoff.mjs` 主动请求 Web Main/Sub 复核；Web Wake 仅尝试提示匹配的**已打开**聊天。Web 45 分钟没 ACK、或 ACK 后 3 小时没验收，轻量 watcher 自动触发**一次** Sol 后备调度，不表示可以启动禁止的 GPU 实验。
 
-**Local Main 同时是研究总调度者**：收到新可信消息即准备启动 Sol，且在同一 Turn 附带最多 12 条其他排队请求：核对当前 Owner、安排 Luna Local Sub、按需唤醒 Web 审查、下达指令并记录真实回执。`tracked:true` 只代表要 ACK+Verify，不改变默认唤醒。旧实验不能因为邮件而重跑；遗漏的请求仍保留待办。旧 `controller` 是历史 Web 邮箱。见 [`skills/main-batch-triage/SKILL.md`](skills/main-batch-triage/SKILL.md)。
+**Local Main 同时是研究总调度者**：收到新可信普通消息后先进入短暂聚合窗口，紧急高优先级消息直接启动 Sol，且在同一 Turn 附带最多 12 条其他排队请求：核对当前 Owner、安排 Luna Local Sub、按需唤醒 Web 审查、下达指令并记录真实回执。`tracked:true` 只代表要 ACK+Verify，不改变默认唤醒。旧实验不能因为邮件而重跑；遗漏的请求仍保留待办。旧 `controller` 是历史 Web 邮箱。见 [`skills/main-batch-triage/SKILL.md`](skills/main-batch-triage/SKILL.md)。
 
 **Main tracked 事务回执**：已授权启动并成功处理的 tracked 消息由 Local Main 守护器原子记入 `acknowledged` + `verified_accepted`；不符合自动阻塞门禁的任务为 `verified_rejected`，不等同于科学实验成功。无 tracked 的任务只记 ACK + `resolved`。内部私有动作 `finalize_controller` 只允许已领取的授权 Main 消息，由守护器调用，不应作为普通 MCP 调用或用于伪造回执。详见 [`MAIN_MAIL_DIAGNOSTICS.md`](MAIN_MAIL_DIAGNOSTICS.md)。
 

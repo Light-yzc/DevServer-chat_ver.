@@ -120,6 +120,8 @@ journalctl --user -u devspace-tips-mcp.service -f
 
 **项目总览（可增删改查）**：`/tips` 首页会将原有 AIR 多个工作流聚合成「AIR 科研总项目」，保留唯一任务记录和历史。新 MCP 工具 `tips_project`：所有 Agent 可查询、新建；已认领 Web Main 或持有原 Tips 查看/管理密钥的管理者能调整 Owner/下一步/验收/优先级，先归档再删除；操作留审计。项目和任务仍受 STOP/GPU/Owner/`dispatch_hold` 限制。网页管理区默认折叠，原查看密钥不变。操作细节见 [`tips/skills/project-overview/SKILL.md`](tips/skills/project-overview/SKILL.md)。
 
+**Agent 效率守护**：Tips 任务 `message` 上限 **10240 字符，超过自动截断**；Sub Manager 记录完整 `.last.txt` 并在需要截断时附路径，避免结果回写失败。Luna 同一持久 Agent 连续 **2 次 Turn 失败**即打开跨重启的熔断，禁止自动邮箱重试，需凭原有管理密钥和根因说明 `tips_admin(reset_sub_failure)` 复位，不会自动执行模型。普通 Sol 唤醒默认积累 **10 分钟**以合并多封消息，真正 `priority:high` 和可信安全事件即时处理；已存在 Sol Thread 的恢复轮次不再重复注入整份长规则。未自行报告的 AIR Luna 成功退出由管理器产生一条延迟聚合的待验收交接，并不代表科研验收通过。
+
 Local Subagent 的**持久身份注册上限是 128 个**；并发执行由 `TIPS_SUBAGENT_MAX` 单独控制，默认 2、硬上限 4。已完成身份可用相同名称和运行配置继续持久 Thread，不必删除研究历史来腾名额。增加注册容量不会解除科研 `dispatch_hold`、STOP、GPU/Owner 等门禁。
 
 六个主要协作 MCP 工具：`tips`（任务/心跳/历史）、`tips_messages`（常规留言/ACK）、`tips_exchange`（可验收事务）、`subagent`（管理 App Server Agent）、`web_identity`（多个 Web Chat 独立认领身份）、`web_mail`（Web↔Web / Web↔Agent 通信）。所有工具都附有 action 级说明和关键参数的 MCP schema `.describe()`。**给新 Agent 的推荐使用指南：[`tips/AGENT_TOOL_USE.md`](tips/AGENT_TOOL_USE.md)**；其工具元数据来源在 `vendor/devspace/dist/tips-tool-descriptions.js`，使用手册与元数据由测试检查一致性。

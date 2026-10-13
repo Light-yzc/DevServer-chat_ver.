@@ -15,7 +15,7 @@ const equal=(a,b)=>{
 export function createTipsAdmin(config,tips){
   const registry=subagentRegistry(config,tips),web=createWebIdentityStore(config);
   const auditPath=join(tips.dir,'admin-audit.json');
-  const allowed=new Set(['history','remove_web','revoke_web','remove_sub','stop_sub','archive_task','delete_task','delete_message']);
+  const allowed=new Set(['history','remove_web','revoke_web','remove_sub','stop_sub','reset_sub_failure','archive_task','delete_task','delete_message']);
   function audit(event){
     const lock=auditPath+'.lock';
     let got=false;
@@ -46,6 +46,7 @@ export function createTipsAdmin(config,tips){
       case 'remove_web':result=web.remove(id,input.viewToken,tips.credentials.viewToken,reason);break;
       case 'stop_sub':result=registry.stop(id);break;
       case 'remove_sub':result=registry.remove(id);break;
+      case 'reset_sub_failure':result=registry.resetFailureCircuit(id,reason);break;
       case 'archive_task':{
         const task=tips.mutate({action:'get',id});
         if(!task)throw Error('Unknown task');

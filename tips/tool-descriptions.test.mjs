@@ -27,7 +27,7 @@ test('all 9 advertised coordination tools have directly usable action-level desc
     const expected={
       tips_project:['overview','create','get','edit','archive','delete','viewToken','nextAction'],
       tips_skills:['list','read','main-batch-triage','agent-coordination','research-safety'],
-      tips_admin:['remove_web','revoke_web','remove_sub','stop_sub','delete_task','delete_message','viewToken'],
+      tips_admin:['remove_web','revoke_web','remove_sub','stop_sub','reset_sub_failure','delete_task','delete_message','viewToken'],
       tips:['list','update','heartbeat','history','blocked'],
       tips_messages:['post','reply','ACK','resolve','wake','controller'],
       tips_exchange:['submit','get','list','accepted','needs_changes'],
@@ -68,7 +68,7 @@ test('tool action guidance corresponds to actual Zod enum actions',()=>{
     for(const [tool,actions] of Object.entries({
       tips_project:['overview','list','get','history','create','edit','archive','delete'],
       tips_skills:['list','read'],
-      tips_admin:['history','revoke_web','remove_web','stop_sub','remove_sub','archive_task','delete_task','delete_message'],
+      tips_admin:['history','revoke_web','remove_web','stop_sub','remove_sub','reset_sub_failure','archive_task','delete_task','delete_message'],
       tips:['list','get','update','heartbeat','history'],
       tips_messages:['list','get','post','reply','ack','resolve','delete'],
       tips_exchange:['submit','get','list'],subagent:['start','list','status','message','stop'],

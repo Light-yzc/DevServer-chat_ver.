@@ -58,7 +58,7 @@ test('Local Sub defaults to Sol wake for every Main message, with explicit opt-o
     {...urgency,to:'sub-other'},
   ])assert.equal(localMainWakeRequested(candidate),false);
   const protocol=tipsProtocol('sub-test');
-  assert.match(protocol,/EVERY trusted post/);
+  assert.match(protocol,/10-minute batch/);
 });
 test('Local Sub reply to Main carries trusted wake metadata; replies to Web do not',()=>{
   const dir=mkdtempSync(join(tmpdir(),'tips-main-reply-'));
@@ -68,7 +68,7 @@ test('Local Sub reply to Main carries trusted wake metadata; replies to Web do n
       subject:'Check results',body:'CPU-only work'},{trustedWake:true});
     assert.equal(localMainReplyWakeRequested(main),true);
     const reply=tips.messages({action:'reply',from:'sub-air-work',to:main.from,
-      inReplyTo:main.id,body:'Verified CPU-only results',wake:localMainReplyWakeRequested(main)},
+      inReplyTo:main.id,body:'Verified CPU-only results',priority:'high',wake:localMainReplyWakeRequested(main)},
       {trustedWake:true});
     assert.equal(reply.wakeAuthorized,true);
     assert.equal(reply.trustedSender,true);

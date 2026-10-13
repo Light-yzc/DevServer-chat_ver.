@@ -8,6 +8,8 @@ import { loadConfig } from '../vendor/devspace/dist/config.js';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { subagentRegistry } from './subagents.mjs';
 import { needsDelivery } from './subagent-protocol.mjs';
+import {boundedTaskMessage} from './task-result-text.mjs';
+import {emitResearchMilestone} from './subagent-handoff.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -19,14 +21,14 @@ const active=new Map();let stopping=false,lastHeartbeat=0;
 const log=(...a)=>console.log(new Date().toISOString(),...a);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-function publish(item,status,message){
+function publish(item,status,message,sourcePath=''){
   try{
     const existing=tips.mutate({action:'get',id:item.name});
     const finalStatus=status==='completed'&&existing?.status==='blocked'?'blocked':status;
     tips.mutate({action:'update',id:item.name,title:`Subagent · ${item.name}`,
     group:item.group||'Subagents',kind:'progress',status:finalStatus,
-    message:status==='completed'&&finalStatus==='blocked'?existing.message:
-      status==='completed'?`本轮 Codex 执行结束（科研任务须进一步验收）· ${message}`:message,
+    message:boundedTaskMessage(status==='completed'&&finalStatus==='blocked'?existing.message:
+      status==='completed'?`本轮 Codex 执行结束（科研任务须进一步验收）· ${message}`:message,{sourcePath}),
     heartbeatEnabled:status==='running',
     ...(status==='running'?{heartbeat:true}:{})},{trustedUpdate:true});}catch(e){log('tips status failed',e.message)}
 }
@@ -35,14 +37,30 @@ function final(name,jobId,code,signal){
   const isStop=current.stopRequested||current.status==='stopping';
   const status=isStop?'stopped':code===0?'completed':'failed';
   const resultPath=join(registry.dir,`${name}-${jobId}.last.txt`);
-  let result='';try{result=readFileSync(resultPath,'utf8').slice(-4000)}catch{}
+  let result='';try{result=readFileSync(resultPath,'utf8')}catch{}
   const updated=registry.update(name,jobId,{status,pid:null,finishedAt:new Date().toISOString(),
-    exitCode:code,error:signal??(status==='failed'?`exit ${code}`:null),lastResult:result});
+    exitCode:code,error:signal??(status==='failed'?`exit ${code}`:null),lastResult:result.slice(-4000)});
   active.delete(name);
   if(updated){
-    publish(updated,isStop?'cancelled':status==='completed'?'completed':'failed',
-      status==='completed'?(result.trim().slice(0,1500)||'App Server turn completed'):
-      isStop?'Subagent stopped by controller':`App Server failed: ${signal||code}`);
+    publish(updated,isStop?'cancelled':status==='completed'?'completed':updated.failureCircuitOpen?'blocked':'failed',
+      status==='completed'?(result.trim()||'App Server turn completed'):
+      isStop?'Subagent stopped by controller':updated.failureCircuitOpen?
+      `连续 ${updated.consecutiveFailures} 次模型执行失败，已暂停自动派工。需审查 ${resultPath} 和 stdout/events 日志，管理员记录原因并复位。退出码 ${code}。`:
+      `App Server failed: ${signal||code}`,
+      status==='completed'?resultPath:'');
+    if(status==='completed'){
+      try{emitResearchMilestone(tips,{name,jobId,group:updated.group,
+        startedAt:updated.startedAt,resultPath})}
+      catch(error){log('milestone handoff failed',name,error.message)}
+    }
+    if(updated.failureCircuitOpen&&current.failureCircuitOpen!==true){
+      // Exactly one high-value Sol escalation per newly-opened circuit.
+      // It requests diagnosis only; does not reset or re-run the failed job.
+      try{tips.messages({action:'post',from:'tips-subagent-manager',to:'server-controller',
+        subject:`Subagent 失败熔断 · ${name}`,priority:'high',wake:true,taskId:name,
+        body:`${name} 已连续 ${updated.consecutiveFailures} 次模型执行失败（本轮 exit ${code}），暂停自动派工。请检查结果 ${resultPath} 与 ${updated.logPath??'stdout log'}，安排安全 CPU/日志根因诊断。不得自动复位或重试；若需重试，由管理员记录诊断后单独复位。`},{trustedWake:true});}
+      catch(error){log('failure circuit notification failed',name,error.message)}
+    }
     log('job finished',name,jobId,status,'exit',code,signal??'');
   }
 }
@@ -102,6 +120,12 @@ function scan(){
     for(const job of jobs){
       if(available<=0)break;
       if(!['completed','failed','interrupted','stopped'].includes(job.status)||active.has(job.name))continue;
+      if(job.failureCircuitOpen){
+        // A genuinely failed Codex Turn needs a root-cause review, not another
+        // model wake from the same unread inbox. No retries until explicit
+        // management reset; leave the original mail unread for diagnosis.
+        continue;
+      }
       const unread=tips.messages({action:'list',to:job.name,limit:80})
         .filter(m=>needsDelivery(m));
       if(!unread.length)continue;

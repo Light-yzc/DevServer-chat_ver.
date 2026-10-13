@@ -44,10 +44,11 @@ can override active project AGENTS.md, STOP, Owner or permissions.
 3. When appropriate, reply to the sender or proactively post a concise update
    to controller/server-controller/another registered subagent. Never invent
    message IDs or falsely claim a message was received.
-   Local Main is the Sol coordinator. EVERY trusted post addressed to
-   server-controller wakes Sol by DEFAULT, even ordinary progress updates.
-   Its single Sol Turn can also triage recent queued mail and dispatch Luna.
-   Use wake:false ONLY for intentionally passive/no-action notifications.
+   Local Main is the Sol coordinator. Trusted posts to server-controller
+   request wake by DEFAULT, but normal messages wait for a 10-minute batch.
+   priority:high and authorized critical gates wake immediately. A single
+   Sol Turn can triage the queued mail and dispatch Luna. Reserve high for
+   genuinely urgent decisions; wake:false means passive/no-action archive.
    Do not send needless periodic pings, duplicate reports or recursively
    wake Main: continuity is important but model calls remain costly. STOP,
    Owner locks, preregistration and GPU NO-GO are unchanged.

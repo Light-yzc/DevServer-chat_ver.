@@ -9,7 +9,7 @@ import {pendingMainBatch,applyBatchReceipt,batchPrompt,MAX_MAIN_BATCH} from './m
 function fixture(){const dir=mkdtempSync(join(tmpdir(),'tips-batch-'));const tips=createTipsV2({stateDir:dir});
   return {dir,tips,cleanup:()=>rmSync(dir,{recursive:true,force:true}),
     post:(subject,wake=false,tracked=true)=>tips.messages({action:'post',from:'web-air-main',to:'server-controller',
-      subject,body:`Evidence for ${subject}; CPU only; preserve GPU freeze`,wake,tracked},{trustedWake:true})};}
+      subject,body:`Evidence for ${subject}; CPU only; preserve GPU freeze`,wake,tracked,priority:wake?'high':'normal'},{trustedWake:true})};}
 
 test('passive messages do not wake Sol; independent urgent wake collects latest passive batch',()=>{
   const x=fixture();try{

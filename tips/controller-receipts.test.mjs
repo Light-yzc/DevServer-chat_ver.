@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {createTipsV2} from '../vendor/devspace/dist/tips-core.js';
+import {createTipsV2,mainWakeEligible,MAIN_WAKE_BATCH_DELAY_MS} from '../vendor/devspace/dist/tips-core.js';
 import {finalizeMainMessage} from './controller-receipts.mjs';
 
 function fixture(){
   const stateDir=mkdtempSync(join(tmpdir(),'tips-main-receipt-'));
   const tips=createTipsV2({stateDir});
   const post=(tracked=false,wake=true)=>tips.messages({action:'post',from:'web-air-main',to:'server-controller',
-    subject:'CPU study checkpoint',body:'Review the CPU controls; no GPU',tracked,wake},{trustedWake:true});
+    subject:'CPU study checkpoint',body:'Review the CPU controls; no GPU',tracked,wake,
+    priority:wake?'high':'normal'},{trustedWake:true});
   return {tips,post,cleanup:()=>rmSync(stateDir,{recursive:true,force:true})};
 }
 
@@ -79,11 +80,13 @@ test('dashboard mailbox summary separates passive Sol mail, authorized wake, and
   }finally{x.cleanup()}
 });
 
-test('trusted messages default to an authorized Sol wake, except explicit opt-out or Main self-notification',()=>{
+test('routine trusted Sol wake is batched for 10 minutes, high priority still immediate',()=>{
   const x=fixture();try{
     const trusted=x.tips.messages({action:'post',from:'sub-air-review',to:'server-controller',
       subject:'Routine but actionable',body:'Please coordinate next CPU-only study'},{trustedWake:true});
     assert.equal(trusted.wakeAuthorized,true);
+    assert.equal(mainWakeEligible(trusted,Date.parse(trusted.at)+MAIN_WAKE_BATCH_DELAY_MS-1),false);
+    assert.equal(mainWakeEligible(trusted,Date.parse(trusted.at)+MAIN_WAKE_BATCH_DELAY_MS),true);
     const self=x.tips.messages({action:'post',from:'server-controller',to:'server-controller',
       subject:'Self note',body:'Do not call Sol recursively'},{trustedWake:true});
     assert.equal(self.wakeAuthorized,false);
@@ -95,6 +98,9 @@ test('trusted messages default to an authorized Sol wake, except explicit opt-ou
     assert.equal(untrusted.wakeAuthorized,false);
     assert.throws(()=>x.tips.messages({action:'post',from:'untrusted-http-writer',
       to:'server-controller',body:'Unauthorized explicit wake',wake:true}),/Wake requires/);
-    assert.equal(x.tips.messages({action:'claim'},{trustedWake:true}).id,trusted.id);
+    assert.equal(x.tips.messages({action:'claim'},{trustedWake:true}),null,'Routine mail waits for batch window');
+    const urgent=x.tips.messages({action:'post',from:'sub-air-review',to:'server-controller',
+      priority:'high',body:'Immediate human-approved gate review'},{trustedWake:true});
+    assert.equal(x.tips.messages({action:'claim'},{trustedWake:true}).id,urgent.id);
   }finally{x.cleanup()}
 });

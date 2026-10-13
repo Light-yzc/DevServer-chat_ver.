@@ -75,7 +75,7 @@ test('running task cannot be removed; archive and deletion only after a terminal
 
 test('processing message cannot be deleted; other explicit deletions are audited',()=>{
   const x=fixture();try{
-    const m=x.tips.messages({action:'post',from:'cpu',to:'server-controller',wake:true,
+    const m=x.tips.messages({action:'post',from:'cpu',to:'server-controller',wake:true,priority:'high',
       subject:'Urgent work',body:'Please verify'},{trustedWake:true});
     const claimed=x.tips.messages({action:'claim'},{trustedWake:true});
     assert.equal(claimed.id,m.id);

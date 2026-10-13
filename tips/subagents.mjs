@@ -9,6 +9,7 @@ const SANDBOX=new Set(['read-only','workspace-write','danger-full-access']);
 // Registered persistent identities are NOT simultaneous Codex processes.
 // Parallel execution is independently capped by TIPS_SUBAGENT_MAX (default 2).
 export const MAX_REGISTERED_SUBAGENTS=128;
+export const MAX_CONSECUTIVE_SUB_FAILURES=2;
 const wait=new Int32Array(new SharedArrayBuffer(4));
 const now=()=>new Date().toISOString();
 const err=m=>{throw Error(m)};
@@ -39,6 +40,7 @@ export function subagentRegistry(config,tips){
     const started=modify(db=>{
       let current=db.agents[name];
       if(current&&['queued','running','stopping'].includes(current.status))err('This subagent is already running or queued');
+      if(current?.failureCircuitOpen)err('Subagent failure circuit is open: diagnose the failed Turn and request an audited admin reset first');
       if(current&&(current.model!==model||current.cwd!==root||current.sandbox!==sandbox))
         err('Existing agent has different model/cwd/sandbox; use a new name to isolate sessions');
       if(!current&&Object.keys(db.agents).length>=MAX_REGISTERED_SUBAGENTS)
@@ -49,6 +51,9 @@ export function subagentRegistry(config,tips){
       const item={name,model,sandbox,cwd:root,group,status:'queued',jobId,goalFile,
         createdAt:current?.createdAt??now(),updatedAt:now(),startedAt:null,finishedAt:null,
         stopRequested:false,exitCode:null,pid:null,error:null,lastResult:current?.lastResult??'',
+        consecutiveFailures:current?.consecutiveFailures??0,
+        failureCircuitOpen:false,
+        failureCircuitAt:current?.failureCircuitAt??null,
         revision:(current?.revision??0)+1};
       db.agents[name]=item;
       return publicAgent(item);
@@ -93,7 +98,30 @@ export function subagentRegistry(config,tips){
   })}
   function update(name,jobId,fields){return modify(db=>{
     const item=db.agents[name];if(!item||item.jobId!==jobId)return null;
-    Object.assign(item,fields,{updatedAt:now()});return publicAgent(item);
+    Object.assign(item,fields,{updatedAt:now()});
+    if(fields.status==='failed'){
+      item.consecutiveFailures=(item.consecutiveFailures??0)+1;
+      if(item.consecutiveFailures>=MAX_CONSECUTIVE_SUB_FAILURES){
+        item.failureCircuitOpen=true;
+        item.failureCircuitAt=now();
+      }
+    }else if(fields.status==='completed'){
+      item.consecutiveFailures=0;
+      item.failureCircuitOpen=false;
+      item.failureCircuitAt=null;
+    }
+    return publicAgent(item);
+  })}
+  function resetFailureCircuit(name,reason){return modify(db=>{
+    const item=db.agents[name];if(!item)err('Unknown subagent');
+    if(['running','queued','stopping'].includes(item.status))err('Cannot reset an active/queued subagent');
+    if(!item.failureCircuitOpen)err('Failure circuit is not open');
+    if(typeof reason!=='string'||reason.trim().length<8)err('Provide a concrete failure diagnosis and retry reason');
+    item.failureCircuitOpen=false;
+    item.consecutiveFailures=0;
+    item.failureCircuitAt=null;
+    item.failureResetReason=reason.slice(0,400);
+    item.updatedAt=now();return publicAgent(item);
   })}
   function send({name,from='controller',subject='Subagent instruction',body,priority='normal'}){
     if(!get(name))err('Unknown subagent; create it first');
@@ -101,5 +129,5 @@ export function subagentRegistry(config,tips){
     if(typeof body!=='string'||!body.trim()||body.length>6000)err('Invalid message body');
     return tips.messages({action:'post',from,to:name,subject,body,priority},{trustedWake:true});
   }
-  return {dir,file,start,stop,remove,status,list,update,send,load};
+  return {dir,file,start,stop,remove,status,list,update,send,load,resetFailureCircuit};
 }

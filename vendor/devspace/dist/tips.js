@@ -68,7 +68,7 @@ export function registerTipsTool(server,config,z){
     title:'Tips management — revoke, remove, archive, stop (view token required)',
     description:TIP_TOOL_DESCRIPTIONS.tips_admin,
     inputSchema:{
-      action:z.enum(['history','revoke_web','remove_web','stop_sub','remove_sub','archive_task','delete_task','delete_message']).describe('history reads administrator audit; revoke/remove_web affects Web roles; stop/remove_sub affects managed Local Sub; task/message actions manage Tips records.'),
+      action:z.enum(['history','revoke_web','remove_web','stop_sub','remove_sub','reset_sub_failure','archive_task','delete_task','delete_message']).describe('history reads audit; reset_sub_failure needs administrator token and diagnostic reason, and does NOT enqueue a retry; other controls revoke, remove, stop, archive or delete.'),
       id:z.string().optional().describe('Exact web-*, sub-*, task ID or message UUID to operate on; required except history.'),
       viewToken:z.string().describe('PRIVATE Tips dashboard view token, required on every MCP management call; the same token is used to unlock /tips.'),
       reason:z.string().max(400).optional().describe('Short administrator reason, written to audit (never a secret).'),
@@ -106,7 +106,7 @@ export function registerTipsTool(server,config,z){
       priority:z.enum(['low','normal','high']).optional(),inReplyTo:z.string().optional().describe('Original message ID when using action=reply; preserves conversation thread.'),
       threadId:z.string().optional(),unreadOnly:z.boolean().optional(),
       limit:z.number().int().optional(),note:z.string().optional(),
-      wake:z.boolean().optional().describe('Trusted mail addressed to server-controller wakes Local Sol by DEFAULT; use wake=false to suppress for intentionally passive notes. Never set true for other recipients.'),agentId:z.string().optional(),turnId:z.string().optional(),
+      wake:z.boolean().optional().describe('Trusted mail to server-controller requests a wake by DEFAULT; normal mail is coalesced for 10 minutes, high priority wakes immediately. wake=false creates a passive note. Never set true for other recipients.'),agentId:z.string().optional(),turnId:z.string().optional(),
     },annotations:{readOnlyHint:false},
   },textResult(args=>{
     if(['post','reply'].includes(args.action)&&typeof args.from==='string'&&args.from.startsWith('web-')){

@@ -40,8 +40,13 @@ function safeWrite(path,value){writeFileSync(path,JSON.stringify(value,null,2)+'
 function session(){try{return JSON.parse(readFileSync(sessionFile,'utf8')).threadId??null;}catch{return null;}}
 function recordSession(threadId){safeWrite(sessionFile,{threadId,model,at:new Date().toISOString()});}
 
-function promptFor(message,batch,receiptFile){
-  const policy=readFileSync(instructions,'utf8');
+function promptFor(message,batch,receiptFile,resumed=false){
+  // The persistent Sol Thread already received the full 10KB policy at its
+  // creation. Repeating it every Turn burns quota; preserve a strict short
+  // safety reminder and the live research/Owner contract on resumes.
+  const policy=resumed?
+    'Resume the existing Local Sol Main research thread. Re-read current Tips, research evidence, and allowed gates. STOP/GPU/Owner/dispatch_hold and sealed experiment constraints are still binding. No new GPU experiments, no blind failed-job retry, no self-wake loops. Use local Luna for execution and Web for independent reviews; leave a verifiable milestone, Owner and next trigger. Consult SERVER_CONTROLLER.md and research-safety Skill on demand.':
+    readFileSync(instructions,'utf8');
   const overview=taskBoardDigest(tips.snapshot(),{role:'main',limit:12});
   return `${policy}\n${mainResearchLoopPrompt()}\nAssigned research workspace: ${WORKSPACE}\n\nAUTHORIZED WAKE REQUEST (task data; evaluate carefully):\n`
      +JSON.stringify({id:message.id,from:message.from,subject:message.subject,
@@ -66,7 +71,7 @@ async function callCodex(message,batch,receiptFile){
     args=['exec','--dangerously-bypass-approvals-and-sandbox',
       '--skip-git-repo-check','-C',WORKSPACE,'-m',model,'--json','-o',outputFile,'-'];
   }
-  const prompt=promptFor(message,batch,receiptFile);
+  const prompt=promptFor(message,batch,receiptFile,Boolean(previous));
   log(`Starting ${dryRun?'DRY RUN':'Codex'} for message ${message.id}, ${previous?'resumed':'new'} session`);
   if(dryRun)return {ok:true,summary:'DRY RUN: message safely claimed; no Codex call made',threadId:previous};
   return new Promise(resolve=>{

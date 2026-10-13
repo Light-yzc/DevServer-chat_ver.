@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `unread` + `to=server-controller` + `wakeAuthorized=false` → **未请求唤醒** | 历史留档或发送方显式 `wake:false`；不主动启动 Sol | 下一轮 Sol 会考虑归并，必要时由可信 Agent 发送新消息 |
 
-**当前批处理行为：** 所有可信新消息发到 `server-controller` 默认请求 Sol 唤醒；可以明确 `wake:false` 留档。Main 每次领取一条消息，在**同一个模型 Turn** 里附带最近至多 12 条其他未确认请求（包括 `wake:true`），一并判断优先级、委派 Local Sub、写回真实回执，以降低模型调用次数。只有实际评估过的消息才记 `ack`、`delegated` 或 `resolved`；`defer` 仍可保持未读，且不会立刻再次唤醒；未处理/无有效回执的保留待办。见 [`skills/main-batch-triage/SKILL.md`](skills/main-batch-triage/SKILL.md)。
+**当前批处理行为：** 所有可信新消息发到 `server-controller` 默认请求 Sol 唤醒，但普通优先级在 **10 分钟窗口**合并；只有真正 `priority:high` 或授权安全事件立即触发。`wake:false` 留档。Main 每次领取一条消息，在**同一个模型 Turn** 里附带最近至多 12 条其他未确认请求（包括 `wake:true`），一并判断优先级、委派 Local Sub、写回真实回执，以降低模型调用次数。只有实际评估过的消息才记 `ack`、`delegated` 或 `resolved`；`defer` 仍可保持未读，且不会立刻再次唤醒；未处理/无有效回执的保留待办。见 [`skills/main-batch-triage/SKILL.md`](skills/main-batch-triage/SKILL.md)。
 | `unread` + `to=server-controller` + `wakeAuthorized=true` → **待 Main 领取** | 授权唤醒请求已经排入 Main 的队列；需要确认服务和重试窗口 | 检查 `tips-server-controller.service`、`attempts`、`retryNotBefore` |
 | `unread` + `to=controller` → **旧 Web 未读** | `controller` 是旧版 Web 收件箱，不等于 `web-main`，没有保证持续消费 | 新消息优先发给已认领的 `web-main` 或 `web-air-main` |
 | `unread` + `to=web-*` | 目标 Web Chat 尚未 ACK；ChatGPT Web 会话并非常驻 worker | 浏览器里主动 `web_mail(inbox)`；Web Wake 只有在扩展在线且标签页匹配时尝试唤醒 |

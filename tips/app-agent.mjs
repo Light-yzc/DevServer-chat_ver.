@@ -207,7 +207,7 @@ async function main(){
   // Existing persistent Codex Threads were initialized before wake escalation
   // existed. A short per-Turn reminder upgrades them without reinjecting the
   // full protocol or spending a separate model call.
-  prompt+='\nTips Local Sub continuity reminder: every trusted post to server-controller now wakes Local Sol by DEFAULT. Send evidence-backed phase/completion/blocker reports when meaningful, not redundant pings; use wake:false for an intentionally passive archival note. Main batches queued messages in the same Sol Turn when possible. All STOP/GPU/Owner gates still apply.\n';
+  prompt+='\nTips Local Sub continuity: routine trusted updates to server-controller are batched for 10 minutes before a Sol wake; priority:high is reserved for genuine urgent decisions or failure circuits. Send one evidence-backed milestone when meaningful, not repeated pings. wake:false is purely passive. STOP/GPU/Owner gates remain binding.\n';
   const initial=await unreadMail();
   if(initial.length){
     prompt+='\nPending trusted mailbox messages:\n'

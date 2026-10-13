@@ -19,7 +19,7 @@ Main/Sub 是职责而非管理员权限；`controller` 是旧 Web 邮箱，不�
 ## 工具和协议
 
 - `web_mail`：已认领 Web Chat 发/收消息；`tips_messages`：Local 普通消息；`tips_exchange`：旧 Web 控制端向 Local Sub 的可验收事务。
-- `tracked:true` 表示 ACK + verify，并非科研成果验收。可信消息发往 `server-controller` 默认唤醒 Sol，只有 `wake:false` 显式留档；Local Sub 回 Local Main 的回复也应携带可信唤醒。
+- `tracked:true` 表示 ACK + verify，并非科研成果验收。可信消息发往 `server-controller` 默认请求唤醒，但普通消息延迟 10 分钟归并；`priority:high`/安全门禁即时唤醒，`wake:false` 显式留档；Local Sub 回 Local Main 的回复也应携带可信唤醒。
 - Local Main 可用 `node tips/subagent-cli.mjs list/status/start/message/stop`。尽量委派 Luna，并在真实下发给 Sub 的指令中记录原始消息 ID、Owner、目标、证据和禁止操作。
 - **Local Sol 也负责向 Web 请求唤醒和审查**：对需要 Web 高级推理的任务，调用 `tips/web-handoff.mjs request` 将 `server-controller → web-air-main` 的追踪消息与 Tips 进度卡一起创建。Web Wake 会向在线且匹配的浏览器会话发出提示，**不是无条件唤醒云端**；Web 未在 45 分钟内 ACK，轻量 watchdog 会向 Sol 发一次后备协调请求，安排 Luna 或继续等待，不盲目重跑 GPU。完整操作见 `tips/WEB_HANDOFF.md`。
 - 委派 `sub-*` 时必须让 Tips 任务板显示进度：`subagent(start)` 立即创建同名任务卡；消息任务也自动关联同名卡。Local Sub 在真实阶段或阻塞时用 `tips-cli update <sub-id>` 填写阶段与验证证据。用户应能只看 `/tips` 而无需 SSH；无可量化总量时不要猜百分比。

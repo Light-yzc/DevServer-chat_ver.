@@ -6,6 +6,25 @@ import { join } from 'node:path';
 const STATES = new Set(['pending','running','completed','blocked','failed','cancelled','paused']);
 const KINDS = new Set(['progress','text','metric','checklist','log','table','link','chart']);
 const ID = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
+export const MAX_TIPS_TASK_MESSAGE_LENGTH = 10240;
+// Ordinary trusted Main requests are still guaranteed a wake, but wait briefly
+// so a burst of progress reports can be processed in ONE Sol Turn. Explicit
+// high-priority requests and authorized safety-block watches remain immediate.
+export const MAIN_WAKE_BATCH_DELAY_MS = 10 * 60 * 1000;
+const TIPS_TRUNCATION_SUFFIX='\n\n[显示已截断]';
+function taskMessage(value){
+  if(typeof value!=='string')fail('message must be a string');
+  if(value.length<=MAX_TIPS_TASK_MESSAGE_LENGTH)return value;
+  let trimmed=value.slice(0,MAX_TIPS_TASK_MESSAGE_LENGTH-TIPS_TRUNCATION_SUFFIX.length);
+  if(/[\uD800-\uDBFF]$/.test(trimmed))trimmed=trimmed.slice(0,-1);
+  return trimmed+TIPS_TRUNCATION_SUFFIX;
+}
+export function mainWakeEligible(message,clock=Date.now()){
+  if(!message?.wakeAuthorized)return false;
+  if(message.priority==='high'||message.autoBlock)return true;
+  const at=Date.parse(message.at??'');
+  return Number.isFinite(at)&&at<=clock-MAIN_WAKE_BATCH_DELAY_MS;
+}
 const now = () => new Date().toISOString();
 const json = path => JSON.parse(readFileSync(path,'utf8'));
 const sleepArray = new Int32Array(new SharedArrayBuffer(4));
@@ -155,7 +174,8 @@ export function createTipsV2(config){
         t.priority=input.priority;
       }
       for(const key of ['title','message','details','group']){
-        if(input[key]!==undefined)t[key]=string(input[key],key,key==='details'?4000:key==='group'?80:1500);
+        if(input[key]!==undefined)t[key]=key==='message'?taskMessage(input[key]):
+          string(input[key],key,key==='details'?4000:key==='group'?80:1500);
       }
       if(input.kind!==undefined){if(!KINDS.has(input.kind))fail('Invalid kind');t.kind=input.kind;}
       if(input.status!==undefined){if(!STATES.has(input.status))fail('Invalid status');t.status=input.status;}
@@ -402,9 +422,10 @@ export function createTipsV2(config){
       if(!context.trustedWake)fail('Claim requires the trusted server worker');
       return edit(s=>{
         // Only one exclusive lease can own the next queued request.
-        const msg=s.messages.find(m=>m.to==='server-controller'&&m.wakeAuthorized&&(
+        const eligible=s.messages.filter(m=>m.to==='server-controller'&&mainWakeEligible(m)&&(
           m.status==='unread'||(m.status==='processing'&&Date.now()-Date.parse(m.claimAt||'')>90*60*1000))&&m.attempts<3&&
           (!m.retryNotBefore||Date.now()>=Date.parse(m.retryNotBefore)));
+        const msg=eligible.find(m=>m.priority==='high'||m.autoBlock)??eligible[0];
         if(!msg)return null;
         msg.status='processing';msg.attempts++;msg.claimAt=now();
         logMessage(msg,'claimed','server-controller',String(msg.attempts));
