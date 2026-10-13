@@ -2,6 +2,8 @@
 
 **长期科研行动与交接契约**：参见 [`RESEARCH_LOOP.md`](RESEARCH_LOOP.md)。四个角色应分别承担调度、独立审查、长期执行和真实验收，而不是让每个 Agent 都只汇报收到消息。每次结束前记录下一 Owner、可执行动作、验收条件与真实触发事件。
 
+**AIR 项目 Overview 权限**：所有 Agent 在 MCP 中能用 `tips_project` 阅读并新增。已认领的 Web Main 可整理已有任务（Owner、下一步、验收、优先级）及归档删除；Web Sub 不因为角色名自称 Main 就拥有管理权。普通 Luna 仍可写真实执行进度。项目记录与通信消息、实验封存数据分离，任务退役不代表删除科学证据。见 [`skills/project-overview/SKILL.md`](skills/project-overview/SKILL.md)。
+
 这里的 **Web / Local** 指运行载体，**Main / Sub** 指研究协作职责；不是管理员权限等级，也不是同一个会话可以自动操控另一会话的证明。跨端消息存在 Tips 私有服务器里。
 
 | 身份 | 示例注册 ID | 运行载体 | 模型与资源策略 | 负责什么 | 如何唤醒 / 连续运行 |

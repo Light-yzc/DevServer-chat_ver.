@@ -6,6 +6,7 @@
 
 1. **先读现场**：对照当前任务、最新有效实验、代码变更、失败日志、Owner/线程状态及 STOP/GPU/`dispatch_hold`，识别过时、重复或矛盾消息。
    Local Main 的每轮 Prompt **自动携带跨所有 AIR 分组的 Tips 任务索引**（最多 12 条，聚焦运行、阻塞、待办，省 Token）；Local Sub 只看到自身任务与显式依赖。任务摘要只用于发现任务：执行前必须按 Task ID 读取完整卡片并核对真实 Owner、文件与实验门禁。不要把长期未刷新的 `running` 误判为实际运行中。
+   **新项目级入口：** Web Main/Sub 每次新任务优先 `tips_project(overview)` 获取统一 AIR Overview，而不是只看 AIR-LIFE。普通 Agent 仅能 `create/get/list` 和更新自身执行进度；Web Main/经授权高级 Agent 可 `edit/archive/delete` 项目计划。旧任务历史归档，而非无限堆在待办里。先用 `tips_skills(read,project-overview)` 按需查规则，避免全量文档重复注入。
 2. **每次推进一个最小有效步骤**：选择可执行的优先任务；核对已有 Owner/Thread，避免重复派发；定义输入、资源上限、交付路径、验收测试、预计检查条件。
 3. **独立验证**：区分合成测试、真实模型前向、统计显著性及因果有效性；模型退出码、ACK、Tips `completed` 均不能替代数据证据。
 4. **记录与交接**：Tips 同名任务卡展示真实阶段、实验/代码/日志路径、失败原因和剩余动作；完成时明确**下一个 Owner、行动、验收标准、触发事件**。不猜百分比，不伪造启用了未来唤醒。

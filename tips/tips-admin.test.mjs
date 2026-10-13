@@ -65,6 +65,7 @@ test('running task cannot be removed; archive and deletion only after a terminal
     assert.throws(()=>x.run('delete_task','air-safe'),/Running task/);
     assert.throws(()=>x.run('archive_task','air-safe'),/Running tasks/);
     x.tips.mutate({action:'update',id:'air-safe',status:'completed'});
+    assert.throws(()=>x.run('delete_task','air-safe'),/Archive task before deleting/);
     x.run('archive_task','air-safe');
     assert.equal(x.tips.mutate({action:'get',id:'air-safe'}).archived,true);
     x.run('delete_task','air-safe');

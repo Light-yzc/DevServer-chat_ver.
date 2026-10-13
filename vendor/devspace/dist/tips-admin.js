@@ -50,13 +50,14 @@ export function createTipsAdmin(config,tips){
         const task=tips.mutate({action:'get',id});
         if(!task)throw Error('Unknown task');
         if(task.status==='running')throw Error('Running tasks cannot be archived; first finish or pause through the owning Agent');
-        result=tips.mutate({action:'archive',id});break;
+        result=tips.mutate({action:'archive',id},{trustedManage:true});break;
       }
       case 'delete_task':{
         const task=tips.mutate({action:'get',id});
         if(!task)throw Error('Unknown task');
         if(task.status==='running')throw Error('Running task deletion refused; stop its owner and finish/pause it first');
-        result=tips.mutate({action:'delete',id});break;
+        if(!task.archived)throw Error('Archive task before deleting its Tips record');
+        result=tips.mutate({action:'delete',id},{trustedManage:true});break;
       }
       case 'delete_message':{
         const msg=tips.messages({action:'get',id});

@@ -41,7 +41,9 @@ export function taskBoardDigest(snapshot,{role='main',agentId='',limit=12}={}){
   const lines=selected.map(t=>{
     const warn=t.health==='stale'?' STALE':t.status==='blocked'?' NO-GO until gate checked':'';
     const measured=t.progressMeasured===true?` ${t.progress}%`:'';
-    return `- ${clip(t.id,72)} [${clip(t.group,25)} / ${t.status}${warn}${measured}] ${clip(t.message,80)}`;
+    const owner=t.owner?` owner=${clip(t.owner,28)}`:' OWNER_MISSING';
+    const next=t.nextAction?` next=${clip(t.nextAction,50)}`:' NEXT_ACTION_MISSING';
+    return `- ${clip(t.id,72)} [${clip(t.group,22)} / ${t.status}${warn}${measured}]${owner}${next}; ${clip(t.message,45)}`;
   });
   return [intro,...(lines.length?lines:['- No directly relevant open task card']),
     role==='sub'?'Update your OWN task card at verified milestones.':

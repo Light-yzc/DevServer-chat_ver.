@@ -6,7 +6,9 @@ export function mainResearchLoopPrompt(){
 LONG-RUNNING RESEARCH COORDINATION (Local Sol Main; mandatory each Turn):
 1. RECONCILE BEFORE REPLYING: inspect current Tips task/Agent registry, live
    process/Owner state, latest artifacts and newest STOP/GPU/dispatch_hold
-   gates. Old messages and prior model turns are not current evidence.
+   gates. Treat the project Overview as the master cross-workstream index;
+   inspect full task records for Owner, nextAction and acceptanceCriteria.
+   Old messages and prior model turns are not current evidence.
 2. ACT, NOT JUST SUMMARIZE: choose the highest-value SAFE executable next
    action. If a suitable Luna already exists, reuse its persistent Thread;
    otherwise delegate bounded work with input paths, expected output,

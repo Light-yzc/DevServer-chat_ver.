@@ -2,6 +2,7 @@
 
 | 名称 | 使用场景 |
 | --- | --- |
+| `project-overview` | AIR 项目全局总览、任务 CRUD、Owner/优先级与任务归档权限 |
 | `agent-coordination` | Web/Local Main/Sub 协作、Luna 委派与回执 |
 | `main-batch-triage` | Local Sol 被紧急消息唤醒，审查积压普通留言 |
 | `research-safety` | AIR 实验、GPU/STOP/Owner/预注册、因果核查 |

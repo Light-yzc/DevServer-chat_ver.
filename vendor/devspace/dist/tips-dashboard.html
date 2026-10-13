@@ -16,6 +16,15 @@
     .live{display:flex;gap:9px;align-items:center;color:#9eabbf;font-size:12px}
     .dot{width:9px;height:9px;background:#657082;border-radius:50%;display:inline-block}.dot.ok{background:#62dca7;box-shadow:0 0 12px #62dca750}
     .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:26px}
+    .projects-overview{margin:0 0 22px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+    .project-summary{background:#151515;border:1px solid #343434;border-radius:14px;padding:16px;text-align:left;min-width:0;display:flex;flex-direction:column;gap:7px}
+    .project-summary strong{font-size:16px}.project-summary span{font-size:12px;color:#bababa}.project-summary .project-meta{color:#e0e0e0;font-weight:550;line-height:1.5}
+    .project-summary.active{border-color:#e3e3e3;background:#242424}
+    .project-summary .project-step{font-size:12px;max-height:4.5em;overflow:hidden;line-height:1.5;color:#b4c5d7}
+    .project-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:13px}
+    .project-form input,.project-form select,.project-form textarea{min-width:0;width:100%;font-size:12px}
+    .project-form label{font-size:12px;color:#aaa;display:grid;gap:4px}.project-form .wide{grid-column:1/-1}
+    .project-form .action-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .stat{background:#171e2b;border:1px solid #283344;border-radius:14px;padding:18px 20px;min-height:103px}
     .stat .number{font-size:31px;font-weight:760;letter-spacing:-1px;margin-top:7px}.stat .name{color:#a1aec3;font-size:13px}
     .stat:first-child{background:linear-gradient(125deg,#203658,#192336);border-color:#345079}
@@ -154,7 +163,7 @@
     .admin-actions button.danger{color:#f3aeae;border-color:#704448;background:#2b1b20}
     .admin-actions button:disabled{opacity:.45;cursor:not-allowed}
     [hidden]{display:none!important}
-    @media(max-width:700px){.layout{padding:22px 13px 60px}.stats{grid-template-columns:repeat(2,1fr);gap:9px}.stat{padding:14px;min-height:89px}.stat .number{font-size:26px}#tasks,.agent-overview{grid-template-columns:1fr}.toolbar input{flex-grow:1;width:100%}article.task{padding:16px}header{margin-bottom:24px}.mail-route{padding:10px;gap:7px}.mail-route-group{width:100%}.route-arrow{transform:rotate(90deg);margin-left:2px;min-width:23px;height:23px}.party-id{font-size:11px}.mail-title h3{font-size:15px}}
+    @media(max-width:700px){.layout{padding:22px 13px 60px}.stats{grid-template-columns:repeat(2,1fr);gap:9px}.projects-overview{grid-template-columns:1fr}.project-form{grid-template-columns:1fr}.stat{padding:14px;min-height:89px}.stat .number{font-size:26px}#tasks,.agent-overview{grid-template-columns:1fr}.toolbar input{flex-grow:1;width:100%}article.task{padding:16px}header{margin-bottom:24px}.mail-route{padding:10px;gap:7px}.mail-route-group{width:100%}.route-arrow{transform:rotate(90deg);margin-left:2px;min-width:23px;height:23px}.party-id{font-size:11px}.mail-title h3{font-size:15px}}
   </style>
 </head>
 <body>
@@ -171,10 +180,30 @@
    <details id="admin-panel" class="admin-panel" hidden>
      <summary>管理员操作 · 展开后显示撤销、停止与删除</summary>
      <div class="admin-row"><button type="button" id="admin-audit">审计记录</button></div>
+     <label class="admin-note"><input type="checkbox" id="show-archived"> 显示已归档任务（供管理员进一步清理）</label>
      <p id="admin-feedback" class="admin-note">已通过 Tips 查看密钥授权管理操作，无需二次验证。Main / tmux 属于进程监测，不支持删注册；Sub 必须停止并退出后才能移除。所有删除仍需输入完整目标 ID 确认。</p>
      <div id="admin-audit-list" class="admin-note" hidden></div>
+     <details class="admin-note" id="project-edit-panel">
+       <summary>项目任务 · 新增 / 编辑</summary>
+       <form id="project-form" class="project-form">
+         <label>任务 ID<input name="id" required placeholder="air-new-study"></label>
+         <label>所属项目<select name="projectId"><option value="air">AIR 科研</option><option value="infrastructure">基础设施</option><option value="other">其他</option></select></label>
+         <label>优先级<select name="priority"><option value="normal">普通</option><option value="high">高</option><option value="critical">关键</option><option value="low">低</option></select></label>
+         <label>任务标题<input name="title" required placeholder="独立复核基线"></label>
+         <label>Owner<input name="owner" placeholder="web-air-main / sub-..."></label>
+         <label>状态<select name="status"><option value="pending">待处理</option><option value="running">运行中</option><option value="blocked">阻塞</option><option value="completed">已完成</option><option value="failed">失败</option><option value="paused">暂停</option></select></label>
+         <label class="wide">当前进度 / 阻塞<textarea name="message" rows="2" required></textarea></label>
+         <label class="wide">下一步具体行动<input name="nextAction" placeholder="任务负责人要做什么"></label>
+         <label class="wide">完成验收条件<input name="acceptanceCriteria" placeholder="什么证据算完成"></label>
+         <label class="wide">门禁 / STOP / GPU 限制<input name="gate" placeholder="无权限解除已有科研门禁"></label>
+         <input type="hidden" name="expectedUpdatedAt">
+         <div class="wide action-row"><button type="submit" id="project-save">新增任务</button><button type="button" id="project-reset">清除编辑状态</button><span id="project-feedback" class="admin-note"></span></div>
+       </form>
+     </details>
    </details>
    <div id="tasks-tab">
+   <div class="section-title" style="margin:0 0 12px"><h2>项目 Overview · 科研路线与任务队列</h2><small>点击项目查看待办，已完成任务保留可查</small></div>
+   <div id="project-overview" class="projects-overview"><div class="empty">正在读取项目总览</div></div>
    <div class="stats">
      <section class="stat"><div class="name">全部任务</div><div id="count-all" class="number">—</div></section>
      <section class="stat"><div class="name">运行中</div><div id="count-running" class="number">—</div></section>
@@ -182,7 +211,7 @@
      <section class="stat"><div class="name">异常 / 阻塞</div><div id="count-problem" class="number">—</div></section>
    </div>
    <div class="toolbar">
-     <div id="filters" class="filters"><button data-filter="all" class="active">全部</button><button data-filter="running">运行中</button><button data-filter="completed">完成</button><button data-filter="problem">异常</button></div>
+     <div id="filters" class="filters"><button data-filter="open" class="active">未完成</button><button data-filter="all">全部历史</button><button data-filter="running">运行中</button><button data-filter="completed">已完成</button><button data-filter="problem">异常 / 阻塞</button></div>
      <select id="group-select" aria-label="项目分组"><option value="">全部项目</option></select>
      <input id="search" placeholder="搜索任务名称 / ID" aria-label="搜索任务" type="search">
    </div>
@@ -221,9 +250,42 @@
  'use strict';
  const $=id=>document.getElementById(id);
  const statusText={pending:'等待中',running:'运行中',completed:'已完成',failed:'失败',blocked:'阻塞',cancelled:'已取消',paused:'已暂停'};
- let filter='all',mailFilter='all',tab=location.pathname.startsWith('/tips/agents')?'agents':'tasks',data={tasks:[],events:[]},mailbox=[],agentData=null,historyCache={},canManage=false;
+ let filter='open',mailFilter='all',tab=location.pathname.startsWith('/tips/agents')?'agents':'tasks',data={tasks:[],events:[]},projectData={projects:[]},projectFilter='',showArchived=false,mailbox=[],agentData=null,historyCache={},canManage=false;
  let showRetired=false;
  const adminMode=()=>canManage&&$('admin-panel').open;
+ const projectKey=t=>t.projectId||(/^(AIR|Subagents|Agent handoffs)/i.test(t.group||'')||/^(air-|sub-air-|web-handoff-)/i.test(t.id)?'air':/^(Tips|Infrastructure)/i.test(t.group||'')||/^tips-/.test(t.id)?'infrastructure':'other');
+ async function projectRequest(body){
+   const token=decodeURIComponent(location.hash.slice(1));
+   const response=await fetch('/tips/project/api',{method:'POST',cache:'no-store',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+   const value=await response.json();if(!response.ok)throw Error(value.error||'HTTP '+response.status);return value;
+ }
+ function beginProjectEdit(task){
+   if(!adminMode())return;
+   const form=$('project-form');
+   for(const key of ['id','title','message','owner','nextAction','acceptanceCriteria','gate','status','priority','expectedUpdatedAt'])
+     if(form.elements[key])form.elements[key].value=task[key]??(key==='status'?'pending':key==='priority'?'normal':'');
+   form.elements.expectedUpdatedAt.value=task.updatedAt??'';
+   form.elements.projectId.value=projectKey(task);
+   $('project-save').textContent='保存现有任务';
+   $('project-edit-panel').open=true;
+   $('project-edit-panel').scrollIntoView({behavior:'smooth',block:'center'});
+ }
+ function resetProjectEdit(){const f=$('project-form');f.reset();f.elements.expectedUpdatedAt.value='';$('project-save').textContent='新增任务';}
+ function renderProjects(){
+   const panel=$('project-overview');panel.replaceChildren();
+   const projects=projectData.projects??[];
+   if(!projects.length){panel.append(node('div','暂无项目数据','empty'));return}
+   for(const p of projects){
+     const b=node('button',null,'project-summary'+(projectFilter===p.id?' active':''));b.type='button';
+     b.append(node('strong',p.title));b.append(node('span',p.description));
+     b.append(node('div',`${p.open} 待办 · ${p.counts?.blocked??0} 阻塞 · ${p.counts?.failed??0} 失败 · ${p.counts?.completed??0} 完成`,'project-meta'));
+     b.append(node('span',`缺少 Owner ${p.missingOwner} · 未指定下一动作 ${p.missingNextAction}`));
+     const top=(p.tasks??[]).slice(0,2).map(t=>`${t.id}：${t.nextAction||t.message||'待指定下一动作'}`).join(' / ');
+     if(top)b.append(node('div',top,'project-step'));
+     b.addEventListener('click',()=>{projectFilter=projectFilter===p.id?'':p.id;renderProjects();render()});
+     panel.append(b);
+   }
+ }
  async function adminRequest(action,id='',reason=''){
    const token=decodeURIComponent(location.hash.slice(1));
    if(!token)throw Error('请先解锁查看面板');
@@ -237,6 +299,7 @@
  function refreshAdminViews(){
    $('admin-panel').hidden=!canManage;
    if(!canManage)$('admin-panel').open=false;
+   if(!adminMode()){showArchived=false;$('show-archived').checked=false;}
    for(const item of document.querySelectorAll('article.task'))item.dataset.signature='';
    $('inbox').dataset.signature='';render();renderAgents();renderInbox();
  }
@@ -308,6 +371,12 @@
      }else card.append(node('small','暂无曲线数据'));
    }
    if(t.message)card.append(node('p',t.message,'message'));
+   if(t.owner||t.nextAction||t.acceptanceCriteria||t.gate){
+     const plan=node('div',null,'detail');
+     for(const [name,value] of [['负责人',t.owner],['下一动作',t.nextAction],['验收条件',t.acceptanceCriteria],['门禁',t.gate]])
+       if(value)plan.append(node('div',`${name} · ${value}`));
+     card.append(plan);
+   }
    if(t.id?.startsWith('sub-')&&Array.isArray(t.logs)&&t.logs.length){
      const details=node('details',null,'history-box');
      details.append(node('summary',`近期指令 · ${t.logs.length} 条`));
@@ -351,18 +420,21 @@
    else hist.append(node('small','展开后读取历史状态'));
    card.append(hist);
    const footer=node('div',null,'timestamp');add(footer,node('span','ID · '+t.id),node('span','更新 · '+time(t.updatedAt)));card.append(footer);
-   adminButtons(card,[['archive_task','归档任务',t.status!=='running'],['delete_task','删除任务记录',t.status!=='running']],t.id);
+   adminButtons(card,[['archive_task','归档任务',t.status!=='running'&&!t.archived],['delete_task','删除已归档的任务',t.archived===true&&t.status!=='running']],t.id);
+   if(adminMode()){
+     const edit=node('button','编辑任务计划');edit.type='button';edit.addEventListener('click',()=>beginProjectEdit(t));card.append(edit);
+   }
    return card;
  }
  function render(){
-   const tasks=(data.tasks??[]).filter(t=>!t.archived);
+   const tasks=(data.tasks??[]).filter(t=>!t.archived||(adminMode()&&showArchived));
    $('count-all').textContent=tasks.length;
    $('count-running').textContent=tasks.filter(t=>t.status==='running').length;
    $('count-completed').textContent=tasks.filter(t=>t.status==='completed').length;
    $('count-problem').textContent=tasks.filter(t=>['failed','blocked'].includes(t.status)).length;
    const q=$('search').value.trim().toLowerCase();
    const selected=$('group-select').value;
-   const visible=tasks.filter(t=>(!selected||(t.group||'未分组')===selected)&&(filter==='all'||(filter==='problem'?['failed','blocked'].includes(t.status)||t.health==='stale':t.status===filter))&&(!q||(t.title||'').toLowerCase().includes(q)||(t.id||'').toLowerCase().includes(q)));
+   const visible=tasks.filter(t=>(!projectFilter||projectKey(t)===projectFilter)&&(!selected||(t.group||'未分组')===selected)&&(filter==='all'||(filter==='open'?['pending','running','blocked','failed','paused'].includes(t.status):filter==='problem'?['failed','blocked'].includes(t.status)||t.health==='stale':t.status===filter))&&(!q||(t.title||'').toLowerCase().includes(q)||(t.id||'').toLowerCase().includes(q)));
    // Reuse unchanged task elements. Otherwise an automatic refresh closes
    // <details> and resets in-card scroll/selection every five seconds.
    const container=$('tasks');
@@ -584,6 +656,19 @@
  $('agent-type').addEventListener('change',renderAgents);
  $('show-retired').addEventListener('change',e=>{showRetired=e.target.checked;renderAgents()});
  $('admin-panel').addEventListener('toggle',()=>{if(canManage)refreshAdminViews()});
+ $('project-reset').addEventListener('click',resetProjectEdit);
+ $('show-archived').addEventListener('change',e=>{showArchived=adminMode()&&e.target.checked;render()});
+ $('project-form').addEventListener('submit',async e=>{
+   e.preventDefault();if(!adminMode())return;
+   const form=e.currentTarget,value=Object.fromEntries(new FormData(form).entries());
+   const editing=Boolean(value.expectedUpdatedAt);
+   const action=editing?'edit':'create';
+   if(editing&&!window.confirm(`确定由管理员编辑项目任务 ${value.id} 吗？`))return;
+   value.action=action;
+   if(!editing)delete value.status;
+   try{await projectRequest(value);$('project-feedback').textContent=`已${editing?'修改':'创建'} · ${value.id}`;resetProjectEdit();await refresh()}
+   catch(err){$('project-feedback').textContent='保存失败：'+err.message}
+ });
  $('admin-audit').addEventListener('click',async()=>{
    try{const r=await adminRequest('history');const panel=$('admin-audit-list');panel.replaceChildren();
      for(const e of (r.events??[]).slice(0,15))panel.append(node('div',`${time(e.at)} · ${e.action} · ${e.id} · ${e.reason||''}`));
@@ -606,19 +691,22 @@
    const token=decodeURIComponent(location.hash.slice(1));
    if(!token){canManage=false;refreshAdminViews();$('auth').hidden=false;$('connection').textContent='需要查看密钥';$('dot').classList.remove('ok');return}
    try{
-     const [r,mailResult,agentsResult]=await Promise.all([
+     const [r,mailResult,agentsResult,projectResult]=await Promise.all([
        fetch('/tips/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}),
        fetch('/tips/messages?to=all&limit=120',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)})),
-       fetch('/tips/agents/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)}))]);
+       fetch('/tips/agents/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)})),
+       fetch('/tips/project/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)}))]);
      if(!r.ok)throw Error('HTTP '+r.status+(r.status===401?' · 查看密钥无效':''));
      data=await r.json();
      if(mailResult.ok){mailbox=await mailResult.json();$('error').textContent='';}
      else{$('error').textContent='留言板暂时不可用（HTTP '+mailResult.status+'）；任务进度仍可正常查看。';}
      if(agentsResult.ok)agentData=await agentsResult.json();
      else $('agent-note').textContent='Agent 目录暂时不可用（HTTP '+agentsResult.status+'），其它面板不受影响';
+     if(projectResult.ok)projectData=await projectResult.json();
+     else projectData={projects:[]};
      $('auth').hidden=true;$('dot').classList.add('ok');$('connection').textContent='已连接 · '+new Date().toLocaleTimeString('zh-CN',{hour12:false});
      if(!canManage){canManage=true;refreshAdminViews()}
-     $('last-update').textContent='最近任务变更 · '+time(data.updatedAt);updateGroups();updateMailSelectors();render();renderAgents();renderInbox();
+     $('last-update').textContent='最近任务变更 · '+time(data.updatedAt);updateGroups();updateMailSelectors();renderProjects();render();renderAgents();renderInbox();
    }catch(e){if(e.message.includes('401')){canManage=false;refreshAdminViews();$('auth').hidden=false}$('error').textContent='读取失败：'+e.message;$('dot').classList.remove('ok');$('connection').textContent='连接异常'}
  }
  if(new URLSearchParams(location.search).get('tab')==='mailbox')tab='mailbox';

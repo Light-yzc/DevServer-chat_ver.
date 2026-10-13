@@ -2,6 +2,8 @@
 
 **科研任务操作协议**：阅读 [`RESEARCH_LOOP.md`](RESEARCH_LOOP.md)，Web Main/Sub 应主动推动已授权研究并留下 Tips 证据与下步 Owner，Local Sol 负责事件驱动调度，Luna 负责有检查点的长期执行。不要因消息 ACK 就宣布科研完成。
 
+**项目主入口**：Web 先 `tips_project({"action":"overview"})` 看 AIR 总项目、基础设施与 Other 的总体待办/阻塞/Owner 缺口，再针对 ID `tips_project(get)`。普通 Agent 可以 `tips_project(create)` 新增，不可覆盖已有计划；真正认领身份的 Web Main 可以 `edit/archive/delete`（需先归档才能删），其他管理方使用既有 Tips `viewToken`。`tips(update)` 继续用于执行进度，但不能绕过项目字段管理权限。详情按需读取 `tips_skills(read,project-overview)`。
+
 **新加入的 Agent 请先阅读 [`AGENT_TOOL_USE.md`](AGENT_TOOL_USE.md)**。该文档包含每种身份对应的工具、可复制的最小参数、ACK/验收状态含义以及常见错误。八个 Tips 协作 MCP 工具的 `description` 与核心 Zod 参数说明统一维护在 `vendor/devspace/dist/tips-tool-descriptions.js` 中，避免只写 README、模型实际读不到使用说明。新增只读 `tips_skills` 供 Web Agent **按需查阅** Skills；Local Agent 则读取 `$CODEX_HOME/skills/` 中对应 Skill。目录见 [`skills/README.md`](skills/README.md)。拥有私有管理员密钥才能执行 `tips_admin`，操作详见 [`TIPS_ADMIN.md`](TIPS_ADMIN.md)。
 
 **四类协作角色模型分工**见 [`AGENT_ROLES_AND_MODELS.md`](AGENT_ROLES_AND_MODELS.md)：Web Main（总协调与高难度推理）、Web Sub（独立审查）、Local Main（Sol：关键且稳定的无人值守决策，消耗本地额度）、Local Sub（Luna：可持续一天的低成本长任务）。Main/Sub 是职责而非管理员权限。

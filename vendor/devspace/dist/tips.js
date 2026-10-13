@@ -5,6 +5,9 @@ import { buildAgentOverview } from './tips-agent-overview.js';
 import { createTipsAdmin } from './tips-admin.js';
 import { TIP_TOOL_DESCRIPTIONS } from './tips-tool-descriptions.js';
 import {createTipsSkills} from './tips-skills.js';
+import {createTipsProjectBoard} from './tips-project.js';
+import {createWebIdentityStore} from './web-identity-store.js';
+import {openAiConversationScopeId} from './request-meta.js';
 
 export { createTipsV2 as createTips } from './tips-core.js';
 const AUTH = (received, expected) => {
@@ -20,20 +23,44 @@ function mutation(tips,args,context={}){
   }
   return result;
 }
-const textResult=callback=>async args=>{
-  try {return {content:[{type:'text',text:JSON.stringify(callback(args),null,2)}]};}
+const textResult=callback=>async (args,extra)=>{
+  try {return {content:[{type:'text',text:JSON.stringify(callback(args,extra),null,2)}]};}
   catch(err){return {isError:true,content:[{type:'text',text:String(err.message??err)}]};}
 };
 export function registerTipsTool(server,config,z){
   const tips=createTipsV2(config);
   const admin=createTipsAdmin(config,tips);
   const skills=createTipsSkills(config);
+  const projects=createTipsProjectBoard(tips);
+  const identities=createWebIdentityStore(config);
+  server.registerTool('tips_project',{
+    title:'AIR Project Overview — read/create tasks, manager-curated lifecycle',
+    description:TIP_TOOL_DESCRIPTIONS.tips_project,
+    inputSchema:{
+      action:z.enum(['overview','list','get','history','create','edit','archive','delete']).optional()
+        .describe('overview/list/get/history read; create adds a task; edit/archive/delete require authenticated Web Main or private Tips view-token management authority.'),
+      id:z.string().optional(),projectId:z.enum(['air','infrastructure','other']).optional(),
+      title:z.string().optional(),group:z.string().optional(),message:z.string().optional(),details:z.string().optional(),
+      status:z.enum(['pending','running','completed','blocked','failed','paused','cancelled']).optional(),
+      owner:z.string().optional(),priority:z.enum(['critical','high','normal','low']).optional(),
+      nextAction:z.string().optional(),acceptanceCriteria:z.string().optional(),gate:z.string().optional(),
+      expectedUpdatedAt:z.string().optional(),reason:z.string().optional(),limit:z.number().int().optional(),
+      claimKey:z.string().optional().describe('Private identity fallback for a Web Main; never put it in a task body.'),
+      viewToken:z.string().optional().describe('Tips view/management token for trusted manager if no authenticated Web Main identity is available.'),
+    },annotations:{readOnlyHint:false},
+  },textResult((args,extra)=>{
+    let role=null;
+    try{role=identities.authenticate({scope:openAiConversationScopeId(extra?._meta),claimKey:args.claimKey}).id}catch{}
+    const manager=Boolean(role&&/^(?:web-main|web-[a-z0-9_.-]+-main)$/.test(role));
+    const actor=role??'authenticated-devspace-agent';
+    return projects.run(args,{manager,actor});
+  }));
   server.registerTool('tips_skills',{
     title:'Tips Agent Skills — discover and read optional research/coordination guidance',
     description:TIP_TOOL_DESCRIPTIONS.tips_skills,
     inputSchema:{
       action:z.enum(['list','read']).describe('list available Agent Skills; read one named SKILL.md by allowlisted name.'),
-      name:z.enum(['agent-coordination','main-batch-triage','research-safety','tips-troubleshooting']).optional()
+      name:z.enum(['agent-coordination','main-batch-triage','research-safety','tips-troubleshooting','project-overview']).optional()
         .describe('Required for read. Read only when this topic applies; never include private keys in Skills.'),
     },annotations:{readOnlyHint:true},
   },textResult(args=>skills.run(args)));
@@ -51,7 +78,7 @@ export function registerTipsTool(server,config,z){
     title:'Tips research console — tasks',
     description:TIP_TOOL_DESCRIPTIONS.tips,
     inputSchema:{
-      action:z.enum(['list','get','update','heartbeat','history','archive','delete']).optional().describe('Default list. get/update/heartbeat/history/archive/delete need a stable task id.'),
+      action:z.enum(['list','get','update','heartbeat','history']).optional().describe('Ordinary Agents read and publish execution progress; project planning edit/archive/delete requires tips_project manager permission or tips_admin.'),
       id:z.string().optional().describe('Stable Tips task identifier reused across updates.'),limit:z.number().int().optional(),title:z.string().optional(),
       status:z.enum(['pending','running','completed','blocked','failed','cancelled','paused']).optional().describe('Real task state; blocked means technical blocker, paused/cancelled mean intentional halt.'),
       kind:z.enum(['progress','text','metric','checklist','log','table','link','chart']).optional(),
@@ -133,6 +160,7 @@ export function registerTipsTool(server,config,z){
 export function mountTipsRoutes(app,config,express){
   const tips=createTipsV2(config);
   const admin=createTipsAdmin(config,tips);
+  const projects=createTipsProjectBoard(tips);
   const headers=res=>{res.set('Cache-Control','no-store');res.set('Referrer-Policy','no-referrer');res.set('X-Content-Type-Options','nosniff');};
   const auth=(req,res,write=false)=>{
     const expected=write?tips.credentials.writeToken:tips.credentials.viewToken;
@@ -170,6 +198,17 @@ export function mountTipsRoutes(app,config,express){
   app.get('/tips/api',(req,res)=>{
     if(!auth(req,res))return;
     guard(()=>req.query.action==='history'?tips.mutate({action:'history',id:String(req.query.id??''),limit:Number(req.query.limit??100)}):tips.snapshot(),req,res);
+  });
+  app.get('/tips/project/api',(req,res)=>{
+    if(!auth(req,res))return;
+    guard(()=>projects.run({action:'overview'}),req,res);
+  });
+  app.post('/tips/project/api',express.json({limit:'64kb'}),(req,res)=>{
+    if(!auth(req,res))return;
+    // As requested, the existing Tips viewing key is also the UI management
+    // credential. Ordinary MCP Agents get NO access to this bearer token.
+    guard(()=>projects.run({...req.body,viewToken:tips.credentials.viewToken},
+      {manager:true,actor:'tips-dashboard'}),req,res);
   });
   app.post('/tips/api',express.json({limit:'64kb'}),(req,res)=>{
     if(!auth(req,res,true))return;

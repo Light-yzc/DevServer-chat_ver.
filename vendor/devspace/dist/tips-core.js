@@ -121,6 +121,8 @@ export function createTipsV2(config){
     if(action==='history')return (read().history[id]??[]).slice(-Math.min(300,Math.max(1,Number(input.limit)||100)));
     if(!['update','heartbeat','delete','archive'].includes(action))fail('Invalid action');
     return edit(s=>{
+      if(['delete','archive'].includes(action)&&context.trustedManage!==true)
+        fail('Project removal/archive requires manager authorization');
       if(action==='delete'){
         if(!s.tasks[id])return {deleted:false,id};
         delete s.tasks[id];delete s.history[id];
@@ -141,6 +143,17 @@ export function createTipsV2(config){
       }
       const old=s.tasks[id]??{id,createdAt:now(),status:'pending',progress:0,kind:'progress'};
       const t={...old};
+      const planFields=['projectId','owner','nextAction','acceptanceCriteria','priority','gate'];
+      if(s.tasks[id]&&context.trustedManage!==true&&planFields.some(key=>input[key]!==undefined))
+        fail('Editing project planning fields requires manager authorization');
+      if(input.projectId!==undefined){if(!validID(input.projectId))fail('Invalid project ID');t.projectId=input.projectId;}
+      for(const key of ['owner','nextAction','acceptanceCriteria','gate']){
+        if(input[key]!==undefined)t[key]=string(input[key],key,key==='owner'?90:900);
+      }
+      if(input.priority!==undefined){
+        if(!['critical','high','normal','low'].includes(input.priority))fail('Invalid priority');
+        t.priority=input.priority;
+      }
       for(const key of ['title','message','details','group']){
         if(input[key]!==undefined)t[key]=string(input[key],key,key==='details'?4000:key==='group'?80:1500);
       }
@@ -181,7 +194,11 @@ export function createTipsV2(config){
       if(input.heartbeatTimeoutSec!==undefined){if(!Number.isInteger(input.heartbeatTimeoutSec)||input.heartbeatTimeoutSec<30||input.heartbeatTimeoutSec>86400)fail('Heartbeat timeout must be 30..86400 sec');t.heartbeatTimeoutSec=input.heartbeatTimeoutSec;}
       if(input.heartbeatEnabled!==undefined){if(typeof input.heartbeatEnabled!=='boolean')fail('heartbeatEnabled must be boolean');t.heartbeatEnabled=input.heartbeatEnabled;}
       if(input.heartbeat===true){t.heartbeatEnabled=true;t.lastHeartbeatAt=now();t.staleNotifiedAt=null;}
-      if(input.archived!==undefined){if(typeof input.archived!=='boolean')fail('archived must be boolean');t.archived=input.archived;}
+      if(input.archived!==undefined){
+        if(typeof input.archived!=='boolean')fail('archived must be boolean');
+        if(input.archived===true&&context.trustedManage!==true)fail('Archiving requires manager authorization');
+        t.archived=input.archived;
+      }
       if(input.progress===undefined){
         if(input.current!==undefined||input.total!==undefined){if(t.total>0){t.progress=Math.min(100,Math.round(t.current/t.total*100));t.progressMeasured=true;}}
         else if(input.items!==undefined&&t.items.length){t.progress=Math.round(t.items.filter(x=>x.done).length/t.items.length*100);t.progressMeasured=true;}

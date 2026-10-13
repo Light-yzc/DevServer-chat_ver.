@@ -13,7 +13,7 @@ const folder=join(root,'tips','skills');
 test('MCP lists and reads each allowlisted Skill without letting caller traverse paths',()=>{
   const reader=createTipsSkills({allowedRoots:[root]});
   const items=reader.run({action:'list'});
-  assert.equal(items.skills.length,4);
+  assert.equal(items.skills.length,5);
   for(const name of Object.keys(SKILL_CATALOG)){
     const entry=reader.run({action:'read',name});
     assert.equal(entry.name,name);

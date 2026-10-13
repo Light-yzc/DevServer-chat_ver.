@@ -6,6 +6,20 @@
 
 **按需 Skill 入口**：使用 MCP 工具 `tips_skills`，先调用 `tips_skills({action:"list"})` 浏览可选文档，必要时 `tips_skills({action:"read",name:"main-batch-triage"})`。服务器 Codex 也可以从 `tips/skills/<name>/SKILL.md` 按需阅读；详见 [`skills/README.md`](skills/README.md)。不用在每次唤醒中把整份手册塞入 Prompt。
 
+## 项目 Overview：权威研究任务总览与 CRUD
+
+**`tips_project` 是项目级权威视图**，直接使用 `/tips` 的任务记录，不复制第二套待办表。`overview` 将 AIR-LIFE、AIR / Paper、AIR-Research、AIR / Other 和相关 Sub Agent 归入 AIR 总项目；Tips / Infrastructure 归入基础设施，其他任务归入 Other。同步统计完成、阻塞、失败、无 Owner 和缺下一动作。
+
+```text
+tips_project({"action":"overview"})
+tips_project({"action":"get","id":"air-life-causal-corrected-20261012"})
+tips_project({"action":"create","id":"air-cpu-fairness-audit-v3","projectId":"air","title":"CPU-only 公平性审查","message":"尚未开始独立复核","nextAction":"核对输入数据和随机种子","acceptanceCriteria":"独立对照日志和脚本一致"})
+```
+
+普通 Agent 可**读取、新增**，也可通过原有 `tips(update)` 汇报执行进度；不能改已有卡片的 `owner`、`nextAction`、`acceptanceCriteria`、`priority`、`gate`、`projectId`，不能归档/删除。**已认领的 Web Main（`web-main` 或 `web-*-main`）**有自动项目整理权限；其他管理者需显式提供私有 Tips `viewToken`（与网页管理用同一密钥，无第二套密码），绝不能放在任务正文或日志。Local Sol 使用服务器端受信运行环境整理项目；同一 Unix 用户下的 Local Sub 并不构成严格 OS 隔离，不得只靠 agent 角色名作权限声明。
+
+Main 更新项目卡片时要给出 Owner、下一步、验收标准、门禁和优先级；建议提供 `expectedUpdatedAt` 防止覆盖并发写入。优先**归档**已终结任务；只有已归档、非运行状态的任务才可物理 `delete`（有单独审计）。这不会删除实验结果、Git 记录或 GPU 封存数据。网页管理操作仍默认折叠，禁止绕过 STOP/GPU/dispatch_hold。
+
 ## 先选对工具
 
 | 你要做的事 | 使用工具 | 不应该用 |

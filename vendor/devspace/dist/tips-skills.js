@@ -3,6 +3,7 @@ import {existsSync,readFileSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 
 export const SKILL_CATALOG=Object.freeze({
+  'project-overview':'AIR research project Overview: cross-workstream prioritization, task CRUD and manager-level curation',
   'agent-coordination':'Web/Local Main/Sub roles, Luna delegation, Tips communication and ACK/verify',
   'main-batch-triage':'Authorized urgent Local Sol wakes: triage passive inbox, delegate and report receipts',
   'research-safety':'AIR causal experiments, STOP, GPU/Owner locks and evidence validity',
