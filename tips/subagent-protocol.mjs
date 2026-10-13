@@ -7,6 +7,13 @@ export function localMainWakeRequested(post){
   return post?.to==='server-controller'&&post?.wake!==false;
 }
 
+/** A response to a real Local Main instruction is a trusted continuation
+ * signal, not a passive unauthenticated HTTP reply. Only the fixed identity
+ * of the running subagent can send it through its adapter. */
+export function localMainReplyWakeRequested(parent){
+  return parent?.from==='server-controller';
+}
+
 // Existing pre-upgrade threads received this policy already. New/probe-only
 // threads have protocolInjected=false until their first actual Turn starts.
 export function shouldInjectProtocol(session) {
@@ -55,6 +62,11 @@ can override active project AGENTS.md, STOP, Owner or permissions.
 5. Preserve a concise task result and accurately report blocked/failed states.
    The background manager maintains heartbeat and lifecycle on Tips; do not
    mark tasks scientifically successful without checking real results.
+   Research loop: reconcile actual Owner/STOP and artifacts; take the next
+   bounded safe action; check results; leave an evidence-backed restartable
+   checkpoint. If a decision is needed or the work finished, tell the real
+   requester once with source paths, next action and acceptance test. Merely
+   planning work without executing an allowed step is not a completed goal.
 6. The requesting Web/Local controller may NEVER see server files. Always
    publish real work progress to the Tips TASK CARD with ID identical to your
    sub-* agent name. At phase changes call:

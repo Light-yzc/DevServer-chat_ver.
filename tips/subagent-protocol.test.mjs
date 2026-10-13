@@ -4,7 +4,7 @@ import { mkdtempSync,rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
-import { tipsProtocol,needsDelivery,shouldInjectProtocol,localMainWakeRequested,MAIL_REDELIVERY_DELAY_MS,MAX_MAIL_DELIVERIES } from './subagent-protocol.mjs';
+import { tipsProtocol,needsDelivery,shouldInjectProtocol,localMainWakeRequested,localMainReplyWakeRequested,MAIL_REDELIVERY_DELAY_MS,MAX_MAIL_DELIVERIES } from './subagent-protocol.mjs';
 
 test('each new thread receives the explicit ACK/RESOLVE/Tips protocol once',()=>{
   const protocol=tipsProtocol('sub-example');
@@ -59,4 +59,26 @@ test('Local Sub defaults to Sol wake for every Main message, with explicit opt-o
   ])assert.equal(localMainWakeRequested(candidate),false);
   const protocol=tipsProtocol('sub-test');
   assert.match(protocol,/EVERY trusted post/);
+});
+test('Local Sub reply to Main carries trusted wake metadata; replies to Web do not',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'tips-main-reply-'));
+  try{
+    const tips=createTipsV2({stateDir:dir});
+    const main=tips.messages({action:'post',from:'server-controller',to:'sub-air-work',
+      subject:'Check results',body:'CPU-only work'},{trustedWake:true});
+    assert.equal(localMainReplyWakeRequested(main),true);
+    const reply=tips.messages({action:'reply',from:'sub-air-work',to:main.from,
+      inReplyTo:main.id,body:'Verified CPU-only results',wake:localMainReplyWakeRequested(main)},
+      {trustedWake:true});
+    assert.equal(reply.wakeAuthorized,true);
+    assert.equal(reply.trustedSender,true);
+    assert.equal(tips.messages({action:'claim'},{trustedWake:true}).id,reply.id);
+    const web=tips.messages({action:'post',from:'web-air-main',to:'sub-air-work',
+      subject:'Web review',body:'Review the report'},{trustedWake:true});
+    assert.equal(localMainReplyWakeRequested(web),false);
+    const webReply=tips.messages({action:'reply',from:'sub-air-work',to:web.from,
+      inReplyTo:web.id,body:'Web reviewer response',wake:localMainReplyWakeRequested(web)},
+      {trustedWake:true});
+    assert.equal(webReply.wakeAuthorized,false);
+  }finally{rmSync(dir,{recursive:true,force:true})}
 });

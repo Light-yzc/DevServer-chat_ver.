@@ -9,7 +9,7 @@ description: Read before coordinating AIR Web/Main and Local/Sub agents, assigni
 
 - **Web Main**：`web-main`, `web-*-main`。高难度推理、路线选择、总审查；不消耗服务器本地 Sol 额度，但需要活跃 Web Chat。
 - **Web Sub**：其他 `web-*`。独立审稿、交叉验证，需通过 `web_identity` 认领。
-- **Local Main**：`server-controller`, `gpt-6.1-sol`。**研究总调度**，审查、拆任务、发送指令、监督 Local Sub。平时睡眠，授权紧急唤醒时一并处理普通积压邮件。
+- **Local Main**：`server-controller`, `gpt-6.1-sol`。**研究总调度**：核对真实状态、选下一项安全可执行工作、安排或复用 Luna、核对成果、记录下一 Owner 与触发事件。平时休眠，可信消息默认唤醒并合并其他积压来信。
 - **Local Sub**：`sub-*`, 默认 `gpt-6-luna`。持久 Codex App Server，低成本长期执行。高难度需要时再调用 Sol。
 
 **注册数 ≠ 并行数**：最多保留 128 个不同持久 Local Sub 身份；Manager 默认同时运行 2 个，最多 4 个。尽量复用已完成且配置一致的 Thread，不要为同一工作无节制创建新身份。超出注册上限才考虑按安全手续退休，不得未经核对丢失实验上下文。
@@ -19,7 +19,7 @@ Main/Sub 是职责而非管理员权限；`controller` 是旧 Web 邮箱，不�
 ## 工具和协议
 
 - `web_mail`：已认领 Web Chat 发/收消息；`tips_messages`：Local 普通消息；`tips_exchange`：旧 Web 控制端向 Local Sub 的可验收事务。
-- `tracked:true` 表示 ACK + verify，**不是** Sol 唤醒。`to=server-controller,wake:true` 且获授权才启动 Local Main。
+- `tracked:true` 表示 ACK + verify，并非科研成果验收。可信消息发往 `server-controller` 默认唤醒 Sol，只有 `wake:false` 显式留档；Local Sub 回 Local Main 的回复也应携带可信唤醒。
 - Local Main 可用 `node tips/subagent-cli.mjs list/status/start/message/stop`。尽量委派 Luna，并在真实下发给 Sub 的指令中记录原始消息 ID、Owner、目标、证据和禁止操作。
 - **Local Sol 也负责向 Web 请求唤醒和审查**：对需要 Web 高级推理的任务，调用 `tips/web-handoff.mjs request` 将 `server-controller → web-air-main` 的追踪消息与 Tips 进度卡一起创建。Web Wake 会向在线且匹配的浏览器会话发出提示，**不是无条件唤醒云端**；Web 未在 45 分钟内 ACK，轻量 watchdog 会向 Sol 发一次后备协调请求，安排 Luna 或继续等待，不盲目重跑 GPU。完整操作见 `tips/WEB_HANDOFF.md`。
 - 委派 `sub-*` 时必须让 Tips 任务板显示进度：`subagent(start)` 立即创建同名任务卡；消息任务也自动关联同名卡。Local Sub 在真实阶段或阻塞时用 `tips-cli update <sub-id>` 填写阶段与验证证据。用户应能只看 `/tips` 而无需 SSH；无可量化总量时不要猜百分比。
@@ -27,7 +27,8 @@ Main/Sub 是职责而非管理员权限；`controller` 是旧 Web 邮箱，不�
 
 ## 长期稳定与成本优先级
 
-先复用已有 Agent 与 Codex Thread；Local Luna 承担可持续的实验、资料与自动化执行；高难度推理优先向已认领 Web Main/Sub 委派、由浏览器在线时读取，Web 不保证无人值守；当无人值守必须立即决策且符合当前门禁时，使用 Local Sol Main。普通留言积累到下一次真正授权的紧急 Sol 唤醒，一并处理，不周期性消耗 Sol。每项工作保留 Tips 卡片、阶段证据、失败原因、可恢复检查点和负责人。严禁盲目轮询模型、重复跑实验或伪造完成比例。
+先复用已有 Agent 与 Codex Thread；Local Luna 承担可持续的实验、资料与自动化执行；高难度推理优先向已认领 Web Main/Sub 委派、由浏览器在线时读取，Web 不保证无人值守；当无人值守必须立即决策且符合门禁时，使用 Local Sol Main。可信消息默认唤醒 Main，积压消息尽量在同一轮合并，不为无变化的状态反复消耗 Sol。每项工作保留 Tips 阶段证据、失败原因、可恢复检查点、下一负责人和触发事件。严禁盲目轮询、重复实验、伪造比例。
+- 四角色的具体科研推进契约与最终交接字段见 [`tips/RESEARCH_LOOP.md`](../../RESEARCH_LOOP.md)。每轮至少辨认一项有证据的下一步或明确客观阻塞条件；不要只汇报“已读”“等待”。
 - `delivered` 不表示接收方读过；所有完成声明需要有回执和实际证据。
 
 ## 委派前检查

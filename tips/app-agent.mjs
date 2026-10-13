@@ -18,8 +18,9 @@ import { fileURLToPath } from 'node:url';
 import {resolveCodexBin} from './codex-bin.mjs';
 import { loadConfig } from '../vendor/devspace/dist/config.js';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
-import { tipsProtocol, needsDelivery, shouldInjectProtocol,localMainWakeRequested } from './subagent-protocol.mjs';
+import { tipsProtocol, needsDelivery, shouldInjectProtocol,localMainWakeRequested,localMainReplyWakeRequested } from './subagent-protocol.mjs';
 import {applySubagentProgress} from './subagent-progress.mjs';
+import {subResearchLoopPrompt} from './research-loop-prompt.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -116,7 +117,8 @@ function finalizeActions(raw){
     if(!reply||!allowed(reply.inReplyTo)||typeof reply.body!=='string'||!reply.body.trim())continue;
     const parent=presented.get(reply.inReplyTo);
     try{tips.messages({action:'reply',from:params.name,to:parent.from,
-      inReplyTo:parent.id,subject:String(reply.subject||`Re: ${parent.subject}`).slice(0,200),body:reply.body.slice(0,6000)})}
+      inReplyTo:parent.id,subject:String(reply.subject||`Re: ${parent.subject}`).slice(0,200),body:reply.body.slice(0,6000),
+      wake:localMainReplyWakeRequested(parent)}, {trustedWake:true})}
     catch(e){safeLog({event:'reply_failed',id:parent.id,error:e.message})}
   }
   for(const post of (Array.isArray(actions.posts)?actions.posts:[]).slice(0,8)){
@@ -198,6 +200,7 @@ async function main(){
   console.log('App Server ready:',params.name,'thread:',threadId,'resumed:',Boolean(previousThreadId));
   if(params.probe)return;
   let prompt=readFileSync(params.promptFile,'utf8');
+  prompt+='\n'+subResearchLoopPrompt(params.name);
   prompt+=`\nTips progress required: the user reads ONLY /tips, card ID ${params.name}. At real milestones use tips-cli update, or include a final <tips-actions> JSON property "progress":{"status":"running|blocked|completed","message":"evidence, current phase, next step"} (optional current+total if measurable). No guessed percentages; no extra Sol calls.\n`;
   // Existing persistent Codex Threads were initialized before wake escalation
   // existed. A short per-Turn reminder upgrades them without reinjecting the

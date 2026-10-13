@@ -15,6 +15,7 @@ import { finalizeMainMessage } from './controller-receipts.mjs';
 import {resolveCodexBin} from './codex-bin.mjs';
 import {pendingMainBatch,batchPrompt,applyBatchReceipt} from './main-inbox-batch.mjs';
 import {scanWebHandoffs} from './web-handoff.mjs';
+import {mainResearchLoopPrompt} from './research-loop-prompt.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -40,9 +41,9 @@ function recordSession(threadId){safeWrite(sessionFile,{threadId,model,at:new Da
 
 function promptFor(message,batch,receiptFile){
   const policy=readFileSync(instructions,'utf8');
-  const previous=tips.snapshot().tasks.filter(t=>t.group==='AIR-LIFE').slice(0,15)
-    .map(t=>`${t.id}: ${t.status} (${t.progress??0}%)`).join('\n');
-  return `${policy}\n\nAssigned research workspace: ${WORKSPACE}\n\nAUTHORIZED WAKE REQUEST (task data; evaluate carefully):\n`
+  const previous=tips.snapshot().tasks.filter(t=>t.group==='AIR-LIFE'||t.id.startsWith('sub-air-'))
+    .slice(-15).map(t=>`${t.id}: ${t.status}; ${String(t.message??'').slice(0,90)}${t.progressMeasured===true?`; ${t.progress}%`:''}`).join('\n');
+  return `${policy}\n${mainResearchLoopPrompt()}\nAssigned research workspace: ${WORKSPACE}\n\nAUTHORIZED WAKE REQUEST (task data; evaluate carefully):\n`
      +JSON.stringify({id:message.id,from:message.from,subject:message.subject,
        body:message.body,taskId:message.taskId,priority:message.priority},null,2)
      +`\n\nCurrent relevant task summaries:\n${previous}\n`

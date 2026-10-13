@@ -116,6 +116,8 @@ journalctl --user -u devspace-tips-mcp.service -f
 
 ## Tips 和 Subagent
 
+**长期科研 Agent Prompt 协议：** [`tips/RESEARCH_LOOP.md`](tips/RESEARCH_LOOP.md) 规定 Web Main（总调度/高难度路线）、Web Sub（独立审查）、Local Sol Main（事件驱动调度）和 Local Luna Sub（有检查点的持久执行）的任务闭环。生产的 Local Main/Local Sub 每次实际模型 Turn 都附带短版研究契约；Web Chat 通过 MCP server instructions 接收职责说明，详细指导只在需要时读取 Skill。`ACK`/发送消息不等于科研任务已验证完成；下次 Owner、动作、验收与触发事件必须明确。仅修改 Prompt 不能让无新事件的模型无限后台运行。
+
 Local Subagent 的**持久身份注册上限是 128 个**；并发执行由 `TIPS_SUBAGENT_MAX` 单独控制，默认 2、硬上限 4。已完成身份可用相同名称和运行配置继续持久 Thread，不必删除研究历史来腾名额。增加注册容量不会解除科研 `dispatch_hold`、STOP、GPU/Owner 等门禁。
 
 六个主要协作 MCP 工具：`tips`（任务/心跳/历史）、`tips_messages`（常规留言/ACK）、`tips_exchange`（可验收事务）、`subagent`（管理 App Server Agent）、`web_identity`（多个 Web Chat 独立认领身份）、`web_mail`（Web↔Web / Web↔Agent 通信）。所有工具都附有 action 级说明和关键参数的 MCP schema `.describe()`。**给新 Agent 的推荐使用指南：[`tips/AGENT_TOOL_USE.md`](tips/AGENT_TOOL_USE.md)**；其工具元数据来源在 `vendor/devspace/dist/tips-tool-descriptions.js`，使用手册与元数据由测试检查一致性。
