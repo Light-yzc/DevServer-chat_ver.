@@ -5,7 +5,7 @@
 
 > 注意：这里版本控制的是 DevSpace 官方发布包的编译产物（`vendor/devspace/dist/`），不是官方的 TypeScript 开发源码。上游更新需手动合并，并重新验证自定义工具。仓库不含 `node_modules`、认证密钥、Agent 会话、训练模型或研究实验数据。
 
-**部署与文档导航：** 全新安装、现有生产服务器的安全升级/回滚和验收，请先看 **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**。Tips 见 [`tips/README.md`](tips/README.md)，浏览器唤醒扩展见 [`web-wake/README.md`](web-wake/README.md)，Web↔Local 交接见 [`tips/WEB_HANDOFF.md`](tips/WEB_HANDOFF.md)。尚未实施的浏览器忙碌检测/收尾主动收信见 **[`web-wake/TODO.md`](web-wake/TODO.md)**（仅 TODO，现网未修复）。
+**部署与文档导航：** 全新安装、现有生产服务器的安全升级/回滚和验收，请先看 **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**。Tips 见 [`tips/README.md`](tips/README.md)，浏览器唤醒扩展见 [`web-wake/README.md`](web-wake/README.md)，Web↔Local 交接见 [`tips/WEB_HANDOFF.md`](tips/WEB_HANDOFF.md)。Web Wake v0.1.7 **收尾查信 Prompt 已写入源码**（需部署 MCP 并本地 Reload 扩展才会生效），但“Web 工作中禁止打断”的浏览器忙碌检测仍待实施，见 **[`web-wake/TODO.md`](web-wake/TODO.md)**。
 
 ## 项目结构
 
