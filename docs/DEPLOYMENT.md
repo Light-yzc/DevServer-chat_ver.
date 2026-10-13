@@ -109,7 +109,7 @@ git diff --check
 1. 若**仅修改** `web-wake/extension/`，将最新扩展文件复制到原来的**本地**加载目录，而不是服务器仓库目录；不要卸载重装以免丢失持久绑定。
 2. Edge 打开 `edge://extensions`（Chrome 为 `chrome://extensions`），点击已加载扩展的 **Reload**；刷新对应 ChatGPT 标签页，使新的 content script 生效。
 3. 检查角色绑定、WebSocket 连接和 `pending → submitted → done`；`submitted` 表示浏览器提交，只有真实 MCP ACK 才是 `done`。
-4. v0.1.7 已将“Web 当前任务完成后再检查一次 `web_mail(inbox)`”写入注入 Prompt；只有更新并 Reload 本地扩展、刷新 ChatGPT 页面后才使用新版文字，MCP Server Instructions 另需在安全窗口重启 MCP 才生效。`web-wake/TODO.md` 的**浏览器忙碌检测 / 工作中禁止打断**仍是待办，不能宣称已修复，需本地代理浏览器实测真实 UI 后再修改。
+4. v0.1.8 本地扩展加入多信号忙碌检测、20 秒稳定空闲窗口、发送前 pending/ACK 复查和无刷新页面脚本恢复。更新后 Reload 扩展；正常情况下不再需要重载正在工作的 ChatGPT 页面。MCP Server Instructions 的改动仍需在安全窗口重启 MCP 才生效。真实 Edge 验证范围和未覆盖场景见 `web-wake/BROWSER_VALIDATION.md`，不能把浏览器提交当作 MCP ACK。
 
 ## 安全检查清单
 

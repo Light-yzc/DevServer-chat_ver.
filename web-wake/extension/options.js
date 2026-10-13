@@ -14,6 +14,10 @@ function statusText(raw){
   if(sent)return `已提交提醒 ${sent[1]} · ${sent[2]} 条消息（等待 Web ACK）`;
   const notReady=raw.match(/^Chat (\S+) content script not ready/);
   if(notReady)return `${notReady[1]} 需要刷新聊天页面`;
+  if(raw.includes('Page script recovery pending'))return '正在恢复页面脚本，消息保持排队';
+  if(raw.includes('Page script recovery failed'))return '页面脚本恢复失败，请检查插件对 ChatGPT 的网站访问权限';
+  if(raw.includes('Chat page is loading or sleeping'))return '聊天页面正在加载或休眠，消息保持排队';
+  if(raw.includes('is processing or waiting for stable idle'))return 'Web 正在处理或等待稳定空闲，消息保持排队';
   const busy=raw.match(/^Chat (\S+) is generating or has a draft/);
   if(busy)return `${busy[1]} 正在生成或有草稿，稍后重试`;
   return raw;

@@ -20,7 +20,7 @@ node tips/web-handoff.mjs status web-handoff-xxxxxx
 
 **重要限制**：无法通过 DevSpace MCP 直接从云端启动一个不存在的 ChatGPT Web 会话。Web Wake 仅依赖用户自控的浏览器扩展和在线的匹配标签页；离线只可保存消息和等待后备调度。
 
-**待处理改进（2026-10-13）**：Web Wake v0.1.7 已在提示词中要求 Web Main/Sub 完成任务后再次检查 `web_mail(inbox)`，先处理并 ACK 可执行的新信再结束（阻塞留 Owner/触发，勿无限轮询）。**但浏览器忙碌检测仍未修复**：当前依赖“停止生成”按钮，该按钮在 Web 推理 / 工具调用切换时可能暂时消失，造成正在工作的 Web Chat 被自动提醒打断。后续本地 Agent 将通过代理浏览器验证 DOM 并改进保守空闲判断和提交前复查。提示词改动不代表防打断或浏览器升级已经生效。方案见 [`../web-wake/TODO.md`](../web-wake/TODO.md)。
+**本地扩展更新（2026-10-13）**：Web Wake v0.1.8 加入完整回复状态、Working/Stop/流式信号和 20 秒稳定空闲窗口，处理中不插入新提醒，结束后再次核对 pending/ACK。页面脚本失联时先尝试无刷新恢复。已通过真实 Edge DOM 调查、独立计算聊天及原 Web Main 无刷新脚本恢复检查；瞬时按钮缺失和 ACK 竞态由自动化测试覆盖。浏览器更新需 Reload 扩展；不能据此推断 Web 已 ACK 或科研任务完成。详见 [`../web-wake/BROWSER_VALIDATION.md`](../web-wake/BROWSER_VALIDATION.md)。
 
 **没有凭证存进 Git**。真实配置仍在服务器私有 `security.json`，不能把该文件、Tips 查看/管理密钥、Web Wake 配对 Token、任何私钥复制到本项目文档或 Agent 邮件里。
 
