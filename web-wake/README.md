@@ -131,22 +131,29 @@ Chinese reminder: read via `web_mail(inbox)`, handle authorized work, ACK,
 reply or advance research and dispatch Agents when needed. Message IDs and
 the destination Web role are interpolated; no message body is included.
 
+Version 0.1.7 adds a **required final inbox check** to the wake prompt: after
+completing the requested work, Web Main/Sub checks `web_mail(inbox)` once again,
+handles and ACKs any newly actionable authorized messages before finishing.
+If a message cannot be completed because of an Owner/STOP/GPU gate, it must
+report the blocker and the next Owner/trigger instead of claiming success or
+polling forever. The same rule is included in MCP server instructions and
+agent-coordination guidance. **This changes prompts, not busy detection**;
+users still need to update/reload the unpacked local extension to see v0.1.7.
+
 ### Known issue / planned improvement (not implemented)
 
-The v0.1.6 content script primarily uses the visible **Stop generating** button
+The v0.1.7 content script still primarily uses the visible **Stop generating** button
 to detect an active ChatGPT response. That indicator may temporarily disappear
 during a thinking/tool-call/streaming transition, so the extension might submit
 a new reminder while the Web Agent is **still working**. Do not assume that an
 empty composer or missing Stop button reliably means a finished turn.
 
-The planned fix is **conservative idle detection plus a stable quiet window**,
-with another safety check immediately before clicking Send. The Web Main/Sub
-research prompt should also perform **one bounded `web_mail(inbox)` check near
-its natural end-of-turn**, acknowledging only actually handled messages. Then
-the extension should avoid injecting notifications already ACKed by that Web
-turn, while keeping unhandled messages pending. This is **not yet active**;
-see [`TODO.md`](TODO.md) for implementation steps, browser-proxy inspection,
-race-safety requirements and acceptance tests. In the meantime, unattended
+The remaining planned fix is **conservative idle detection plus a stable quiet
+window**, with another safety check immediately before clicking Send. The
+v0.1.7 end-of-turn inbox **prompt rule is implemented**, but preventing a
+premature injection during an ongoing turn and avoiding races with concurrent
+ACKs still require actual browser work. See [`TODO.md`](TODO.md) for the
+remaining browser-proxy inspection and acceptance tests. Until then, unattended
 browser injection remains best-effort and may interrupt ongoing work.
 
 ## Operational and security rules

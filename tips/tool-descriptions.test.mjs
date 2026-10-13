@@ -54,6 +54,7 @@ test('message sender identities, expiry and completion semantics are unambiguous
     assert.match(x.tools.web_identity.description,/Lease expiration is NOT deletion/);
     assert.match(x.tools.web_mail.description,/no from parameter/);
     assert.match(x.tools.web_mail.description,/no automatic wake/);
+    assert.match(x.tools.web_mail.description,/Before completing a Web Main\/Sub task.*web_mail\(action=inbox\).*ACK\/reply/);
     assert.match(x.tools.tips_messages.description,/Trusted post\/reply/);
     assert.match(x.tools.subagent.description,/NOT completion/);
     assert.match(x.tools.subagent.description,/ONCE/);

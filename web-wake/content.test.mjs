@@ -27,11 +27,11 @@ test('waits for Send to appear after insertion and confirms composer cleared',as
   const f=fixture();assert.equal((await f.send()).status,'sent');
   assert.deepEqual(f.stats(),{clicks:1,deletes:0,lookupsBeforeInsert:0});
 });
-test('wake template matches the user-defined compact research continuation message exactly',async()=>{
+test('wake template requires an end-of-turn inbox check before finishing',async()=>{
   const f=fixture();assert.equal((await f.send()).status,'sent');
   const prompt=f.submittedText();
-  assert.equal(prompt,'DevSpace/Tips：web-test_1 有新消息（ID：11111111-1111-1111-1111-111111111111）。请调用 web_mail(action="inbox") 读取；按已有授权处理后 ACK，必要时回复和请尝试推进进度，启动 agent 或者发送信息。');
-  assert.ok(prompt.length<230,'Keep the wake prompt token-efficient');
+  assert.equal(prompt,'DevSpace/Tips：web-test_1 有新消息（ID：11111111-1111-1111-1111-111111111111）。请调用 web_mail(action="inbox") 读取，按授权处理并 ACK，必要时回复或推进研究、启动 agent。任务完成后务必再查一次 inbox，处理完新信并 ACK 才结束；若受门禁阻塞，说明原因和下一 Owner，勿无限轮询。');
+  assert.ok(prompt.length<300,'Keep the wake prompt token-efficient');
 });
 test('supports composer container without a form',async()=>{
   const f=fixture({form:false});assert.equal((await f.send()).status,'sent');
