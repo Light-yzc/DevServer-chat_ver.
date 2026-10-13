@@ -131,6 +131,24 @@ Chinese reminder: read via `web_mail(inbox)`, handle authorized work, ACK,
 reply or advance research and dispatch Agents when needed. Message IDs and
 the destination Web role are interpolated; no message body is included.
 
+### Known issue / planned improvement (not implemented)
+
+The v0.1.6 content script primarily uses the visible **Stop generating** button
+to detect an active ChatGPT response. That indicator may temporarily disappear
+during a thinking/tool-call/streaming transition, so the extension might submit
+a new reminder while the Web Agent is **still working**. Do not assume that an
+empty composer or missing Stop button reliably means a finished turn.
+
+The planned fix is **conservative idle detection plus a stable quiet window**,
+with another safety check immediately before clicking Send. The Web Main/Sub
+research prompt should also perform **one bounded `web_mail(inbox)` check near
+its natural end-of-turn**, acknowledging only actually handled messages. Then
+the extension should avoid injecting notifications already ACKed by that Web
+turn, while keeping unhandled messages pending. This is **not yet active**;
+see [`TODO.md`](TODO.md) for implementation steps, browser-proxy inspection,
+race-safety requirements and acceptance tests. In the meantime, unattended
+browser injection remains best-effort and may interrupt ongoing work.
+
 ## Operational and security rules
 
 - **Never put a Tips message body, shell command, invite or claim key into an automated prompt**. Only an ID and recipient identity are sent to the chat.
