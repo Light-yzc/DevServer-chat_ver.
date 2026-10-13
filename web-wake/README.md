@@ -94,8 +94,9 @@ To change a role's conversation, first **reset its URL binding** in Options and 
 ### Updating an existing unpacked installation
 
 Update the files in the **same local folder** that Edge originally loaded, then
-open `edge://extensions` and click **Reload** on DevSpace Web Wake. Refresh the
-target ChatGPT tabs too, so they load the updated content script. Do not remove
+open `edge://extensions` and click **Reload** on DevSpace Web Wake. Version
+0.1.8 restores scripts in existing named Web chats automatically; a full chat
+refresh is only a fallback if site permissions or page loading block recovery. Do not remove
 and reinstall the extension: reloading the existing installation preserves its
 pairing token, pending/submitted IDs, and URL bindings in `chrome.storage.local`.
 
@@ -140,27 +141,47 @@ polling forever. The same rule is included in MCP server instructions and
 agent-coordination guidance. **This changes prompts, not busy detection**;
 users still need to update/reload the unpacked local extension to see v0.1.7.
 
-### Known issue / planned improvement (not implemented)
+### Version 0.1.8: wait for Web, recover scripts without a chat refresh
 
-The v0.1.7 content script still primarily uses the visible **Stop generating** button
-to detect an active ChatGPT response. That indicator may temporarily disappear
-during a thinking/tool-call/streaming transition, so the extension might submit
-a new reminder while the Web Agent is **still working**. Do not assume that an
-empty composer or missing Stop button reliably means a finished turn.
+The notification now says to read unread mail, handle authorized work and ACK,
+reply or advance progress / dispatch Agents when warranted, and do one final
+inbox check before finishing. The extension enforces the waiting behavior:
 
-The remaining planned fix is **conservative idle detection plus a stable quiet
-window**, with another safety check immediately before clicking Send. The
-v0.1.7 end-of-turn inbox **prompt rule is implemented**, but preventing a
-premature injection during an ongoing turn and avoiding races with concurrent
-ACKs still require actual browser work. See [`TODO.md`](TODO.md) for the
-remaining browser-proxy inspection and acceptance tests. Until then, unattended
-browser injection remains best-effort and may interrupt ongoing work.
+- It probes the page **before inserting anything**. Stop, the current sidebar
+  row's Working indicator, current-turn streaming, and the latest full turn's
+  `data-talvt-turn-state` all contribute to readiness. Only an explicit
+  `complete` turn with no busy signal is eligible; missing/unknown state waits.
+- Completion must remain quiet for **20 seconds**. Mutations in the latest
+  turn reset that window, including after a reload/reinjection or navigation.
+  Intermediate assistant paragraphs are not completion of the full turn.
+- Messages received during processing stay pending. Once idle, up to 30 IDs
+  are combined into a reminder to read the inbox; the inbox may contain more.
+  The same message still receives at most one confirmed browser submission.
+- Before dispatch and immediately before clicking Send, it rechecks current
+  pending/ACK state, enabled settings, unique routing and URL binding. New
+  activity, a changed conversation, a user edit, or attachments cancel the click.
+  Snapshot and submission writes are serialized so a late response cannot
+  overwrite a concurrent ACK or drop newly received mail. There is still an
+  unavoidable interval between the latest server snapshot and UI click.
+- On update, and when a read-only page probe finds an absent/outdated script,
+  `chrome.scripting` reinjects the bundled script into that saved ChatGPT tab.
+  Reinjection is idempotent and does not reload the page, erase drafts, or
+  replay an uncertain Send attempt. Failed recovery is throttled to once per
+  minute per tab; sleeping/loading tabs wait until usable. No new host access
+  is requested; the extension adds the `scripting` API permission for recovery.
+
+Live Edge DOM observations and the no-refresh recovery check are recorded in
+[`BROWSER_VALIDATION.md`](BROWSER_VALIDATION.md). These markers can change with
+ChatGPT UI updates; an unrecognized layout intentionally stays queued rather
+than assuming it is safe to interrupt. Tests simulate the transient gaps and
+ACK races; exhaustive live testing of every tool/approval transition is not
+claimed.
 
 ## Operational and security rules
 
 - **Never put a Tips message body, shell command, invite or claim key into an automated prompt**. Only an ID and recipient identity are sent to the chat.
 - Exact claimed Web identities only. No sending to `controller`, `server-controller`, arbitrary users, `sub-*` or unclaimed roles.
-- Browser tabs must have a saved `/c/<conversation-UUID>` URL and a **unique, exact title match**. An empty composer and no visible generation are required. Existing drafts are never overwritten.
+- Browser tabs must have a saved `/c/<conversation-UUID>` URL and a **unique, exact title match**. An empty composer, an explicitly completed turn, no busy signals and a stable quiet window are required. Existing drafts are never overwritten.
 - WebSocket reconnects and background alarms retry **pending, never-submitted wake attempts** only. After successful submission that message ID remains `submitted`, does not trigger a duplicate browser prompt, and becomes `done` only on explicit Web ACK. The relay may notify about messages up to 30 days old, if their Web role lease remains valid.
 - An unprocessed or ignored message stays in Tips until its recipient ACKs. The extension cannot verify model comprehension, tool availability or completion.
 - Browser closed, computer asleep, browser policy restricting background execution, expired Web identity lease, and changes to ChatGPT's DOM can all prevent delivery. Browser extension service workers may be terminated and restarted; 30-second alarms and a WebSocket with 20-second ping provide best-effort recovery, **not guaranteed immediate delivery**.

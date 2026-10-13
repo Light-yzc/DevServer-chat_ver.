@@ -1,33 +1,30 @@
-# Web Wake 待办：Web 正在工作时禁止打断，收尾主动收信
+# Web Wake：等待当前 Web Turn，完成后再提醒
 
-> 记录于 2026-10-13。**Web 收尾查信 Prompt 已在代码中实现；页面工作中禁止插入的 UI 修复仍待本地 Agent 借助代理浏览器核验，不能宣称现网已解决。**
-> 扩展源码版本为 `0.1.7`（浏览器本地安装需人工更新）。本事项不授权启动新 Agent、改动科研实验、重置现有 Tips ACK 或修改安全门禁。
-> Tips Infrastructure 待办卡：`web-wake-idle-guard-20261013`（`pending`，待本地 Agent 后续认领）；本文件是实现说明，不建立第二套任务调度系统。
+Updated 2026-10-13. Implemented in extension source **0.1.8**. Existing server
+Tips task cards were not edited, and no research Agent or GPU work was started.
 
-## 背景与复现
+- [x] Inspect actual Edge DOM during Web Main thinking/MCP work and intermediate
+  prose; independently trigger a Python computation to observe start/completion.
+- [x] Require explicit full-turn completion plus Stop/Working/streaming checks.
+  Unknown layouts stay queued. Add a 20-second quiet window and mutation tracking.
+- [x] Recheck activity, drafts, attachments, navigation and the latest local
+  pending/ACK state immediately before Send; preserve user edits.
+- [x] Serialize snapshot/submission updates; ACK arriving during probing cancels
+  dispatch, and ACK/new mail arriving during submission cannot be overwritten.
+- [x] Keep one confirmed submission per ID; pending batches wait while Web works
+  and remain eligible once genuinely idle. Do not infer ACK from disappearance.
+- [x] Update the compact wake prompt to read unread mail, execute authorized work,
+  ACK/reply/advance progress as needed, and perform one bounded final inbox check.
+- [x] Recover missing/outdated content scripts via idempotent reinjection;
+  throttle failed recovery and wait for sleeping/loading tabs.
+- [x] Verify in actual Edge that extension reload restores the script in the
+  existing Web Main document without a ChatGPT page refresh.
+- [x] Automated busy-gap, pre-click activity, ACK race, batching and recovery tests.
+- [ ] Extended live acceptance for every tool/approval transition, transient
+  removal of all busy indicators, and browser-discard recovery. Unit simulations
+  cover the guards; this checklist does not claim these live cases were forced.
 
-- `extension/content.js` 的 `isBusy()` 主要依赖 Stop / 停止生成按钮。ChatGPT 在 thinking、工具调用、渲染切换或连续输出之间，该按钮可能短暂消失，导致页面**仍在执行当前 Web Turn** 时被误判为空闲。
-- `extension/background.js` 收到新消息后按角色查找匹配标签页，直接请求内容脚本自动输入并发送收件提醒；这可能在原工作中途插入新 User Turn，打断 Agent。本来 Web Agent 可能在自己结束前查看 `web_mail(inbox)` 并消费这些新信，无须额外注入。
-- 不应仅凭单个按钮消失、输入框为空、网络不活跃或页面焦点状态，就认定当前回复已结束。页面 DOM 随版本变化，应以真实浏览器核验，不猜 selector。
-
-## P1 · 由本地 Agent 经代理浏览器实施（未开始）
-
-- [ ] **真实 UI 调查**：在用户授权的 Chrome/Edge ChatGPT 标签页中，经代理浏览器分别观察普通生成、思考中、MCP 工具调用、工具结果与下一段回复之间、等待确认、最终完成、人工草稿/附件的 DOM 与交互信号；记录实际可用状态标记及版本，避免以猜测 selector 实现。
-- [ ] **保守的“Web 工作中”识别**：内容脚本结合多项可观察信号（包括当前 Stop 按钮及完整会话活动的可验证特征），并增加输出活动结束后的稳定静默窗口；仅在有足够证据确认空闲时自动发送，状态未知则返回 `busy`/延后而不是冒险插入。尤其覆盖工具调用期间 Stop 按钮短暂消失的窗口。
-- [ ] **发送前再次检查**：异步插入及等待 Send 按钮期间，如发现助手恢复活动、用户编辑、草稿/附件出现、标签页/会话切换，取消自动点击并安全保留待发状态；绝不清除用户草稿。无法判定提交成功时保持原有保守语义，不重复点击。
-- [x] **Web 收尾检查 Prompt（源码已实现）**：已在 v0.1.7 Web Wake 提醒、MCP Server Instructions、Web Mail Tool Description、`tips/RESEARCH_LOOP.md` 和 Agent 协作 Skill 增加约束：Web Main/Sub 完成本轮任务后，**再次**调用 `web_mail(action="inbox")` 做一次有界新信核对；只处理自己身份下、已有授权且不违反门禁的事项，处理后真实 ACK/回复；无法完成者明确阻塞、下一 Owner/触发，而非假称成功或无限轮询。**提示词不保证浏览器忙碌检测可靠；对本地浏览器扩展需人工 Reload。**
-- [ ] **Web 自处理后的去重**：如果 Web 在本轮收尾检查时已经 ACK 消息，扩展下次从服务端快照获得 ACK 后，应直接清除 `pending`，不再为这些 ID 注入提醒；发送前尽可能重新核对最新收件/ACK 快照，处理并发变化。`submitted` 仅表示浏览器已发送，`done` 仅表示真实 MCP ACK；不可把“Web 可能读过”推断为 ACK，也不能因消息短暂不在快照里而凭空标记完成。
-- [ ] **避免无限等待**：空闲后若仍有未 ACK 的 `pending`，保持最终能提交一次提醒的机制，且保留既有 30 天消息窗口、浏览器离线/租约限制。`busy` 不增加 `submitted`；已提交消息不再二次自动提交。
-- [ ] **回归与人工验收**：更新 `web-wake/content.test.mjs`、`web-wake/extension-retry.test.mjs` 等测试；运行 `node --test web-wake/*.test.mjs`、`node --test tips/*.test.mjs`、相关 `node --check`、`git diff --check`；再用真实代理浏览器模拟不同生成状态和工具调用的中途 Stop 消失、生成结束、自行 ACK、待发消息、用户草稿、重新连接及重复快照。
-
-## 验收条件
-
-1. **正在推理、调用工具、连续生成中**：即使 Stop 按钮暂时不见，也不自动插入、点击 Send 或中断当前 Turn。
-2. **自然收尾**：Web Agent 最多一次有界查信；处理并 ACK 的消息不会被再次提醒；只报告/处理真实新消息，不要求每轮无限清空收件箱。
-3. **确实空闲且未 ACK**：消息最终可按既有机制提交**一次**；草稿、附件与用户输入始终不受损。
-4. **状态准确**：`pending → submitted → done` 仅由真实 UI 提交、真实 MCP ACK 驱动，遇到失败/竞态不会错标 ACK 或重复派工。
-5. 代码评审、自动化测试、真实浏览器手工验收均通过，且更新本 TODO 与版本号后，再请用户在本机更新扩展文件并**手动 Reload 扩展 + 刷新目标 ChatGPT 标签页**。
-
-## 当前边界
-
-**收尾查信 Prompt 的修改已经落到源码**，但 `background.js` 的派发策略及 `content.js` 的 `isBusy()` 判定没有修改；浏览器注入冲突风险仍存在。不要把提示词改动当成 DOM 忙碌状态修复。
+See [BROWSER_VALIDATION.md](BROWSER_VALIDATION.md) for observations and limits.
+Updates require reloading the existing local unpacked extension. Normal script
+recovery no longer requires refreshing a ChatGPT page. No server restart is
+needed for these extension-only behavior changes.

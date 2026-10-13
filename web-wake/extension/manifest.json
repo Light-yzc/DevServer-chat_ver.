@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "DevSpace Web Wake (prototype)",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Route Tips wake notifications to manually named, claimed ChatGPT Web tabs.",
   "minimum_chrome_version": "116",
-  "permissions": ["storage", "tabs", "alarms"],
+  "permissions": ["storage", "tabs", "alarms", "scripting"],
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://regen.centralus.cloudapp.azure.com/*",
