@@ -5,6 +5,8 @@
 
 > 注意：这里版本控制的是 DevSpace 官方发布包的编译产物（`vendor/devspace/dist/`），不是官方的 TypeScript 开发源码。上游更新需手动合并，并重新验证自定义工具。仓库不含 `node_modules`、认证密钥、Agent 会话、训练模型或研究实验数据。
 
+**部署与文档导航：** 全新安装、现有生产服务器的安全升级/回滚和验收，请先看 **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**。Tips 见 [`tips/README.md`](tips/README.md)，浏览器唤醒扩展见 [`web-wake/README.md`](web-wake/README.md)，Web↔Local 交接见 [`tips/WEB_HANDOFF.md`](tips/WEB_HANDOFF.md)。尚未实施的浏览器忙碌检测/收尾主动收信见 **[`web-wake/TODO.md`](web-wake/TODO.md)**（仅 TODO，现网未修复）。
+
 ## 项目结构
 
 ```text
@@ -17,14 +19,17 @@ devspace-tips-mcp/
 │       ├── tips-dashboard.html
 │       └── subagent-tool.js
 ├── tips/                     # Main Sol、Sub Luna、App Server、测试和通讯协议
+├── web-wake/                 # 浏览器唤醒扩展、Relay、测试与待办
 ├── scripts/                  # 初始化、启动、检查、systemd 和状态迁移
-├── docs/Caddyfile.example
+├── docs/                     # 部署手册与 Caddy HTTPS 反代示例
 ├── var/                      # 本机密钥、配置和状态，仅运行时生成，Git 忽略
 ├── package.json
 └── .gitignore
 ```
 
 ## 新机器安装
+
+**首次安装**可使用本节的快捷流程；升级**已有 AIR 正式服务器**请使用 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) 的「B. 现有 AIR 服务器」章节，不要对生产运行环境重新执行 `npm run setup`。
 
 要求 Linux、Node.js **>=22.19 且 <27**、npm、Git。运行 Codex Agent 时另需预先安装并登录 Codex CLI，模型账号必须能够访问所选 `gpt-6-luna` / `gpt-6.1-sol`。可以独立使用 MCP/Tips；但未安装 Codex 时 Agent 不能执行。
 
