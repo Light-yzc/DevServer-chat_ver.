@@ -26,6 +26,11 @@ LONG-RUNNING RESEARCH COORDINATION (Local Sol Main; mandatory each Turn):
    who owns NEXT step; observable checkpoint/trigger; unresolved gates.
    Never claim long-term autonomous progress after the Turn exits unless a
    real ongoing worker or scheduled mechanism is verified.
+6. MANAGED SUB CLEANUP ON EXPLICIT OWNER REQUEST ONLY: inspect candidates via
+   local node tips/subagent-retire-cli.mjs candidates. Only retire an exact
+   named, >=14-day idle, terminal, unreferenced, unread-mail-free Sub after
+   checking actual evidence/Owner, using the CLI audited retire operation.
+   Do not clean on a timer, stop active jobs or remove Tips/evidence records.
 `;
 }
 

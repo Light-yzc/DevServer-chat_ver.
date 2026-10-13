@@ -91,6 +91,7 @@ git diff --check
 1. 列出提交实际改动的文件；只处理**需要上线的运行文件**。从生产目录逐文件备份到权限受限的备份目录，并保留时间戳。不要覆盖生产 `security.json`、`auth.json`、`config.json`、Tips 状态、Agent Thread、GPU 实验数据。
 2. `vendor/devspace/dist/*.js` 中受影响的 MCP 模块需要同步到上表的全局 DevSpace `dist/`；**不能**只更新仓库就认为线上生效。对于 Tips 运行脚本，同步到 `/mnt/disk1/yangzhongcheng/tips/`。
 3. **核对生产 import 差异**：仓库 Tips 脚本引用 `../vendor/devspace/dist/...`；生产脚本则引用 `../tools/nvm/versions/node/v22.23.3/lib/node_modules/@waishnav/devspace/dist/...`。全局 `tips-admin.js` 的 `subagents.mjs` 相对 import 深度也不同。同步这些文件必须**只适配对应导入路径并核查完整 diff**，不可盲目 `cp -r` 覆盖生产、也不可保留错误路径。某些生产文件与仓库不完全相同正是正常的环境适配。
+   新增的本地 Main 退休命令 `tips/subagent-retire-cli.mjs` 和 `tips/subagent-retirement.mjs` 也引用 `../vendor/devspace/dist/...`，生产同步时同样需要路径适配；只读 `candidates` 可以安全验证 CLI 可用，**不可为验收而退休真实 Sub**。
 4. **文档或浏览器扩展单独更新不要求重启 MCP**。如果修改 MCP 服务编译代码，需在没有正在处理中断风险时安排 MCP 重启；修改 Local Controller/Manager 行为分别核查并安全重启相应的 systemd 用户服务。不要在 Sol/Luna 正执行 Turn 时强制重启，且不要以重启作为解除失败熔断的方法。
 
 `web-wake/deploy-existing-devspace.sh` 是早期**特定单端口 CLI/WebSocket 集成**脚本，并非本仓库通用更新命令；它会替换入口并重启 MCP，**不要直接拿它执行所有版本升级**。生产变更应先有精确文件清单、备份与回滚方案。

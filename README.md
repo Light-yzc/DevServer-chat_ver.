@@ -129,6 +129,8 @@ journalctl --user -u devspace-tips-mcp.service -f
 
 Local Subagent 的**持久身份注册上限是 128 个**；并发执行由 `TIPS_SUBAGENT_MAX` 单独控制，默认 2、硬上限 4。已完成身份可用相同名称和运行配置继续持久 Thread，不必删除研究历史来腾名额。增加注册容量不会解除科研 `dispatch_hold`、STOP、GPU/Owner 等门禁。
 
+**Local Main 受控清理旧 Sub 身份**：在 Owner 明确要求时，Main 可本地运行 `node tips/subagent-retire-cli.mjs candidates` 查看可退休名单，再按具体 ID 执行审计操作 `retire sub-NAME --confirm sub-NAME --reason "..."`。要求空闲至少 14 天、Agent 和 Tips 任务均已终止、没有未读信及未完成任务引用；不会自动停模型、删除 Tips 历史或科研文件。无需将私有 `viewToken` 输入模型提示词。完整安全条件参见 [`tips/TIPS_ADMIN.md`](tips/TIPS_ADMIN.md)。同 Linux 用户的 Main/Luna 之间没有严格 OS 权限隔离。
+
 六个主要协作 MCP 工具：`tips`（任务/心跳/历史）、`tips_messages`（常规留言/ACK）、`tips_exchange`（可验收事务）、`subagent`（管理 App Server Agent）、`web_identity`（多个 Web Chat 独立认领身份）、`web_mail`（Web↔Web / Web↔Agent 通信）。所有工具都附有 action 级说明和关键参数的 MCP schema `.describe()`。**给新 Agent 的推荐使用指南：[`tips/AGENT_TOOL_USE.md`](tips/AGENT_TOOL_USE.md)**；其工具元数据来源在 `vendor/devspace/dist/tips-tool-descriptions.js`，使用手册与元数据由测试检查一致性。
 
 ### 多 Web Chat 身份注册

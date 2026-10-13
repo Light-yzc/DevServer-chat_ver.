@@ -26,6 +26,21 @@ Main (`server-controller`) 与 `air-*` 等 tmux 旧 Worker 由 systemd/tmux 状�
 
 ## 操作示例
 
+### Local Main 低风险退休入口（不向模型透露密钥）
+
+在**当前受信任 Linux 用户下**运行下列本地 CLI；它不是远程 MCP 管理 API，不能用作严格 Main/Luna 操作系统级权限隔离：
+
+```bash
+node tips/subagent-retire-cli.mjs candidates
+node tips/subagent-retire-cli.mjs retire sub-old-reviewer \
+  --confirm sub-old-reviewer \
+  --reason "Owner confirmed obsolete QA; evidence and tasks archived"
+```
+
+只有 Owner 明确要求整理旧 Sub 时，Local Main 才应先读候选、检查当前科研 Owner/实验状态，再退休逐个确认的身份。工具**默认只读**；退休需要相同 ID 的二次确认、14 天无活动、已结束的 Agent + Tips 任务卡、无本身份未读信、无未完成任务 Owner/依赖引用、无待诊断失败熔断。实际删除走同一 `tips_admin(remove_sub)` 内部管理审计，Token 只在本地进程内传递，不应出现在 CLI 参数、Prompt、Tips 消息或日志中。不会自动停止 Agent、删除科研文件、历史任务/邮件或解除 STOP/GPU/`dispatch_hold`；有不确定的任务关系或研究门禁应放弃清理而非强制通过。此工具不会自行创建定时任务。
+
+CLI 在生产复制到 `/mnt/disk1/yangzhongcheng/tips/` 时，必须按当前服务器布局适配 `vendor/devspace/dist` 的导入到实际全局模块路径并通过 `node --check`，然后才可使用；参见 `docs/DEPLOYMENT.md`。
+
 ```text
 tips_admin({"action":"remove_web","id":"web-unused","viewToken":"<私有 Tips 查看密钥>","reason":"conversation retired"})
 tips_admin({"action":"stop_sub","id":"sub-finished-reviewer","viewToken":"<私有 Tips 查看密钥>"})
