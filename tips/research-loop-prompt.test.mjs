@@ -15,7 +15,7 @@ test('Sol Main always receives a compact goal-driven research handoff contract',
   assert.ok(prompt.length<3200,'Do not waste Sol tokens on duplicated policy');
   const runner=read('tips/server-controller.mjs');
   assert.match(runner,/mainResearchLoopPrompt\(\)/);
-  assert.match(runner,/progressMeasured===true/);
+  assert.match(runner,/taskBoardDigest\(tips\.snapshot\(\)/);
 });
 
 test('Luna resumed Threads receive a short research loop each Turn, with verified progress and reply',()=>{

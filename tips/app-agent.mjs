@@ -21,6 +21,7 @@ import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { tipsProtocol, needsDelivery, shouldInjectProtocol,localMainWakeRequested,localMainReplyWakeRequested } from './subagent-protocol.mjs';
 import {applySubagentProgress} from './subagent-progress.mjs';
 import {subResearchLoopPrompt} from './research-loop-prompt.mjs';
+import {taskBoardDigest} from './task-board-digest.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -201,6 +202,7 @@ async function main(){
   if(params.probe)return;
   let prompt=readFileSync(params.promptFile,'utf8');
   prompt+='\n'+subResearchLoopPrompt(params.name);
+  prompt+='\n'+taskBoardDigest(tips.snapshot(),{role:'sub',agentId:params.name,limit:4})+'\n';
   prompt+=`\nTips progress required: the user reads ONLY /tips, card ID ${params.name}. At real milestones use tips-cli update, or include a final <tips-actions> JSON property "progress":{"status":"running|blocked|completed","message":"evidence, current phase, next step"} (optional current+total if measurable). No guessed percentages; no extra Sol calls.\n`;
   // Existing persistent Codex Threads were initialized before wake escalation
   // existed. A short per-Turn reminder upgrades them without reinjecting the
