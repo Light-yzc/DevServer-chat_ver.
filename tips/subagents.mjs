@@ -6,6 +6,9 @@ import { join, relative, resolve, sep } from 'node:path';
 const ID=/^sub-[a-z0-9][a-z0-9_.-]{0,57}$/;
 const MODEL=new Set(['gpt-6-luna','gpt-6.1-sol']);
 const SANDBOX=new Set(['read-only','workspace-write','danger-full-access']);
+// Owner policy: ALL managed Subagent App Server turns run with full filesystem
+// sandbox permissions. This does not grant scientific/GPU dispatch approval.
+export const SUBAGENT_SANDBOX='danger-full-access';
 // Registered persistent identities are NOT simultaneous Codex processes.
 // Parallel execution is independently capped by TIPS_SUBAGENT_MAX (default 2).
 export const MAX_REGISTERED_SUBAGENTS=128;
@@ -30,17 +33,22 @@ export function subagentRegistry(config,tips){
   const modify=fn=>locked(dir,()=>{const db=load(),value=fn(db);write(file,db);return value});
   const get=id=>{if(!valid(id))err('Agent name must start with sub- (letters/digits/-/_)');return load().agents[id]??null};
   const list=()=>Object.values(load().agents).sort((a,b)=>(b.updatedAt??'').localeCompare(a.updatedAt??''));
-  function start({name,goal,cwd,model='gpt-6-luna',sandbox='workspace-write',group='Subagents'}){
+  function start({name,goal,cwd,model='gpt-6-luna',sandbox=SUBAGENT_SANDBOX,group='Subagents'}){
     if(!valid(name))err('name must start with sub- and contain 1..61 safe characters');
     if(typeof goal!=='string'||!goal.trim()||goal.length>16000)err('goal must be 1..16000 characters');
     if(!MODEL.has(model))err('Unsupported Codex model (use gpt-6-luna or gpt-6.1-sol)');
     if(!SANDBOX.has(sandbox))err('Invalid sandbox');
+    // Older Web/Local callers may still explicitly pass workspace-write or
+    // read-only. Normalize instead of silently launching a restricted Luna.
+    sandbox=SUBAGENT_SANDBOX;
     if(typeof group!=='string'||group.length>70)err('Invalid group');
     const root=allowed(resolve(cwd??config.allowedRoots[0]),config.allowedRoots);
     const started=modify(db=>{
       let current=db.agents[name];
       if(current&&['queued','running','stopping'].includes(current.status))err('This subagent is already running or queued');
       if(current?.failureCircuitOpen)err('Subagent failure circuit is open: diagnose the failed Turn and request an audited admin reset first');
+      if(current?.sandbox!==undefined&&current.sandbox!==SUBAGENT_SANDBOX)
+        err('Existing agent still has a legacy sandbox; perform the safe idle registry full-access migration first');
       if(current&&(current.model!==model||current.cwd!==root||current.sandbox!==sandbox))
         err('Existing agent has different model/cwd/sandbox; use a new name to isolate sessions');
       if(!current&&Object.keys(db.agents).length>=MAX_REGISTERED_SUBAGENTS)
@@ -68,6 +76,29 @@ export function subagentRegistry(config,tips){
     return started;
   }
   function publicAgent(a){const {goalFile,...rest}=a;return rest;}
+  function promoteFullAccess(){return modify(db=>{
+    const all=Object.values(db.agents);
+    // Refuse partial migration while an App Server turn is still live or a
+    // queued request could be claimed by the currently running Manager.
+    for(const item of all){
+      if(['queued','running','stopping'].includes(item.status))
+        err('Full-access migration refused while any Subagent is queued or active: '+item.name);
+      if(item.pid){
+        try{process.kill(item.pid,0);err('Full-access migration refused for live PID: '+item.name)}
+        catch(e){if(e.code!=='ESRCH')throw e}
+      }
+    }
+    let promoted=0;
+    for(const item of all){
+      if(item.sandbox===SUBAGENT_SANDBOX)continue;
+      item.previousSandbox=item.sandbox;
+      item.sandbox=SUBAGENT_SANDBOX;
+      item.sandboxPromotedAt=now();
+      promoted++;
+    }
+    return {total:all.length,promoted,alreadyFull:all.length-promoted,
+      sandbox:SUBAGENT_SANDBOX,threadIdsPreserved:true};
+  })}
   function status(name){const item=get(name);return item?publicAgent(item):null}
   function stop(name){return modify(db=>{
     if(!valid(name))err('Invalid agent name');const item=db.agents[name];if(!item)err('Unknown agent');
@@ -129,5 +160,5 @@ export function subagentRegistry(config,tips){
     if(typeof body!=='string'||!body.trim()||body.length>6000)err('Invalid message body');
     return tips.messages({action:'post',from,to:name,subject,body,priority},{trustedWake:true});
   }
-  return {dir,file,start,stop,remove,status,list,update,send,load,resetFailureCircuit};
+  return {dir,file,start,stop,remove,status,list,update,send,load,resetFailureCircuit,promoteFullAccess};
 }

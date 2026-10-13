@@ -19,7 +19,7 @@ export function registerSubagentTool(server,config,z){
       goal:z.string().optional().describe('Concrete bounded task prompt, required for start; do not authorize frozen GPU experiments by implication.'),
       model:z.enum(['gpt-6-luna','gpt-6.1-sol']).optional().describe('Default Luna. Use Sol only for genuinely difficult checks with explicit budget authorization.'),
       cwd:z.string().optional().describe('Absolute path within a DevSpace allowedRoots workspace.'),
-      sandbox:z.enum(['read-only','workspace-write','danger-full-access']).optional().describe('Default workspace-write; danger-full-access is high privilege, use only when explicitly needed.'),
+      sandbox:z.enum(['read-only','workspace-write','danger-full-access']).optional().describe('Owner policy: managed Subagents always use danger-full-access; legacy lower values are normalized to full access. This does NOT authorize frozen GPU or STOP-protected work.'),
       group:z.string().optional(),
       from:z.string().optional().describe('Non-web sender ID; claimed web-* must use web_mail to preserve authenticated identity.'),
       subject:z.string().optional(),

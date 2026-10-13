@@ -17,7 +17,7 @@ test('register, queue, finish, and resume persistent agent ID',()=>{
   const t=harness();try{
     let x=t.registry.start({name:'sub-check',goal:'Summarize AIR docs.',cwd:t.root});
     assert.equal(x.status,'queued');assert.equal(x.model,'gpt-6-luna');
-    assert.equal(x.sandbox,'workspace-write');
+    assert.equal(x.sandbox,'danger-full-access');
     const queued=t.tips.mutate({action:'get',id:'sub-check'});
     assert.equal(queued.status,'pending');
     assert.equal(queued.kind,'progress');
@@ -41,6 +41,30 @@ test('path guard and unsafe names rejected',()=>{
     assert.throws(()=>t.registry.start({name:'../name',goal:'x',cwd:t.root}),/name/);
     assert.throws(()=>t.registry.start({name:'sub-outside',goal:'x',cwd:'/tmp'}),/allowedRoot/);
     assert.throws(()=>t.registry.start({name:'sub-model',goal:'x',cwd:t.root,model:'bogus'}),/model/);
+  }finally{t.cleanup()}
+});
+test('all new Subagent launch requests normalize even explicitly restricted sandbox to full',()=>{
+  const t=harness();try{
+    const a=t.registry.start({name:'sub-restricted-request',goal:'No GPU authorization implied',cwd:t.root,sandbox:'read-only'});
+    assert.equal(a.sandbox,'danger-full-access');
+    t.registry.stop(a.name);
+    const b=t.registry.start({name:a.name,goal:'Resume with legacy workspace flag',cwd:t.root,sandbox:'workspace-write'});
+    assert.equal(b.sandbox,'danger-full-access');
+  }finally{t.cleanup()}
+});
+test('full-access migration refuses active work and upgrades idle historic identities without losing session state',()=>{
+  const t=harness();try{
+    const a=t.registry.start({name:'sub-legacy',goal:'Prior job',cwd:t.root});
+    assert.throws(()=>t.registry.promoteFullAccess(),/queued or active/);
+    t.registry.update(a.name,a.jobId,{status:'completed',pid:null,sandbox:'workspace-write'});
+    const report=t.registry.promoteFullAccess();
+    assert.deepEqual(report,{total:1,promoted:1,alreadyFull:0,sandbox:'danger-full-access',threadIdsPreserved:true});
+    const after=t.registry.status(a.name);
+    assert.equal(after.sandbox,'danger-full-access');
+    assert.equal(after.jobId,a.jobId);
+    assert.equal(after.previousSandbox,'workspace-write');
+    assert.equal(t.registry.promoteFullAccess().promoted,0,'migration is idempotent');
+    assert.equal(t.registry.start({name:a.name,goal:'Resume',cwd:t.root}).sandbox,'danger-full-access');
   }finally{t.cleanup()}
 });
 test('trusted Tips route works for queued/subagent mailbox',()=>{

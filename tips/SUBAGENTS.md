@@ -21,7 +21,7 @@ subagent(action="message", name="sub-air-review", from="controller", subject="Ch
 
 Stop one managed child only: `subagent(action="stop", name="sub-air-review")`.
 
-Model `gpt-6-luna` is default. Opt-in `gpt-6.1-sol` only when the problem genuinely needs concentrated deep research; do not circumvent the two-Sol-reviews-per-topic policy. `workspace-write` is the default sandbox. Specify `danger-full-access` only when necessary, understanding that the agent can edit files outside its workspace. Always obey experiment pre-registration, frozen-result, GPU/resource and STOP constraints.
+Model `gpt-6-luna` is default. Opt-in `gpt-6.1-sol` only when the problem genuinely needs concentrated deep research; do not circumvent the two-Sol-reviews-per-topic policy. **Owner policy (2026-10-14): all managed Subagent Codex App Server turns use `danger-full-access`**. Old callers specifying `workspace-write` or `read-only` are normalized to full access. Previously registered, idle Subagents must first be migrated using `node tips/subagent-cli.mjs promote-full --confirm-all` with the Manager stopped and no queued/active jobs; existing thread IDs remain intact. Full filesystem access is **not** authority to bypass experiment pre-registration, frozen outputs, GPU gate, resource ownership or STOP constraints. Do not share untrusted Tips mail directly with full access agents.
 
 ## Server Main Agent CLI
 

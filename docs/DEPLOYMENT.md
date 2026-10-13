@@ -94,6 +94,8 @@ git diff --check
    新增的本地 Main 退休命令 `tips/subagent-retire-cli.mjs` 和 `tips/subagent-retirement.mjs` 也引用 `../vendor/devspace/dist/...`，生产同步时同样需要路径适配；只读 `candidates` 可以安全验证 CLI 可用，**不可为验收而退休真实 Sub**。
 4. **文档或浏览器扩展单独更新不要求重启 MCP**。如果修改 MCP 服务编译代码，需在没有正在处理中断风险时安排 MCP 重启；修改 Local Controller/Manager 行为分别核查并安全重启相应的 systemd 用户服务。不要在 Sol/Luna 正执行 Turn 时强制重启，且不要以重启作为解除失败熔断的方法。
 
+**全量 Subagent 权限迁移（需 Owner 明确授权）**：更新 `tips/subagents.mjs`、`tips/subagent-cli.mjs` 和全局 `vendor/devspace/dist/subagent-tool.js` 的生产副本后，确认无任何 `queued/running/stopping` Agent 或活跃 App Server PID；备份私有 `tips/subagents/registry.json`、停止 Manager，在生产工作目录执行 `node tips/subagent-cli.mjs promote-full --confirm-all`（幂等，拒绝活动任务）。核对每条 `sandbox=danger-full-access` 且 Thread 指针原样存在，再启动 Manager 并于安全窗口重载 MCP。此操作不修改科研准入/GPU/STOP/`dispatch_hold`；不得借迁移启动实验。
+
 `web-wake/deploy-existing-devspace.sh` 是早期**特定单端口 CLI/WebSocket 集成**脚本，并非本仓库通用更新命令；它会替换入口并重启 MCP，**不要直接拿它执行所有版本升级**。生产变更应先有精确文件清单、备份与回滚方案。
 
 ### B4. 灰度与生产验收
