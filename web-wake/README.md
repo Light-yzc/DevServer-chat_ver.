@@ -126,6 +126,11 @@ start/steer an authorized Agent or send a follow-up message). It must check the
 current Owner/STOP/GPU gates before dispatching new work. Only role names and
 message IDs go into the browser prompt—never remote message bodies or secrets.
 
+Version 0.1.6 shortens the browser-injected prompt to the user's exact compact
+Chinese reminder: read via `web_mail(inbox)`, handle authorized work, ACK,
+reply or advance research and dispatch Agents when needed. Message IDs and
+the destination Web role are interpolated; no message body is included.
+
 ## Operational and security rules
 
 - **Never put a Tips message body, shell command, invite or claim key into an automated prompt**. Only an ID and recipient identity are sent to the chat.

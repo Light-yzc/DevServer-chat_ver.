@@ -27,16 +27,11 @@ test('waits for Send to appear after insertion and confirms composer cleared',as
   const f=fixture();assert.equal((await f.send()).status,'sent');
   assert.deepEqual(f.stats(),{clicks:1,deletes:0,lookupsBeforeInsert:0});
 });
-test('wake template asks Web Agent to ACK, continue progress and delegate only within authorization',async()=>{
+test('wake template matches the user-defined compact research continuation message exactly',async()=>{
   const f=fixture();assert.equal((await f.send()).status,'sent');
   const prompt=f.submittedText();
-  assert.match(prompt,/DevSpace\/Tips：web-test_1 有新消息（ID：11111111-1111-1111-1111-111111111111）/);
-  assert.match(prompt,/web_mail\(action="inbox"\)/);
-  assert.match(prompt,/处理后 ACK，必要时回复/);
-  assert.match(prompt,/必要时请尝试推进进度，启动 agent 或者发送信息/);
-  assert.match(prompt,/先核对当前任务与执行状态/);
-  assert.match(prompt,/STOP\/GPU 限制/);
-  assert.ok(prompt.length<400,'Keep the wake prompt token-efficient');
+  assert.equal(prompt,'DevSpace/Tips：web-test_1 有新消息（ID：11111111-1111-1111-1111-111111111111）。请调用 web_mail(action="inbox") 读取；按已有授权处理后 ACK，必要时回复和请尝试推进进度，启动 agent 或者发送信息。');
+  assert.ok(prompt.length<230,'Keep the wake prompt token-efficient');
 });
 test('supports composer container without a form',async()=>{
   const f=fixture({form:false});assert.equal((await f.send()).status,'sent');
