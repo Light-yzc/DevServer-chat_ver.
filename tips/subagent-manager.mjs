@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Tiny long-lived launcher. Model inference only runs for jobs or trusted mail. */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, openSync, closeSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, openSync, closeSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../vendor/devspace/dist/config.js';
@@ -10,6 +10,8 @@ import { subagentRegistry } from './subagents.mjs';
 import { needsDelivery } from './subagent-protocol.mjs';
 import {boundedTaskMessage} from './task-result-text.mjs';
 import {emitResearchMilestone} from './subagent-handoff.mjs';
+import {beginGitEvidence,finishGitEvidence,writeSubHandoff} from './subagent-evidence.mjs';
+import {inspectDocumentation,compareDocumentation} from './document-freshness.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -18,6 +20,7 @@ const NODE=process.execPath;
 const POLL=Math.max(1000,Number(process.env.TIPS_SUBAGENT_POLL_MS)||3000);
 const MAX=Math.min(4,Math.max(1,Number(process.env.TIPS_SUBAGENT_MAX)||2));
 const active=new Map();let stopping=false,lastHeartbeat=0;
+const reconciledReports=new Set();
 const log=(...a)=>console.log(new Date().toISOString(),...a);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
@@ -38,8 +41,33 @@ function final(name,jobId,code,signal){
   const status=isStop?'stopped':code===0?'completed':'failed';
   const resultPath=join(registry.dir,`${name}-${jobId}.last.txt`);
   let result='';try{result=readFileSync(resultPath,'utf8')}catch{}
-  const updated=registry.update(name,jobId,{status,pid:null,finishedAt:new Date().toISOString(),
-    exitCode:code,error:signal??(status==='failed'?`exit ${code}`:null),lastResult:result.slice(-4000)});
+  let gitEvidence=null;
+  try{gitEvidence=finishGitEvidence({dir:registry.dir,name,jobId,cwd:current.cwd})}
+  catch(error){log('git evidence finalize failed',name,error.message)}
+  let docsReview=null;
+  try{
+    const beforeFile=join(registry.dir,`${name}-${jobId}.docs-start.json`);
+    const previous=existsSync(beforeFile)?JSON.parse(readFileSync(beforeFile,'utf8')):null;
+    const after=inspectDocumentation(current.cwd);
+    docsReview=compareDocumentation(previous,after,{workspaceChanged:Boolean(
+      gitEvidence?.workingDiffChanged||gitEvidence?.headChanged)});
+    docsReview.observedDocs=after.docs??[];
+    const outFile=join(registry.dir,`${name}-${jobId}.documentation.json`);
++    writeFileSync(outFile,JSON.stringify(docsReview,null,2)+'\n',{mode:0o600});
+  }catch(error){log('documentation freshness finalization failed',name,error.message)}
+  const finishedAt=new Date().toISOString();
+  let report=null;
+  try{const task=tips.mutate({action:'get',id:name});
+    report=writeSubHandoff({dir:registry.dir,name,jobId,status,exitCode:code,
+      startedAt:current.startedAt,finishedAt,requestedBy:current.reportTo??task?.owner,
+      goal:existsSync(join(registry.dir,`${name}-${jobId}.goal.txt`))?
+        readFileSync(join(registry.dir,`${name}-${jobId}.goal.txt`),'utf8'): '',
+      result,gitEvidence,documentation:docsReview});
+  }catch(error){log('structured handoff failed',name,error.message)}
+  const updated=registry.update(name,jobId,{status,pid:null,finishedAt,
+    exitCode:code,error:signal??(status==='failed'?`exit ${code}`:null),lastResult:result.slice(-4000),
+    gitEvidencePath:gitEvidence?join(registry.dir,`${name}-${jobId}.git-end.json`):null,
+    handoffPath:report?join(registry.dir,`${name}-${jobId}.handoff.json`):null});
   active.delete(name);
   if(updated){
     publish(updated,isStop?'cancelled':status==='completed'?'completed':updated.failureCircuitOpen?'blocked':'failed',
@@ -48,11 +76,10 @@ function final(name,jobId,code,signal){
       `连续 ${updated.consecutiveFailures} 次模型执行失败，已暂停自动派工。需审查 ${resultPath} 和 stdout/events 日志，管理员记录原因并复位。退出码 ${code}。`:
       `App Server failed: ${signal||code}`,
       status==='completed'?resultPath:'');
-    if(status==='completed'){
-      try{emitResearchMilestone(tips,{name,jobId,group:updated.group,
-        startedAt:updated.startedAt,resultPath})}
-      catch(error){log('milestone handoff failed',name,error.message)}
-    }
+    try{emitResearchMilestone(tips,{name,jobId,group:updated.group,
+      startedAt:updated.startedAt,resultPath,resultExcerpt:result.slice(0,1200),gitEvidence,
+      status,owner:report?.requestedBy,reportPath:updated.handoffPath})}
+    catch(error){log('milestone handoff failed',name,error.message)}
     if(updated.failureCircuitOpen&&current.failureCircuitOpen!==true){
       // Exactly one high-value Sol escalation per newly-opened circuit.
       // It requests diagnosis only; does not reset or re-run the failed job.
@@ -69,6 +96,12 @@ function launch(item){
   const logPath=join(registry.dir,`${name}-${jobId}.stdout.log`);
   const outPath=join(registry.dir,`${name}-${jobId}.last.txt`);
   const eventPath=join(registry.dir,`${name}-${jobId}.events.jsonl`);
+  try{beginGitEvidence({dir:registry.dir,name,jobId,cwd:item.cwd})}
+  catch(error){log('git evidence snapshot failed',name,error.message)}
+  try{
+    writeFileSync(join(registry.dir,`${name}-${jobId}.docs-start.json`),
+      JSON.stringify(inspectDocumentation(item.cwd),null,2)+'\n',{mode:0o600});
+  }catch(error){log('documentation snapshot failed',name,error.message)}
   const fd=openSync(logPath,'a',0o600);
   const args=[join(ROOT,'tips/app-agent.mjs'),'--name',name,'--model',item.model,'--cwd',item.cwd,
     '--sandbox',item.sandbox,'--prompt-file',item.goalFile,'--output-last-message',outPath,'--log',eventPath];
@@ -90,6 +123,23 @@ function launch(item){
 
 function scan(){
   const jobs=registry.list();
+  // Crash-safe outbox reconciliation: completed Jobs with a saved report get
+  // their delivery checked once after Manager restart. Per-job, per-recipient
+  // mail dedupe lives in emitResearchMilestone; no model execution is needed.
+  for(const job of jobs){
+    if(!['completed','failed','stopped'].includes(job.status)||!job.handoffPath||
+      !existsSync(job.handoffPath)||reconciledReports.has(job.jobId))continue;
+    try{
+      const report=JSON.parse(readFileSync(job.handoffPath,'utf8'));
+      if(report.jobId!==job.jobId||report.name!==job.name)continue;
+      const mail=emitResearchMilestone(tips,{name:job.name,jobId:job.jobId,group:job.group,
+        startedAt:job.startedAt,resultPath:report.evidence?.result,
+        resultExcerpt:report.summary,gitEvidence:report.git,status:job.status,
+        owner:report.requestedBy,reportPath:job.handoffPath});
+      reconciledReports.add(job.jobId);
+      if(mail)log('reconciled undelivered handoff',job.name,job.jobId);
+    }catch(error){log('handoff reconciliation deferred',job.name,error.message)}
+  }
   const checkHeartbeat=Date.now()-lastHeartbeat>=30000;
   if(checkHeartbeat)lastHeartbeat=Date.now();
   for(const job of jobs){

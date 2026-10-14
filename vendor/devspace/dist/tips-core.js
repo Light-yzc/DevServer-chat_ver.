@@ -285,11 +285,25 @@ export function createTipsV2(config){
       }
       const tracked=input.tracked===true;
       if(tracked&&!context.trustedWake)fail('Tracked exchanges require trusted submission');
+      // Atomic replay protection for internal background handoffs. The check
+      // runs in the SAME locked edit transaction as message creation, so a
+      // Manager restart or duplicate completion callback cannot send twice.
+      // This intentionally does not change ordinary user mail semantics.
+      let dedupeKey=null;
+      if(input.dedupeKey!==undefined){
+        if(context.trustedWake!==true||typeof input.dedupeKey!=='string'||
+          input.dedupeKey.length<8||input.dedupeKey.length>240||
+          !/^[a-z0-9_.:-]+$/i.test(input.dedupeKey))fail('Invalid trusted idempotency key');
+        dedupeKey=input.dedupeKey;
+        const previous=s.messages.find(m=>m.from===from&&m.to===to&&m.dedupeKey===dedupeKey);
+        if(previous)return previous;
+      }
       const subTarget=/^sub-[a-z0-9_.-]{1,60}$/i.test(to);
       const taskId=input.taskId??(action==='post'&&subTarget?to:null);
       const m={id:randomUUID(),at:now(),from,to,subject,body,priority,taskId,
           status:'unread',threadId,replyTo,wakeAuthorized:requested&&Boolean(context.trustedWake),attempts:0,
           trustedSender:context.trustedWake===true,tracked,
+          ...(dedupeKey?{dedupeKey}:{}),
           ...(autoBlock?{autoBlock}:{})};
         logMessage(m,action==='reply'?'reply_sent':'submitted',from);
         if(replyTo){const parent=s.messages.find(p=>p.id===replyTo);if(parent)logMessage(parent,'reply_received',from,m.id);}

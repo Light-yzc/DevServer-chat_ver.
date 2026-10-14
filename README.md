@@ -7,6 +7,8 @@
 
 **部署与文档导航：** 全新安装、现有生产服务器的安全升级/回滚和验收，请先看 **[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)**。Tips 见 [`tips/README.md`](tips/README.md)，浏览器唤醒扩展见 [`web-wake/README.md`](web-wake/README.md)，Web↔Local 交接见 [`tips/WEB_HANDOFF.md`](tips/WEB_HANDOFF.md)。Web Wake v0.1.7 **收尾查信 Prompt 已写入源码**（需部署 MCP 并本地 Reload 扩展才会生效），但“Web 工作中禁止打断”的浏览器忙碌检测仍待实施，见 **[`web-wake/TODO.md`](web-wake/TODO.md)**。
 
+**Agent Prompt、代码交接与文档新鲜度**：借鉴 SWE-agent、OpenHands、Claude Code 和 LangGraph 的分层提示词与证据交接机制；具体来源、提示词层级、Job 级 Git Diff、文档修改状态复核和验收规则见 **[`docs/AGENT_PROMPT_DESIGN.md`](docs/AGENT_PROMPT_DESIGN.md)**。Main 可按 Job ID 只读检查 Sub 的 `handoff/diff/result/log/events/documentation`，但共享目录 Diff 不等于 Sub 独占的代码修改。
+
 ## 项目结构
 
 ```text

@@ -8,6 +8,8 @@ import {createTipsSkills} from './tips-skills.js';
 import {createTipsProjectBoard} from './tips-project.js';
 import {createWebIdentityStore} from './web-identity-store.js';
 import {openAiConversationScopeId} from './request-meta.js';
+import {subagentRegistry} from '../../../tips/subagents.mjs';
+import {readSubEvidence,listSubJobEvidence} from '../../../tips/subagent-evidence.mjs';
 
 export { createTipsV2 as createTips } from './tips-core.js';
 const AUTH = (received, expected) => {
@@ -159,6 +161,7 @@ export function registerTipsTool(server,config,z){
 }
 export function mountTipsRoutes(app,config,express){
   const tips=createTipsV2(config);
+  const subagents=subagentRegistry(config,tips);
   const admin=createTipsAdmin(config,tips);
   const projects=createTipsProjectBoard(tips);
   const headers=res=>{res.set('Cache-Control','no-store');res.set('Referrer-Policy','no-referrer');res.set('X-Content-Type-Options','nosniff');};
@@ -198,6 +201,18 @@ export function mountTipsRoutes(app,config,express){
   app.get('/tips/api',(req,res)=>{
     if(!auth(req,res))return;
     guard(()=>req.query.action==='history'?tips.mutate({action:'history',id:String(req.query.id??''),limit:Number(req.query.limit??100)}):tips.snapshot(),req,res);
+  });
+  app.get('/tips/evidence/api',(req,res)=>{
+    if(!auth(req,res))return;
+    guard(()=>{
+      const name=String(req.query.name??'');
+      const agent=subagents.status(name);
+      if(!agent)throw Error('Unknown Subagent');
+      const kind=String(req.query.kind??'handoff');
+      if(kind==='jobs')return {name,jobs:listSubJobEvidence({dir:subagents.dir,name,limit:30})};
+      return readSubEvidence({dir:subagents.dir,name,jobId:String(req.query.job??agent.jobId??''),
+        kind,limitChars:7000});
+    },req,res);
   });
   app.get('/tips/project/api',(req,res)=>{
     if(!auth(req,res))return;

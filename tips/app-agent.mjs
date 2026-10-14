@@ -21,6 +21,7 @@ import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { tipsProtocol, needsDelivery, shouldInjectProtocol,localMainWakeRequested,localMainReplyWakeRequested } from './subagent-protocol.mjs';
 import {applySubagentProgress} from './subagent-progress.mjs';
 import {subResearchLoopPrompt} from './research-loop-prompt.mjs';
+import {inspectDocumentation,documentationTurnReminder} from './document-freshness.mjs';
 import {taskBoardDigest} from './task-board-digest.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -177,7 +178,16 @@ rl.on('line',line=>{
     turnStatus=event.params.turn?.status??'unknown';active=false;
     if(done){const fn=done;done=null;fn(turnStatus);}
   }
-  if(method.startsWith('turn/')||method==='item/completed')safeLog({at:new Date().toISOString(),event:method,turnId:event.params?.turn?.id??turnId,status:event.params?.turn?.status});
+  if(method.startsWith('turn/')||method==='item/completed'||method==='item/started'){
+    const item=event.params?.item;
+    // Durable, metadata-only step trace. Do not log prompts, command args,
+    // tool outputs or environment variables (they may contain credentials).
+    safeLog({at:new Date().toISOString(),event:method,
+      turnId:event.params?.turn?.id??turnId,status:event.params?.turn?.status,
+      itemId:typeof item?.id==='string'?item.id.slice(0,100):undefined,
+      itemType:typeof item?.type==='string'?item.type.slice(0,75):undefined,
+      itemStatus:typeof item?.status==='string'?item.status.slice(0,35):undefined});
+  }
 });
 let done=null;
 const awaitTurn=()=>new Promise((resolve,reject)=>{
@@ -202,6 +212,7 @@ async function main(){
   if(params.probe)return;
   let prompt=readFileSync(params.promptFile,'utf8');
   prompt+='\n'+subResearchLoopPrompt(params.name);
+  prompt+='\n'+documentationTurnReminder(inspectDocumentation(params.cwd))+'\n';
   prompt+='\n'+taskBoardDigest(tips.snapshot(),{role:'sub',agentId:params.name,limit:4})+'\n';
   prompt+=`\nTips progress required: the user reads ONLY /tips, card ID ${params.name}. At real milestones use tips-cli update, or include a final <tips-actions> JSON property "progress":{"status":"running|blocked|completed","message":"evidence, current phase, next step"} (optional current+total if measurable). No guessed percentages; no extra Sol calls.\n`;
   // Existing persistent Codex Threads were initialized before wake escalation

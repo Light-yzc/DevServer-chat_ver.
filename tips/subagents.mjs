@@ -33,7 +33,7 @@ export function subagentRegistry(config,tips){
   const modify=fn=>locked(dir,()=>{const db=load(),value=fn(db);write(file,db);return value});
   const get=id=>{if(!valid(id))err('Agent name must start with sub- (letters/digits/-/_)');return load().agents[id]??null};
   const list=()=>Object.values(load().agents).sort((a,b)=>(b.updatedAt??'').localeCompare(a.updatedAt??''));
-  function start({name,goal,cwd,model='gpt-6-luna',sandbox=SUBAGENT_SANDBOX,group='Subagents'}){
+  function start({name,goal,cwd,model='gpt-6-luna',sandbox=SUBAGENT_SANDBOX,group='Subagents',reportTo=null}){
     if(!valid(name))err('name must start with sub- and contain 1..61 safe characters');
     if(typeof goal!=='string'||!goal.trim()||goal.length>16000)err('goal must be 1..16000 characters');
     if(!MODEL.has(model))err('Unsupported Codex model (use gpt-6-luna or gpt-6.1-sol)');
@@ -42,6 +42,8 @@ export function subagentRegistry(config,tips){
     // read-only. Normalize instead of silently launching a restricted Luna.
     sandbox=SUBAGENT_SANDBOX;
     if(typeof group!=='string'||group.length>70)err('Invalid group');
+    if(reportTo!==null&&reportTo!=='server-controller'&&!/^web-[a-z0-9_.-]{1,60}$/.test(reportTo))
+      err('Invalid reportTo identity');
     const root=allowed(resolve(cwd??config.allowedRoots[0]),config.allowedRoots);
     const started=modify(db=>{
       let current=db.agents[name];
@@ -57,6 +59,9 @@ export function subagentRegistry(config,tips){
       const goalFile=join(dir,`${name}-${jobId}.goal.txt`);
       writeFileSync(goalFile,goal+'\n',{mode:0o600});
       const item={name,model,sandbox,cwd:root,group,status:'queued',jobId,goalFile,
+        // Delegation owner belongs to this job, not a prior resumed Thread.
+        // Retaining an old Web requester here could leak a later result.
+        reportTo:reportTo??null,
         createdAt:current?.createdAt??now(),updatedAt:now(),startedAt:null,finishedAt:null,
         stopRequested:false,exitCode:null,pid:null,error:null,lastResult:current?.lastResult??'',
         consecutiveFailures:current?.consecutiveFailures??0,

@@ -11,6 +11,7 @@
 | [`../tips/WEB_HANDOFF.md`](../tips/WEB_HANDOFF.md) | Local Sol ↔ Web Chat 的追踪交接与后备调度 |
 | [`../web-wake/README.md`](../web-wake/README.md) | Web Wake 服务端与本地浏览器扩展安装、更新 |
 | [`../web-wake/TODO.md`](../web-wake/TODO.md) | 待本地代理浏览器核验的“Web 忙碌时不注入”改进；**尚未部署** |
+| [`AGENT_PROMPT_DESIGN.md`](AGENT_PROMPT_DESIGN.md) | Agent 分层 Prompt、Job 级证据、代码 Diff、文档更新状态及 Main 验收 |
 | [`Caddyfile.example`](Caddyfile.example) | 基础 Caddy HTTPS 反代示例 |
 
 ## A. 全新 Linux 服务器（独立安装）
@@ -95,6 +96,10 @@ git diff --check
 4. **文档或浏览器扩展单独更新不要求重启 MCP**。如果修改 MCP 服务编译代码，需在没有正在处理中断风险时安排 MCP 重启；修改 Local Controller/Manager 行为分别核查并安全重启相应的 systemd 用户服务。不要在 Sol/Luna 正执行 Turn 时强制重启，且不要以重启作为解除失败熔断的方法。
 
 **全量 Subagent 权限迁移（需 Owner 明确授权）**：更新 `tips/subagents.mjs`、`tips/subagent-cli.mjs` 和全局 `vendor/devspace/dist/subagent-tool.js` 的生产副本后，确认无任何 `queued/running/stopping` Agent 或活跃 App Server PID；备份私有 `tips/subagents/registry.json`、停止 Manager，在生产工作目录执行 `node tips/subagent-cli.mjs promote-full --confirm-all`（幂等，拒绝活动任务）。核对每条 `sandbox=danger-full-access` 且 Thread 指针原样存在，再启动 Manager 并于安全窗口重载 MCP。此操作不修改科研准入/GPU/STOP/`dispatch_hold`；不得借迁移启动实验。
+
+**Subagent 交接/文档新鲜度新增文件**：同步 `tips/document-freshness.mjs` 和 `tips/subagent-evidence.mjs` 到生产 Tips 目录；同步 `tips/subagent-manager.mjs`、`subagent-handoff.mjs`、`app-agent.mjs`、`subagent-protocol.mjs`、`subagents.mjs`、`subagent-cli.mjs`、`research-loop-prompt.mjs`、`server-controller.mjs` 等被修改运行文件；在全局 `dist/` 同步 `tips-core.js`、`tips.js`、`subagent-tool.js`、`tips-tool-descriptions.js`、`server.js`、`tips-dashboard.html`。特别注意 `subagent-tool.js` 和 `tips.js` 在生产中引用 `subagents.mjs` / `subagent-evidence.mjs` 的相对路径更长，**必须逐文件适配并校验**。持久状态目录不搬迁、不初始化、不删除旧 Thread。
+
+在没有正在执行的 Sol/Luna Turn 时才安全重启受影响 Manager、Controller 和 MCP。重启后验证 `/tips/evidence/api` 未授权为 401、认证后按 Job ID 返回有限证据，真实历史 Job 的缺失数据应标记 unavailable 而不是捏造。**不要为了验收让实际 GPU Job 失败，也不要人工更改 frozen 实验和 STOP 状态。**
 
 `web-wake/deploy-existing-devspace.sh` 是早期**特定单端口 CLI/WebSocket 集成**脚本，并非本仓库通用更新命令；它会替换入口并重启 MCP，**不要直接拿它执行所有版本升级**。生产变更应先有精确文件清单、备份与回滚方案。
 

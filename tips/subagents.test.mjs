@@ -36,6 +36,19 @@ test('register, queue, finish, and resume persistent agent ID',()=>{
     assert.equal(t.registry.stop('sub-check').status,'stopped');
   }finally{t.cleanup()}
 });
+test('a resumed worker does not leak a prior Web delegator into a new Job',()=>{
+  const t=harness();try{
+    const original=t.registry.start({name:'sub-air-web-owner',goal:'Review experimental protocol',cwd:t.root,
+      reportTo:'web-air-main'});
+    assert.equal(original.reportTo,'web-air-main');
+    t.registry.update(original.name,original.jobId,{status:'completed'});
+    const local=t.registry.start({name:original.name,goal:'New local task',cwd:t.root});
+    assert.equal(local.reportTo,null);
+    t.registry.update(local.name,local.jobId,{status:'completed'});
+    assert.throws(()=>t.registry.start({name:original.name,goal:'Invalid recipient',cwd:t.root,
+      reportTo:'../../secret'}),/Invalid reportTo/);
+  }finally{t.cleanup()}
+});
 test('path guard and unsafe names rejected',()=>{
   const t=harness();try{
     assert.throws(()=>t.registry.start({name:'../name',goal:'x',cwd:t.root}),/name/);

@@ -4,6 +4,8 @@
 
 **Web 面板时间线（2026-10-14）**：任务页不按 AIR-Research / AIR-LIFE / AIR / Paper 等**内部工作方向**分组，它们统一属于 AIR 科研总项目。**只有页面中确实出现不同顶层项目时**（例如 AIR 与基础设施），才显示顶层项目区块，项目内按最后更新时间倒序，项目区块也按最新活动时间排序；只有一个项目时连区块标题也不重复显示。默认只展示滚动的最近 24 小时，任何仍在 `running`/`queued` 的任务继续显示。最近事件、卡片内历史记录，以及消息页的已完成通信只展示最近 24 小时；未读、派发中和待验收的通信不因过期而消失。Agent 页也按最近活动时间统一排序，不再按 Web/Sub 等角色生成分组标题；Agent 注册身份仍始终可管理。
 
+**Sub 的真实代码/实验交接（2026-10-14）**：Manager 为每个新 Turn 保存 start/end Git 快照、截断保护的共享工作区 Patch、结构化 `handoff.json` 和文档新鲜度报告，Main 可按 Job ID 读 `handoff/result/diff/events/log/documentation`，Tips 看板 Sub 任务卡也有查看入口。交接通知按 Job ID 去重且会尝试发回原 Web Owner；宕机恢复时检查未送达交接。所有 Sub 自报测试仍标注未独立验收，旧实验不会凭空补出归因 Diff。Prompt 设计说明见 [`../docs/AGENT_PROMPT_DESIGN.md`](../docs/AGENT_PROMPT_DESIGN.md)。
+
 这里的“清除一天外”指**从日常网页视图中隐藏旧记录**，不是数据库永久删除：后台 Tips task、历史、邮箱、Project Overview、Agent Thread、GPU/STOP/Owner 门禁都原样保留，仍可通过对应工具/管理操作审计。永久删除研究记录会破坏引用和复现，不会因打开网页而自动执行。
 
 **Main mailbox troubleshooting:** See [`MAIN_MAIL_DIAGNOSTICS.md`](MAIN_MAIL_DIAGNOSTICS.md) before treating a message marked unread as a delivery failure. `tracked:true` requests verification; only an explicit authorized `wake:true` starts Local Sol. The Agents/Mail pages distinguish passive Main reports, authorized queued wakes, Web mail, and legacy `controller` messages.

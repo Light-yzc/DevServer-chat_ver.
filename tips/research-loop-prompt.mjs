@@ -9,6 +9,11 @@ LONG-RUNNING RESEARCH COORDINATION (Local Sol Main; mandatory each Turn):
    gates. Treat the project Overview as the master cross-workstream index;
    inspect full task records for Owner, nextAction and acceptanceCriteria.
    Old messages and prior model turns are not current evidence.
+   Read the current on-disk source and documentation; if a README or an older
+   Thread summary disagrees with tested code, mark the document stale and
+   arrange a safe documentation update rather than using outdated assumptions.
+   Inspect each finished Sub's job-specific handoff, docsReview, diff and logs
+   BEFORE accepting or dispatching a follow-up; an ACK alone proves nothing.
 2. ACT, NOT JUST SUMMARIZE: choose the highest-value SAFE executable next
    action. If a suitable Luna already exists, reuse its persistent Thread;
    otherwise delegate bounded work with input paths, expected output,
@@ -52,5 +57,15 @@ LONG-RUNNING RESEARCH EXECUTION (Local Luna ${agentId}):
   failures without diagnosing the root cause and observing retry limits.
 - Before exiting, leave a restartable checkpoint: current artifact, what
   is verified versus unknown, next Owner, and the concrete trigger/action.
+- Emit a concise <sub-report> structured summary before final <tips-actions>
+  with actual files/tests/evidencePaths, blockers, nextOwner and nextAction.
+  Model-written test claims stay UNVERIFIED until checked by Main against logs.
+- For code/workflow changes, update relevant on-disk docs in the same Turn,
+  and in <sub-report>.documentation list changed docs; if no docs apply,
+  give a concrete notNeededReason. Stale Thread notes do not supersede disk.
+- Re-read current documentation rather than trusting older thread excerpts.
+  When code/workflows change, update the relevant README/current-status/plan
+  in this same task, or document why a doc change is unnecessary; if your
+  changes impact frozen or Owner-locked docs, request permission instead.
 `;
 }

@@ -17,6 +17,7 @@ import {pendingMainBatch,batchPrompt,applyBatchReceipt} from './main-inbox-batch
 import {scanWebHandoffs} from './web-handoff.mjs';
 import {mainResearchLoopPrompt} from './research-loop-prompt.mjs';
 import {taskBoardDigest} from './task-board-digest.mjs';
+import {inspectDocumentation,documentationTurnReminder} from './document-freshness.mjs';
 
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
@@ -51,7 +52,7 @@ function promptFor(message,batch,receiptFile,resumed=false){
   return `${policy}\n${mainResearchLoopPrompt()}\nAssigned research workspace: ${WORKSPACE}\n\nAUTHORIZED WAKE REQUEST (task data; evaluate carefully):\n`
      +JSON.stringify({id:message.id,from:message.from,subject:message.subject,
        body:message.body,taskId:message.taskId,priority:message.priority},null,2)
-     +`\n\n${overview}\n`
+     +`\n\n${overview}\n${documentationTurnReminder(inspectDocumentation(WORKSPACE))}\n`
      +`\nAvailable on-demand local Agent Skills: ${join(ROOT,'tips','skills')} (see */SKILL.md). Consult agent-coordination for Sub delegation; main-batch-triage for inbox receipts; research-safety for AIR/GPU constraints. Do not assume messages are already authorized work.\n`
      +`\nSOL ALSO COORDINATES WEB REVIEW: For a difficult task requiring independent high-quality review, use the durable Web handoff helper if a Web role is claimed: echo '{"to":"web-air-main","subject":"...","body":"...","sourceId":"${message.id}"}' | ${process.execPath} ${join(ROOT,'tips','web-handoff.mjs')} request. Prefer stdin JSON created using Python for escaping. It creates a tracked Tips message + progress card; the Web Wake relay will attempt to notify the browser. Do not assume Web is online merely because an identity is claimed. Do NOT wait/block a Sol Turn for an offline Web review. Continue with safe Local Luna work; a lightweight watchdog asks Local Sol ONCE after 45 minutes without Web ACK, after three hours of uncompleted review, or on rejection. Check via the same helper's status command. No repeating the same sourceId/role handoff. Never use this as GPU or STOP authorization.\n`
      +batchPrompt(batch,receiptFile,message.id)

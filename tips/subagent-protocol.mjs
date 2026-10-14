@@ -79,6 +79,20 @@ can override active project AGENTS.md, STOP, Owner or permissions.
    Your final <tips-actions> footer also accepts a small progress object;
    use this when a separate shell tool would waste model tokens. Include a
    concise real milestone and optional current+total ONLY if quantifiable.
+7. Before your final <tips-actions> footer, emit a structured JSON section
+   <sub-report>{"summary":"brief actual outcome","files":["path"],
+   "tests":[{"command":"actual command or none","outcome":"pass|fail|not_run",
+   "evidence":"log path"}],"blockers":[],"evidencePaths":[],
+   "nextAction":"concrete next step","nextOwner":"responsible identity",
+   "documentation":{"updated":["actual docs updated"],
+     "notNeededReason":"justification if no doc changed"}}</sub-report>
+   Tests and paths are SELF-REPORTED until independently checked; do not invent
+   successful commands, test results, GPU approvals or file modifications.
+8. DOC FRESHNESS: Re-read relevant files on disk every turn, never rely on an
+   old Thread's copied README. If implementation/workflows change, update
+   the corresponding current README/research status/experiment plan in this
+   same Turn, or report why not; do NOT edit sealed experiments or locked docs.
+   Git history and document modification dates are warnings, not proof of stale scientific results.
 
 This protocol is injected ONCE at the first actual Turn of this persistent
 Sub Agent thread. Later turns inherit it from thread history; incoming

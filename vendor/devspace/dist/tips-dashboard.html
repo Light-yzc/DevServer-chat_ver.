@@ -414,6 +414,48 @@
    }if(!list.childNodes.length)list.append(node('li','最近 24 小时没有历史变更'));hist.append(list)}
    else hist.append(node('small','展开后读取历史状态'));
    card.append(hist);
+   if(t.id?.startsWith('sub-')){
+     const evid=node('details',null,'history-box'),k='evidence:'+t.id;
+     const summary=node('summary','执行证据 · 交接报告 / Code Diff / 日志');
+     const controls=node('div',null,'action-row'),text=node('pre','展开后读取','log-line');
+     const jobSelect=node('select');jobSelect.setAttribute('aria-label','选择 Sub 执行 Job');
+     let selectedJob='';
+     async function fetchEvidence(kind){
+       try{
+         text.textContent='读取中…';
+         const q=new URLSearchParams({name:t.id,kind,...(selectedJob?{job:selectedJob}:{})});
+         const token=decodeURIComponent(location.hash.slice(1));
+         const response=await fetch('/tips/evidence/api?'+q,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+         const payload=await response.json();if(!response.ok)throw Error(payload.error||'HTTP '+response.status);
+         text.textContent=payload.available===false?'该历史 Job 尚无此类证据':
+           kind==='jobs'?JSON.stringify(payload.jobs??[],null,2):payload.excerpt??JSON.stringify(payload,null,2);
+         if(payload.truncated)text.textContent+='\n\n[已截断；请使用 Job ID 读取原始证据目录]';
+       }catch(error){text.textContent='证据读取失败：'+error.message}
+     }
+     for(const [kind,label] of [['handoff','交接报告'],['documentation','文档新鲜度'],['diff','Code Diff'],['result','最终结果'],['events','执行事件'],['log','运行日志']]){
+       const button=node('button',label);button.type='button';
+       button.addEventListener('click',()=>void fetchEvidence(kind));controls.append(button);
+     }
+     jobSelect.addEventListener('change',()=>{selectedJob=jobSelect.value;void fetchEvidence('handoff')});
+     controls.prepend(jobSelect);add(evid,summary,controls,text);
+     async function loadJobs(){
+       try{
+         const token=decodeURIComponent(location.hash.slice(1));
+         const r=await fetch('/tips/evidence/api?'+new URLSearchParams({name:t.id,kind:'jobs'}),
+           {headers:{Authorization:'Bearer '+token},cache:'no-store'});
+         if(!r.ok)throw Error('HTTP '+r.status);
+         const jobs=(await r.json()).jobs??[];
+         jobSelect.replaceChildren(new Option('当前 Job',''),...jobs.map(j=>new Option(`${j.jobId.slice(0,8)} · ${j.status}`,j.jobId)));
+       }catch{jobSelect.replaceChildren(new Option('历史列表不可用',''))}
+       await fetchEvidence('handoff');
+     }
+     evid.open=expandedCards.has(k);
+     evid.addEventListener('toggle',()=>{
+       if(evid.open){expandedCards.add(k);void loadJobs()}else expandedCards.delete(k);
+       saveExpanded();
+     });
+     card.append(evid);
+   }
    const footer=node('div',null,'timestamp');add(footer,node('span','ID · '+t.id),node('span','更新 · '+time(t.updatedAt)));card.append(footer);
    adminButtons(card,[['archive_task','归档任务',t.status!=='running'&&!t.archived],['delete_task','删除已归档的任务',t.archived===true&&t.status!=='running']],t.id);
    if(adminMode()){

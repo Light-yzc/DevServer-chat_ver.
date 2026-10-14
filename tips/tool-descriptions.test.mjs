@@ -31,7 +31,7 @@ test('all 9 advertised coordination tools have directly usable action-level desc
       tips:['list','update','heartbeat','history','blocked'],
       tips_messages:['post','reply','ACK','resolve','wake','controller'],
       tips_exchange:['submit','get','list','accepted','needs_changes'],
-      subagent:['start','status','message','stop','gpt-6-luna','turn/steer'],
+      subagent:['start','status','jobs','handoff','result','diff','documentation','message','stop','gpt-6-luna','turn/steer'],
       web_identity:['prepare','claim','whoami','renew','release','claimKey'],
       web_mail:['send','inbox','sent','get','ack','reply','resolve','verify'],
     };
@@ -72,7 +72,7 @@ test('tool action guidance corresponds to actual Zod enum actions',()=>{
       tips_admin:['history','revoke_web','remove_web','stop_sub','remove_sub','reset_sub_failure','archive_task','delete_task','delete_message'],
       tips:['list','get','update','heartbeat','history'],
       tips_messages:['list','get','post','reply','ack','resolve','delete'],
-      tips_exchange:['submit','get','list'],subagent:['start','list','status','message','stop'],
+      tips_exchange:['submit','get','list'],subagent:['start','list','status','jobs','handoff','result','diff','documentation','message','stop'],
       web_identity:['prepare','claim','whoami','list','renew','release'],
       web_mail:['send','inbox','sent','get','ack','reply','resolve','verify'],
     })){

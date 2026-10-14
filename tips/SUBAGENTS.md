@@ -13,6 +13,7 @@ subagent(action="start", name="sub-air-review", goal="Read AGENTS.md and inspect
 ```
 
 Inspect: `subagent(action="status", name="sub-air-review")`. Retrieve all: `subagent(action="list")`.
+Read past evidence without waking any model: `subagent(action="jobs", name="sub-air-review")`, then `subagent(action="handoff", name="sub-air-review", jobId="EXACT-JOB-UUID")`; optional actions `result`, `diff`, `log`, `events`, `manifest`, `documentation`. The per-Job Git patch is a **shared workspace snapshot, not proven modifications by this Agent**. A self-reported passed test is not Main-verified. In the authenticated Tips dashboard, expand a Sub card → **执行证据** to view the same bounded excerpts.
 Send a message while it works:
 
 ```
@@ -30,6 +31,9 @@ node tips/subagent-cli.mjs start sub-air-review \
   --cwd /your/allowed/research-workspace \
   --goal-file /path/to/approved-task.txt
 node tips/subagent-cli.mjs status sub-air-review
+node tips/subagent-cli.mjs jobs sub-air-review
+node tips/subagent-cli.mjs handoff sub-air-review --job EXACT-JOB-UUID
+node tips/subagent-cli.mjs diff sub-air-review --job EXACT-JOB-UUID
 node tips/subagent-cli.mjs message sub-air-review \
   --from server-controller --subject 'Need check' --body 'Review discrepancy'
 ```
