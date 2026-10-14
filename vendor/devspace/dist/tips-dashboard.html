@@ -16,11 +16,6 @@
     .live{display:flex;gap:9px;align-items:center;color:#9eabbf;font-size:12px}
     .dot{width:9px;height:9px;background:#657082;border-radius:50%;display:inline-block}.dot.ok{background:#62dca7;box-shadow:0 0 12px #62dca750}
     .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:26px}
-    .projects-overview{margin:0 0 22px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
-    .project-summary{background:#151515;border:1px solid #343434;border-radius:14px;padding:16px;text-align:left;min-width:0;display:flex;flex-direction:column;gap:7px}
-    .project-summary strong{font-size:16px}.project-summary span{font-size:12px;color:#bababa}.project-summary .project-meta{color:#e0e0e0;font-weight:550;line-height:1.5}
-    .project-summary.active{border-color:#e3e3e3;background:#242424}
-    .project-summary .project-step{font-size:12px;max-height:4.5em;overflow:hidden;line-height:1.5;color:#b4c5d7}
     .project-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:13px}
     .project-form input,.project-form select,.project-form textarea{min-width:0;width:100%;font-size:12px}
     .project-form label{font-size:12px;color:#aaa;display:grid;gap:4px}.project-form .wide{grid-column:1/-1}
@@ -136,13 +131,10 @@
     .thread .message-body{margin:11px 0 6px;color:#dadada}
     .agent-recent{margin:10px 0;padding:9px 11px;border:1px solid #303030;border-radius:9px;background:#101010}
     .agent-recent .mail-route{margin:6px 0 4px;padding:0;border:0;background:transparent}
-    .group-head{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:13px;padding:19px 2px 5px;flex-wrap:wrap}
-    .group-head h2{font-size:19px;color:#eee}.group-head small{white-space:nowrap}
     .minor{font-size:12px;color:#aaa;margin:7px 0;overflow-wrap:anywhere}
     .health{font-size:12px;color:#eab37f;margin:9px 0}
     .history-box{margin-top:10px;border-top:1px solid #303030;padding-top:12px}
     .history-box li{font-size:12px;margin:8px 0;color:#aaa;overflow-wrap:anywhere}
-    #group-select{min-width:135px;max-width:180px;font-size:13px;padding:9px}
     .hint{font-size:13px;color:#999;line-height:1.6;margin:12px 0}
     .agent-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:22px}
     .agent-card{background:#151515;border:1px solid #303030;border-radius:13px;padding:16px;min-width:0}
@@ -202,26 +194,24 @@
      </details>
    </details>
    <div id="tasks-tab">
-   <div class="section-title" style="margin:0 0 12px"><h2>项目 Overview · 科研路线与任务队列</h2><small>点击项目查看待办，已完成任务保留可查</small></div>
-   <div id="project-overview" class="projects-overview"><div class="empty">正在读取项目总览</div></div>
+   <div class="section-title" style="margin:0 0 12px"><h2>任务时间线</h2><small>按更新时间倒序 · 展示最近 24 小时（运行中的任务始终保留）</small></div>
    <div class="stats">
-     <section class="stat"><div class="name">全部任务</div><div id="count-all" class="number">—</div></section>
+     <section class="stat"><div class="name">当前显示任务</div><div id="count-all" class="number">—</div></section>
      <section class="stat"><div class="name">运行中</div><div id="count-running" class="number">—</div></section>
      <section class="stat"><div class="name">已完成</div><div id="count-completed" class="number">—</div></section>
      <section class="stat"><div class="name">异常 / 阻塞</div><div id="count-problem" class="number">—</div></section>
    </div>
    <div class="toolbar">
-     <div id="filters" class="filters"><button data-filter="open" class="active">未完成</button><button data-filter="all">全部历史</button><button data-filter="running">运行中</button><button data-filter="completed">已完成</button><button data-filter="problem">异常 / 阻塞</button></div>
-     <select id="group-select" aria-label="项目分组"><option value="">全部项目</option></select>
+     <div id="filters" class="filters"><button data-filter="all" class="active">最近 24 小时</button><button data-filter="open">未完成</button><button data-filter="running">运行中</button><button data-filter="completed">已完成</button><button data-filter="problem">异常 / 阻塞</button></div>
      <input id="search" placeholder="搜索任务名称 / ID" aria-label="搜索任务" type="search">
    </div>
    <main id="tasks"><div class="empty">尚无数据</div></main>
-   <section class="foot"><div class="section-title"><h2>最近更新</h2><small id="last-update">每 5 秒自动刷新</small></div><ol id="events" class="events"></ol><p id="error"></p></section>
+   <section class="foot"><div class="section-title"><h2>最近 24 小时更新</h2><small id="last-update">每 5 秒自动刷新</small></div><ol id="events" class="events"></ol><p id="error"></p></section>
    </div>
    <section id="agents-tab" hidden>
      <div class="section-title"><div><h2>Agent Registry · 四类职责</h2><p class="hint">Web Main/Sub 负责高难度推理、总协调及独立审查；Local Main（Sol）负责无人值守关键决策；Local Sub（Luna）适合持续一整天的长期执行。Legacy 进程另行展示。Main/Sub 不表示拥有管理员密钥。</p></div><span class="pill" id="agent-updated">等待数据</span></div>
      <div id="agent-summary" class="agent-stats"></div>
-     <div class="toolbar"><input id="agent-search" type="search" placeholder="搜索 Agent / 模型 / 分组" aria-label="搜索 Agent"><select id="agent-type" aria-label="Agent 类型"><option value="all">全部类型</option><option value="webMain">Web Main</option><option value="webSubs">Web Sub</option><option value="main">Local Main</option><option value="subs">Local Sub</option><option value="legacy">Legacy / tmux</option><option value="tracked">研究任务（非 Agent）</option></select><label class="admin-note"><input type="checkbox" id="show-retired"> 显示已释放/撤销 Web 身份</label></div>
+     <div class="toolbar"><input id="agent-search" type="search" placeholder="搜索 Agent / 模型" aria-label="搜索 Agent"><label class="admin-note"><input type="checkbox" id="show-retired"> 显示已释放/撤销 Web 身份</label></div>
      <div id="agent-cards" class="agent-overview"><div class="empty">正在读取 Agent 注册表</div></div>
      <p class="hint" id="agent-note">Web 已认领不等于在线；tmux 存在不代表模型正在推理；状态消息不会自动成为新的控制指令。</p>
    </section>
@@ -250,8 +240,16 @@
  'use strict';
  const $=id=>document.getElementById(id);
  const statusText={pending:'等待中',running:'运行中',completed:'已完成',failed:'失败',blocked:'阻塞',cancelled:'已取消',paused:'已暂停'};
- let filter='open',mailFilter='all',tab=location.pathname.startsWith('/tips/agents')?'agents':'tasks',data={tasks:[],events:[]},projectData={projects:[]},projectFilter='',showArchived=false,mailbox=[],agentData=null,historyCache={},canManage=false;
+ let filter='all',mailFilter='all',tab=location.pathname.startsWith('/tips/agents')?'agents':'tasks',data={tasks:[],events:[]},showArchived=false,mailbox=[],agentData=null,historyCache={},canManage=false;
  let showRetired=false;
+ const ONE_DAY_MS=24*60*60*1000;
+ const eventTime=t=>t?.updatedAt||t?.ackAt||t?.at||t?.finishedAt||t?.createdAt||'';
+ const timestamp=t=>{const n=Date.parse(eventTime(t));return Number.isFinite(n)?n:0;};
+ const newestFirst=(a,b)=>timestamp(b)-timestamp(a)||(a.id||a.name||'').localeCompare(b.id||b.name||'');
+ const withinDay=(t,now=Date.now())=>{const when=Date.parse(eventTime(t));return !Number.isFinite(when)||when>now-ONE_DAY_MS;};
+ // Keep live work actionable even when its last non-heartbeat update is old.
+ const visibleTask=t=>['running','queued'].includes(t.status)||withinDay(t);
+ const visibleMail=m=>['unread','delivered','processing'].includes(m.status)||(m.tracked&&!m.verification?.verdict&&m.status!=='resolved')||withinDay(m);
  const adminMode=()=>canManage&&$('admin-panel').open;
  const projectKey=t=>t.projectId||(/^(AIR|Subagents|Agent handoffs)/i.test(t.group||'')||/^(air-|sub-air-|web-handoff-)/i.test(t.id)?'air':/^(Tips|Infrastructure)/i.test(t.group||'')||/^tips-/.test(t.id)?'infrastructure':'other');
  async function projectRequest(body){
@@ -271,21 +269,6 @@
    $('project-edit-panel').scrollIntoView({behavior:'smooth',block:'center'});
  }
  function resetProjectEdit(){const f=$('project-form');f.reset();f.elements.expectedUpdatedAt.value='';$('project-save').textContent='新增任务';}
- function renderProjects(){
-   const panel=$('project-overview');panel.replaceChildren();
-   const projects=projectData.projects??[];
-   if(!projects.length){panel.append(node('div','暂无项目数据','empty'));return}
-   for(const p of projects){
-     const b=node('button',null,'project-summary'+(projectFilter===p.id?' active':''));b.type='button';
-     b.append(node('strong',p.title));b.append(node('span',p.description));
-     b.append(node('div',`${p.open} 待办 · ${p.counts?.blocked??0} 阻塞 · ${p.counts?.failed??0} 失败 · ${p.counts?.completed??0} 完成`,'project-meta'));
-     b.append(node('span',`缺少 Owner ${p.missingOwner} · 未指定下一动作 ${p.missingNextAction}`));
-     const top=(p.tasks??[]).slice(0,2).map(t=>`${t.id}：${t.nextAction||t.message||'待指定下一动作'}`).join(' / ');
-     if(top)b.append(node('div',top,'project-step'));
-     b.addEventListener('click',()=>{projectFilter=projectFilter===p.id?'':p.id;renderProjects();render()});
-     panel.append(b);
-   }
- }
  async function adminRequest(action,id='',reason=''){
    const token=decodeURIComponent(location.hash.slice(1));
    if(!token)throw Error('请先解锁查看面板');
@@ -394,7 +377,7 @@
      });
      card.append(details);
    }
-   if(t.group||t.parentId)card.append(node('div',(t.group?'项目 · '+t.group:'')+(t.parentId?'  ·  父任务 '+t.parentId:''),'minor'));
+   if(t.parentId)card.append(node('div','父任务 · '+t.parentId,'minor'));
    if(t.dependsOn?.length){
      const done=new Set((data.tasks??[]).filter(x=>x.status==='completed').map(x=>x.id));
      const waiting=t.dependsOn.filter(id=>!done.has(id));
@@ -414,9 +397,9 @@
    });
    hist.append(histTitle);
    const records=historyCache[t.id];
-   if(records){const list=node('ol');for(const e of records.slice(-15).reverse()){
+   if(records){const list=node('ol');for(const e of records.filter(withinDay).slice(-15).reverse()){
      list.append(node('li',`${time(e.at)} · ${statusText[e.status]||e.status} · ${e.progress??'—'}% · ${e.message||''}`));
-   }hist.append(list)}
+   }if(!list.childNodes.length)list.append(node('li','最近 24 小时没有历史变更'));hist.append(list)}
    else hist.append(node('small','展开后读取历史状态'));
    card.append(hist);
    const footer=node('div',null,'timestamp');add(footer,node('span','ID · '+t.id),node('span','更新 · '+time(t.updatedAt)));card.append(footer);
@@ -427,37 +410,26 @@
    return card;
  }
  function render(){
-   const tasks=(data.tasks??[]).filter(t=>!t.archived||(adminMode()&&showArchived));
+   const tasks=(data.tasks??[]).filter(t=>(!t.archived||(adminMode()&&showArchived))&&visibleTask(t));
    $('count-all').textContent=tasks.length;
    $('count-running').textContent=tasks.filter(t=>t.status==='running').length;
    $('count-completed').textContent=tasks.filter(t=>t.status==='completed').length;
    $('count-problem').textContent=tasks.filter(t=>['failed','blocked'].includes(t.status)).length;
    const q=$('search').value.trim().toLowerCase();
-   const selected=$('group-select').value;
-   const visible=tasks.filter(t=>(!projectFilter||projectKey(t)===projectFilter)&&(!selected||(t.group||'未分组')===selected)&&(filter==='all'||(filter==='open'?['pending','running','blocked','failed','paused'].includes(t.status):filter==='problem'?['failed','blocked'].includes(t.status)||t.health==='stale':t.status===filter))&&(!q||(t.title||'').toLowerCase().includes(q)||(t.id||'').toLowerCase().includes(q)));
+   const visible=tasks.filter(t=>(filter==='all'||(filter==='open'?['pending','running','blocked','failed','paused'].includes(t.status):filter==='problem'?['failed','blocked'].includes(t.status)||t.health==='stale':t.status===filter))&&(!q||(t.title||'').toLowerCase().includes(q)||(t.id||'').toLowerCase().includes(q)));
    // Reuse unchanged task elements. Otherwise an automatic refresh closes
    // <details> and resets in-card scroll/selection every five seconds.
    const container=$('tasks');
    const existing=new Map([...container.querySelectorAll('article.task')].map(el=>[el.dataset.taskId,el]));
-   const previousHeads=new Map([...container.querySelectorAll('.group-head')].map(el=>[el.dataset.groupName,el]));
-   const cards=[];let lastGroup=null;
-   for(const t of [...visible].sort((a,b)=>(a.group||'未分组').localeCompare(b.group||'未分组')||(b.updatedAt||'').localeCompare(a.updatedAt||''))){
-     const g=t.group||'未分组';
-     if(g!==lastGroup){
-       const summary=(data.groups??[]).find(x=>x.name===g);
-       const groupSignature=JSON.stringify(summary),old=previousHeads.get(g);
-       let head=old?.dataset.signature===groupSignature?old:null;
-       if(!head){head=node('div',null,'group-head');head.dataset.groupName=g;head.dataset.signature=groupSignature;
-         add(head,node('h2',g),node('small',`${summary?.completed??0} / ${summary?.total??0} 完成 · ${summary?.running??0} 运行中`));}
-       cards.push(head);lastGroup=g;
-     }
+   const cards=[];
+   for(const t of [...visible].sort(newestFirst)){
      const signature=JSON.stringify(t)+'|history:'+JSON.stringify(historyCache[t.id]??null)+'|admin:'+adminMode(),old=existing.get(t.id);
      cards.push(old?.dataset.signature===signature?old:renderTask(t,signature));
    }
    if(!cards.length)cards.push(node('div','没有符合条件的任务','empty'));
    if(cards.length!==container.children.length||cards.some((card,i)=>card!==container.children[i]))container.replaceChildren(...cards);
    const events=$('events');events.replaceChildren();
-   for(const e of (data.events??[]).slice(0,12)){
+   for(const e of (data.events??[]).filter(withinDay).sort(newestFirst).slice(0,12)){
      const li=node('li');add(li,node('time',time(e.at)),node('strong',e.id+' · '),node('span',(statusText[e.status]||e.status)+' '+(e.message||'')));events.append(li);
    }
    if(!events.childNodes.length)events.append(node('li','暂时没有事件'));
@@ -522,20 +494,17 @@
    const activeWeb=(groups.web??[]).filter(a=>a.status==='claimed').length,retiredWeb=(groups.web??[]).filter(a=>['released','revoked'].includes(a.status)).length;
    const totals=[`Web Main ${groups.webMain?.length||0}`,`Web Sub ${groups.webSubs?.length||0}`,`Local Main ${groups.main?.length||0}`,`Local Sub ${groups.subs?.length||0}`,`Web 已认领 ${activeWeb}`,`Web 已释放/撤销 ${retiredWeb}`,`Legacy ${groups.legacy?.length||0}`];
    for(const value of totals)summary.append(node('span',value));
-   const type=$('agent-type').value,q=$('agent-search').value.trim().toLowerCase();
-   const sections=[['webMain','Web Main · 高难度判断 / 总协调'],['webSubs','Web Sub · 独立审查 / 验证'],['main','Local Main · Sol 稳定自动决策'],['subs','Local Sub · Luna 长期任务 / 持久线程'],['legacy','Legacy · 旧 tmux 进程'],['tracked','研究中任务 · 非独立 Agent']];
+   const q=$('agent-search').value.trim().toLowerCase();
+   const sections=[['webMain','Web Main'],['webSubs','Web Sub'],['main','Local Main'],['subs','Local Sub'],['legacy','Legacy'],['tracked','任务观测']];
    const cards=[];
-   for(const [kind,label] of sections){
-     if(type!=='all'&&type!==kind)continue;
-     const visible=(groups[kind]??[]).filter(a=>(!['webMain','webSubs'].includes(kind)||showRetired||!['released','revoked'].includes(a.status))&&(!q||[a.id,a.name,a.model,a.group,a.summary].filter(Boolean).join(' ').toLowerCase().includes(q)));
-     if(!visible.length)continue;
-     const heading=node('div',null,'agent-section-head');add(heading,node('h2',label),node('small',visible.length+' 项'));cards.push(heading);
-     for(const a of visible){
+   const visible=sections.flatMap(([kind,label])=>(groups[kind]??[]).filter(a=>(!['webMain','webSubs'].includes(kind)||showRetired||!['released','revoked'].includes(a.status))&&(!q||[a.id,a.name,a.model,a.group,a.summary].filter(Boolean).join(' ').toLowerCase().includes(q))).map(a=>({...a,renderKind:kind,renderLabel:label}))).sort(newestFirst);
+   for(const a of visible){
+       const kind=a.renderKind;
        const card=node('article',null,'agent-card');
        const head=node('div',null,'row');
        const statusClass=['running','claimed','listening'].includes(a.status)?'running':['completed'].includes(a.status)?'completed':['failed','interrupted','offline'].includes(a.status)?'failed':'';
        add(head,node('h3',a.name||a.id),node('span',agentStatusText[a.status]||a.status,'pill '+statusClass));card.append(head);
-       card.append(node('div','ID · '+a.id,'minor'));
+       card.append(node('div','角色 · '+a.renderLabel+' · ID · '+a.id,'minor'));
        if(a.model||a.group)card.append(node('div',[a.model&&'模型 · '+a.model,a.group&&'分组 · '+a.group].filter(Boolean).join('  /  '),'minor'));
        if(a.summary)card.append(node('p',a.summary,'mini-summary'));
        if(a.mailbox){
@@ -565,7 +534,6 @@
          adminButtons(card,[['stop_sub','停止 Sub',busy],['remove_sub','移除 Sub 注册',!busy]],a.id);
        }
        cards.push(card);
-     }
    }
    $('agent-cards').replaceChildren(...(cards.length?cards:[node('div','当前筛选条件没有匹配的 Agent','empty')]));
    $('agent-note').textContent=agentData.note||'';
@@ -573,14 +541,14 @@
  function renderInbox(){
    $('unread-count').textContent=(data.mailbox?.unreadController??0)>0?' · '+data.mailbox.unreadController:'';
    const counters=data.mailbox??{};
-   $('mail-summary').textContent=`未确认 ${counters.unreadController??0}（Local Main 未请求唤醒 ${counters.passiveMain??0} · 待领取 ${counters.authorizedMain??0} · 旧 Web 收件箱 ${counters.legacyController??0}）· 当前显示 ${mailbox.length} 条`;
+   $('mail-summary').textContent=`未确认 ${counters.unreadController??0}（Local Main 未请求唤醒 ${counters.passiveMain??0} · 待领取 ${counters.authorizedMain??0} · 旧 Web 收件箱 ${counters.legacyController??0}）· 最近 24 小时（未处理始终保留）`;
    const from=$('mail-from').value,to=$('mail-to').value,agent=$('mail-agent').value;
-   const visible=mailbox.filter(m=>(!from||m.from===from)&&(!to||m.to===to)&&(!agent||m.from===agent||m.to===agent)&&(
+   const visible=mailbox.filter(m=>visibleMail(m)&&(!from||m.from===from)&&(!to||m.to===to)&&(!agent||m.from===agent||m.to===agent)&&(
      mailFilter==='all'||(mailFilter==='tracked'?m.tracked===true:
        mailFilter==='passive'?m.status==='unread'&&m.to==='server-controller'&&!m.wakeAuthorized:
        mailFilter==='mainready'?m.status==='unread'&&m.to==='server-controller'&&m.wakeAuthorized:
        mailFilter==='unread'?['unread','delivered'].includes(m.status):
-       mailFilter==='ack'?m.status==='acknowledged':mailFilter==='resolved'?m.status==='resolved':m.priority==='high')));
+       mailFilter==='ack'?m.status==='acknowledged':mailFilter==='resolved'?m.status==='resolved':m.priority==='high'))).sort(newestFirst);
    const box=$('inbox'),signature=JSON.stringify(visible)+'|admin:'+adminMode();
    if(box.dataset.signature===signature)return;
    box.dataset.signature=signature;
@@ -641,19 +609,10 @@
      select.value=names.includes(current)?current:'';
    }
  }
- function updateGroups(){
-   const selector=$('group-select'),current=selector.value;
-   const groups=(data.groups??[]).map(g=>g.name).sort();
-   const sig=groups.join('\u0000');if(selector.dataset.signature===sig)return;
-   selector.dataset.signature=sig;
-   const opts=[new Option('全部项目',''),...groups.map(g=>new Option(g,g))];selector.replaceChildren(...opts);
-   selector.value=groups.includes(current)?current:'';
- }
  document.querySelector('.topnav').addEventListener('click',e=>{
    const b=e.target.closest('[data-tab]');if(!b)return;activateTab(b.dataset.tab);
  });
  $('agent-search').addEventListener('input',renderAgents);
- $('agent-type').addEventListener('change',renderAgents);
  $('show-retired').addEventListener('change',e=>{showRetired=e.target.checked;renderAgents()});
  $('admin-panel').addEventListener('toggle',()=>{if(canManage)refreshAdminViews()});
  $('project-reset').addEventListener('click',resetProjectEdit);
@@ -682,7 +641,6 @@
  });
  $('mail-from').addEventListener('change',renderInbox);
  $('mail-to').addEventListener('change',renderInbox);
- $('group-select').addEventListener('change',render);
  $('filters').addEventListener('click',e=>{const btn=e.target.closest('button[data-filter]');if(!btn)return;filter=btn.dataset.filter;for(const b of $('filters').querySelectorAll('button'))b.classList.toggle('active',b===btn);render()});
  $('search').addEventListener('input',render);
  $('connect').onclick=()=>{location.hash=encodeURIComponent($('key').value.trim());$('key').value='';refresh()};
@@ -691,22 +649,19 @@
    const token=decodeURIComponent(location.hash.slice(1));
    if(!token){canManage=false;refreshAdminViews();$('auth').hidden=false;$('connection').textContent='需要查看密钥';$('dot').classList.remove('ok');return}
    try{
-     const [r,mailResult,agentsResult,projectResult]=await Promise.all([
+     const [r,mailResult,agentsResult]=await Promise.all([
        fetch('/tips/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}),
        fetch('/tips/messages?to=all&limit=120',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)})),
-       fetch('/tips/agents/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)})),
-       fetch('/tips/project/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)}))]);
+       fetch('/tips/agents/api',{headers:{Authorization:'Bearer '+token},cache:'no-store'}).catch(e=>({ok:false,status:0,error:String(e)}))]);
      if(!r.ok)throw Error('HTTP '+r.status+(r.status===401?' · 查看密钥无效':''));
      data=await r.json();
      if(mailResult.ok){mailbox=await mailResult.json();$('error').textContent='';}
      else{$('error').textContent='留言板暂时不可用（HTTP '+mailResult.status+'）；任务进度仍可正常查看。';}
      if(agentsResult.ok)agentData=await agentsResult.json();
      else $('agent-note').textContent='Agent 目录暂时不可用（HTTP '+agentsResult.status+'），其它面板不受影响';
-     if(projectResult.ok)projectData=await projectResult.json();
-     else projectData={projects:[]};
      $('auth').hidden=true;$('dot').classList.add('ok');$('connection').textContent='已连接 · '+new Date().toLocaleTimeString('zh-CN',{hour12:false});
      if(!canManage){canManage=true;refreshAdminViews()}
-     $('last-update').textContent='最近任务变更 · '+time(data.updatedAt);updateGroups();updateMailSelectors();renderProjects();render();renderAgents();renderInbox();
+     $('last-update').textContent='最近任务变更 · '+time(data.updatedAt);updateMailSelectors();render();renderAgents();renderInbox();
    }catch(e){if(e.message.includes('401')){canManage=false;refreshAdminViews();$('auth').hidden=false}$('error').textContent='读取失败：'+e.message;$('dot').classList.remove('ok');$('connection').textContent='连接异常'}
  }
  if(new URLSearchParams(location.search).get('tab')==='mailbox')tab='mailbox';

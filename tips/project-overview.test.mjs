@@ -127,9 +127,10 @@ test('project dashboard HTTP uses existing Tips viewing credential; it does not 
     const updated=await request('POST',f.tips.credentials.viewToken,{action:'edit',id:'air-dashboard',owner:'web-air-main',nextAction:'QA work'});
     assert.equal(updated.status,200);assert.equal((await updated.json()).task.owner,'web-air-main');
     const html=await (await fetch(base+'/tips')).text();
-    assert.ok(html.includes('project-overview'));assert.ok(html.includes('project-edit-panel'));
+    assert.ok(html.includes('任务时间线'));assert.ok(!html.includes('id="project-overview"'));
+    assert.ok(html.includes('project-edit-panel'),'project planning administration remains available');
     assert.ok(html.includes('<details id="admin-panel"'));
-    assert.ok(html.includes('data-filter="open" class="active">未完成'));
+    assert.ok(html.includes('data-filter="all" class="active">最近 24 小时'));
     assert.ok(html.includes('show-archived'));
   }finally{if(server)await new Promise(resolve=>server.close(resolve));f.cleanup()}
 });

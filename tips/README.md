@@ -2,6 +2,10 @@
 
 **vNext:** Black/graphite dashboard with grouping, dependency hints, heartbeat/staleness, persisted status history, per-project summaries, and a durable mailbox shared with web ChatGPT and an optional wake-on-message server Codex controller. See [MCP_INSTRUCTIONS.md](MCP_INSTRUCTIONS.md) and [SERVER_CONTROLLER.md](SERVER_CONTROLLER.md).
 
+**Web 面板时间线（2026-10-14）**：任务页不再按 AIR-Research / AIR-LIFE 等分组，改为**全部任务按最后更新时间倒序**；默认只展示滚动的最近 24 小时，任何仍在 `running`/`queued` 的任务继续显示。最近事件、卡片内历史记录，以及消息页的已完成通信只展示最近 24 小时；未读、派发中和待验收的通信不因过期而消失。Agent 页也按最近活动时间统一排序，不再按 Web/Sub 等角色生成分组标题；Agent 注册身份仍始终可管理。
+
+这里的“清除一天外”指**从日常网页视图中隐藏旧记录**，不是数据库永久删除：后台 Tips task、历史、邮箱、Project Overview、Agent Thread、GPU/STOP/Owner 门禁都原样保留，仍可通过对应工具/管理操作审计。永久删除研究记录会破坏引用和复现，不会因打开网页而自动执行。
+
 **Main mailbox troubleshooting:** See [`MAIN_MAIL_DIAGNOSTICS.md`](MAIN_MAIL_DIAGNOSTICS.md) before treating a message marked unread as a delivery failure. `tracked:true` requests verification; only an explicit authorized `wake:true` starts Local Sol. The Agents/Mail pages distinguish passive Main reports, authorized queued wakes, Web mail, and legacy `controller` messages.
 
 **App Server Subagents:** MCP now exposes `subagent(action=start|list|status|message|stop)`, backed by the `tips-subagent-manager.service` user service, with separate persistent Codex threads and Tips mailbox + in-turn `turn/steer` support. The Board can filter messages by sender and recipient. New research agents should use App Server, while pre-existing `codex exec` workers must transition only at safe checkpoints. See [SUBAGENTS.md](SUBAGENTS.md).
