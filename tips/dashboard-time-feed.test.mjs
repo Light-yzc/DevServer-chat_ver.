@@ -9,19 +9,40 @@ if(!script)throw Error('Missing Tips dashboard inline script');
 const start=script.indexOf(' const ONE_DAY_MS=');
 const end=script.indexOf(' const adminMode=',start);
 if(start<0||end<=start)throw Error('Missing dashboard time feed helpers');
-const helpers=runInNewContext(script.slice(start,end)+'\n({ONE_DAY_MS,newestFirst,withinDay,visibleTask,visibleMail})',{Date});
+const helpers=runInNewContext(script.slice(start,end)+'\n({ONE_DAY_MS,newestFirst,withinDay,visibleTask,visibleMail,projectKey,projectTimeSections})',{Date});
 
-test('task feed is a single most-recent-first list without project or group headings',()=>{
+test('time feed groups only actual top-level projects, never AIR workstreams',()=>{
   assert.doesNotMatch(html,/id="group-select"/);
   assert.doesNotMatch(html,/id="project-overview"/);
-  assert.doesNotMatch(script,/cards\.push\(head\)/);
-  assert.match(script,/for\(const t of \[\.\.\.visible\]\.sort\(newestFirst\)\)/);
+  assert.match(script,/const sections=projectTimeSections\(visible\)/);
+  assert.match(script,/if\(sections\.length>1\)/,'single project gets no section heading');
   const t=[
-    {id:'a',group:'Z',updatedAt:'2026-10-14T01:00:00Z'},
-    {id:'b',group:'A',updatedAt:'2026-10-14T05:00:00Z'},
-    {id:'c',group:'B',updatedAt:'2026-10-14T03:00:00Z'},
-  ].sort(helpers.newestFirst);
-  assert.deepEqual(t.map(x=>x.id),['b','c','a']);
+    {id:'air-life',group:'AIR-LIFE',updatedAt:'2026-10-14T01:00:00Z'},
+    {id:'air-paper',group:'AIR / Paper',updatedAt:'2026-10-14T05:00:00Z'},
+    {id:'air-research',group:'AIR-Research',updatedAt:'2026-10-14T03:00:00Z'},
+    {id:'sub-air-trial',group:'Subagents',updatedAt:'2026-10-14T04:00:00Z'},
+    {id:'air-main-handoff',group:'Agent handoffs',updatedAt:'2026-10-14T02:00:00Z'},
+  ];
+  const single=helpers.projectTimeSections(t);
+  assert.equal(single.length,1);
+  assert.equal(single[0].id,'air');
+  assert.deepEqual(Array.from(single[0].items,x=>x.id),['air-paper','sub-air-trial','air-research','air-main-handoff','air-life']);
+});
+
+test('only distinct projects get sections; projects and their tasks sort by latest update',()=>{
+  const tasks=[
+    {id:'air-latest',group:'AIR-Research',updatedAt:'2026-10-14T04:00:00Z'},
+    {id:'air-older',group:'AIR-LIFE',updatedAt:'2026-10-14T01:00:00Z'},
+    {id:'tips-latest',group:'Tips',updatedAt:'2026-10-14T05:00:00Z'},
+    {id:'tips-older',group:'Infrastructure',updatedAt:'2026-10-14T02:00:00Z'},
+    {id:'custom-project',projectId:'separate-project',group:'AIR / Paper',updatedAt:'2026-10-14T03:00:00Z'},
+  ];
+  const sections=helpers.projectTimeSections(tasks);
+  assert.deepEqual(Array.from(sections,s=>s.id),['infrastructure','air','separate-project']);
+  assert.deepEqual(Array.from(sections[0].items,t=>t.id),['tips-latest','tips-older']);
+  assert.deepEqual(Array.from(sections[1].items,t=>t.id),['air-latest','air-older']);
+  assert.equal(helpers.projectKey(tasks[4]),'separate-project','explicit project overrides legacy group');
+  assert.doesNotMatch(script,/\(a\.group\|\|'未分组'\)\.localeCompare/,'workstreams must not drive sorting');
 });
 
 test('24-hour cutoff is rolling, but running jobs stay visible despite old update timestamps',()=>{
