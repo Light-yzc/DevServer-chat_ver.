@@ -4,15 +4,17 @@
  * No browser code, Subagent, MCP call or model is executed by this CLI.
  */
 import {spawn} from 'node:child_process';
+import {existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {dirname,resolve} from 'node:path';
+import {dirname,resolve,join} from 'node:path';
 import {loadConfig} from '../vendor/devspace/dist/config.js';
 import {createTipsV2} from '../vendor/devspace/dist/tips-core.js';
 import {createWebIdentityStore} from '../vendor/devspace/dist/web-identity-store.js';
 import {startWebJob,runBackgroundJob,deliverJob,reconcileJobs,jobStatus} from './web-job-trigger.mjs';
 
 const file=fileURLToPath(import.meta.url),repo=resolve(dirname(file),'..');
-process.env.DEVSPACE_CONFIG_DIR??=repo+'/var/config';
+const configDirs=[resolve(repo,'devspace-config'),resolve(repo,'../devspace-config'),resolve(repo,'var/config')];
+process.env.DEVSPACE_CONFIG_DIR??=configDirs.find(dir=>existsSync(join(dir,'config.json')))??configDirs.at(-1);
 const config=loadConfig(),tips=createTipsV2(config),identities=createWebIdentityStore(config);
 const [action='help',...argv]=process.argv.slice(2);
 const usage='Usage:\n'
