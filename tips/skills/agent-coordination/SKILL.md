@@ -9,7 +9,8 @@ description: Read before coordinating AIR Web/Main and Local/Sub agents, assigni
 
 - **Web Main**：`web-main`, `web-*-main`。高难度推理、路线选择、总审查；不消耗服务器本地 Sol 额度，但需要活跃 Web Chat。
 - **Web Sub**：其他 `web-*`。独立审稿、交叉验证，需通过 `web_identity` 认领。
-- **Local Main**：`server-controller`, `gpt-6.1-sol`。**研究总调度**：核对真实状态、选下一项安全可执行工作、安排或复用 Luna、核对成果、记录下一 Owner 与触发事件。平时休眠，可信消息默认唤醒并合并其他积压来信。
+- **Local Main**：`server-controller`, `gpt-6.1-sol`。**按需异常评审和离线兜底**，不再是 Web Main 已授权的每轮 CPU 修复、普通 Sub 完成交接的强制第二审批。Web 是唯一研究决策 Owner；Sol 只有明确需要异常诊断/独立深审时才应调用，恢复任何实验之前必须重新核对 STOP。
+- **Web-first 与状态诊断**：Web Main 使用 `subagent(start/jobs/handoff)` 直接管理所委派的 Luna，任务起始先运行 `node /mnt/disk1/yangzhongcheng/tips/coordination-audit-cli.mjs` 只读核实注册表与 Tips 的不一致；`running` 卡片不一定对应活进程。正常完成只回传原 Web Owner，旧无 Owner 的 AIR 任务仅给 Local Sol 被动留档。Local 自动 blocker wake / Web 超时接管默认关闭；详见 `tips/WEB_FIRST_COORDINATION.md`。**用户已要求停止全部实验，不能因协作重构自行恢复执行。**
 - **Local Sub**：`sub-*`, 默认 `gpt-6-luna`。持久 Codex App Server，低成本长期执行。高难度需要时再调用 Sol。
 
 **注册数 ≠ 并行数**：最多保留 128 个不同持久 Local Sub 身份；Manager 默认同时运行 2 个，最多 4 个。尽量复用已完成且配置一致的 Thread，不要为同一工作无节制创建新身份。超出注册上限才考虑按安全手续退休，不得未经核对丢失实验上下文。

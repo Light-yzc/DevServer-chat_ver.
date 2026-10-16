@@ -81,11 +81,14 @@ function final(name,jobId,code,signal){
       status,owner:report?.requestedBy,reportPath:updated.handoffPath})}
     catch(error){log('milestone handoff failed',name,error.message)}
     if(updated.failureCircuitOpen&&current.failureCircuitOpen!==true){
-      // Exactly one high-value Sol escalation per newly-opened circuit.
-      // It requests diagnosis only; does not reset or re-run the failed job.
-      try{tips.messages({action:'post',from:'tips-subagent-manager',to:'server-controller',
-        subject:`Subagent 失败熔断 · ${name}`,priority:'high',wake:true,taskId:name,
-        body:`${name} 已连续 ${updated.consecutiveFailures} 次模型执行失败（本轮 exit ${code}），暂停自动派工。请检查结果 ${resultPath} 与 ${updated.logPath??'stdout log'}，安排安全 CPU/日志根因诊断。不得自动复位或重试；若需重试，由管理员记录诊断后单独复位。`},{trustedWake:true});}
+      // Web delegated jobs escalate to their Web owner, never Sol as well.
+      // Unowned legacy jobs remain visible locally but need explicit Sol wake.
+      const webOwner=/^web-[a-z0-9_.-]{1,60}$/.test(updated.reportTo??'')?updated.reportTo:null;
+      const to=webOwner??'server-controller';
+      try{tips.messages({action:'post',from:'tips-subagent-manager',to,
+        subject:`Subagent 失败熔断 · ${name}`,priority:'high',wake:false,taskId:name,
+        dedupeKey:`circuit:${name}:${jobId}:${to}`,
+        body:`${name} 已连续 ${updated.consecutiveFailures} 次模型执行失败（本轮 exit ${code}），暂停自动派工。请检查结果 ${resultPath} 与 ${updated.logPath??'stdout log'}，安排安全日志根因诊断。不得自动复位或重试；若需重试，由管理员记录诊断后单独复位。`},{trustedWake:true});}
       catch(error){log('failure circuit notification failed',name,error.message)}
     }
     log('job finished',name,jobId,status,'exit',code,signal??'');

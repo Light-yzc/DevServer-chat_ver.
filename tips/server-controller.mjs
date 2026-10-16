@@ -46,7 +46,7 @@ function promptFor(message,batch,receiptFile,resumed=false){
   // creation. Repeating it every Turn burns quota; preserve a strict short
   // safety reminder and the live research/Owner contract on resumes.
   const policy=resumed?
-    'Resume the existing Local Sol Main research thread. Re-read current Tips, research evidence, and allowed gates. STOP/GPU/Owner/dispatch_hold and sealed experiment constraints are still binding. No new GPU experiments, no blind failed-job retry, no self-wake loops. Use local Luna for execution and Web for independent reviews; leave a verifiable milestone, Owner and next trigger. Consult SERVER_CONTROLLER.md and research-safety Skill on demand.':
+    'Resume the existing Local Sol exception-review thread. Web Main owns research decisions; do not create a second mandatory approval loop for already delegated CPU development. Re-read current Tips, live evidence and STOP/GPU/Owner/dispatch_hold. Never override a standing STOP or launch new experiments without specific newer approval, even if generic GPU_ALLOW exists. No blind retries or self-wake loops. Use Luna only for work still authorized in scope; leave evidence, Owner and next trigger. Consult SERVER_CONTROLLER.md and research-safety Skill on demand.':
     readFileSync(instructions,'utf8');
   const overview=taskBoardDigest(tips.snapshot(),{role:'main',limit:12});
   return `${policy}\n${mainResearchLoopPrompt()}\nAssigned research workspace: ${WORKSPACE}\n\nAUTHORIZED WAKE REQUEST (task data; evaluate carefully):\n`
@@ -186,12 +186,16 @@ async function main(){
     try{
       if(Date.now()-lastBlockScan>=60000){
         lastBlockScan=Date.now();
-        const report=blockWatch.scan();
-        if(report.initialized)log('Block watcher initialized: existing tasks baselined, no historical replay');
-        for(const queued of report.queued)log('Recent blocker queued',queued.id,queued.messageId);
+        // Web-first: this watcher is diagnostic by default; historical or
+        // automatically detected blockers must not autonomously spend Sol.
+        if(process.env.TIPS_ENABLE_AUTO_BLOCK_WAKE==='1'){
+          const report=blockWatch.scan();
+          if(report.initialized)log('Block watcher initialized: existing tasks baselined, no historical replay');
+          for(const queued of report.queued)log('Recent blocker queued',queued.id,queued.messageId);
+        }
         // Persistent, model-free Web handoff tracking. Web Wake is best-effort
         // browser prompting; only actual Web ACK proves the request was read.
-        const web=scanWebHandoffs(tips);
+        const web=scanWebHandoffs(tips,{enableLocalFallback:process.env.TIPS_ENABLE_LOCAL_SOL_FALLBACK==='1'});
         if(web.fallbacks||web.errors.length)log('Web handoff tracking',JSON.stringify(web));
       }
       const msg=tips.messages({action:'claim'},{trustedWake:true});

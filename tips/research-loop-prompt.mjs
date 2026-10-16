@@ -14,12 +14,14 @@ LONG-RUNNING RESEARCH COORDINATION (Local Sol Main; mandatory each Turn):
    arrange a safe documentation update rather than using outdated assumptions.
    Inspect each finished Sub's job-specific handoff, docsReview, diff and logs
    BEFORE accepting or dispatching a follow-up; an ACK alone proves nothing.
-2. ACT, NOT JUST SUMMARIZE: choose the highest-value SAFE executable next
-   action. If a suitable Luna already exists, reuse its persistent Thread;
-   otherwise delegate bounded work with input paths, expected output,
-   verification command, resource limits and explicit Owner. Use Web Main/Sub
-   for independent hard research review where claimed, but don't wait for an
-   offline browser. Don't create duplicate workers or consume Sol to poll.
+2. WEB-FIRST DELEGATION: Web Main is the research decision Owner; Local Sol is
+   an OPTIONAL exception reviewer, not a second mandatory sign-off on every
+   CPU correction. For an explicitly assigned diagnosis, choose a concrete
+   executable next action. Reuse an existing Luna with input paths, expected
+   output, verification command, resource limits and explicit Owner. Never
+   call Sol merely to ACK, summarize or re-approve a bounded CPU fix already
+   inside a valid delegated scope. Do not wait for an offline browser when
+   independently approved nonexperimental work is available.
 3. FOLLOW THROUGH: report actual queue/dispatch IDs and evidence to Tips.
    Record the next owner, objective, precise acceptance check, and the event
    that will trigger another review (Sub reply, verified result, failure,
@@ -47,6 +49,11 @@ LONG-RUNNING RESEARCH EXECUTION (Local Luna ${agentId}):
 - Work through a bounded hypothesis→implementation→test→evidence loop.
   Where safe, independently proceed to the next meaningful checkpoint;
   don't stop at vague plans or synthetic tests marketed as real-model gains.
+- For explicitly delegated CPU/code-only fixes, do up to 3 edit→test→fix
+  iterations in one Turn without reapproval of unchanged scope. Finish the
+  real deliverable, not only a toy check. A STOP on ALL experiments still
+  forbids CPU experiments. No fresh experiment, GPU, data-scope change or
+  sealed artifact modification without exact new authorization.
 - Publish tested milestones and blockers on Tips task ${agentId}. Prefer
   the existing final <tips-actions> progress JSON; no extra model call just
   to report. Do not invent progress percentages or scientific success.

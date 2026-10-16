@@ -10,7 +10,7 @@ const read=path=>readFileSync(join(root,path),'utf8');
 
 test('Sol Main always receives a compact goal-driven research handoff contract',()=>{
   const prompt=mainResearchLoopPrompt();
-  for(const term of ['RECONCILE','ACT, NOT JUST SUMMARIZE','FOLLOW THROUGH','BLOCKED','Owner','acceptance','Tips','STOP/GPU/dispatch_hold'])
+  for(const term of ['RECONCILE','WEB-FIRST DELEGATION','FOLLOW THROUGH','BLOCKED','Owner','acceptance','Tips','STOP/GPU/dispatch_hold'])
     assert.ok(prompt.includes(term),`Main prompt missing ${term}`);
   assert.ok(prompt.length<3200,'Do not waste Sol tokens on duplicated policy');
   const runner=read('tips/server-controller.mjs');

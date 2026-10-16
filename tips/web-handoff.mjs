@@ -37,13 +37,15 @@ export function requestWebHandoff(tips,roles,{to='web-air-main',subject,body,sou
   return {id,messageId:outbound.id,to,status:'pending',note:'Tips queued; browser wake/ChatGPT ACK are not yet confirmed'};
 }
 
-export function scanWebHandoffs(tips,{now=Date.now(),ackTimeoutMs=WEB_ACK_TIMEOUT_MS}={}){
+export function scanWebHandoffs(tips,{now=Date.now(),ackTimeoutMs=WEB_ACK_TIMEOUT_MS,
+  enableLocalFallback=false}={}){
   const tasks=tips.snapshot().tasks.filter(t=>t.id.startsWith(PREFIX)&&t.details&&!['cancelled','archived'].includes(t.status));
   const all=tips.messages({action:'list',limit:300});
   const byId=new Map(all.map(m=>[m.id,m]));
   const fallbackFor=new Set(all.filter(m=>m.from==='tips-web-handoff-watch'&&m.to==='server-controller')
     .map(m=>m.taskId));
-  const result={tracked:tasks.length,awaiting:0,acked:0,finished:0,fallbacks:0,errors:[]};
+  const result={tracked:tasks.length,awaiting:0,acked:0,finished:0,fallbacks:0,
+    waitingForWeb:0,errors:[]};
   for(const task of tasks){
     let meta;try{meta=JSON.parse(task.details)}catch{continue}
     if(!meta||typeof meta.messageId!=='string'||!/^web-/.test(meta.to))continue;
@@ -62,6 +64,14 @@ export function scanWebHandoffs(tips,{now=Date.now(),ackTimeoutMs=WEB_ACK_TIMEOU
         (!mail.ackBy&&now-Date.parse(mail.at)>=ackTimeoutMs)){
         const reason=verified?.verdict==='rejected'?'Web 审查拒绝':verified?.verdict==='needs_changes'?'Web 请求修改':
           mail.ackBy?'Web 已读但超过 3 小时尚未完成验收':'Web 超过 45 分钟尚未 ACK';
+        if(!enableLocalFallback){
+          // Web-first mode: a delayed browser is not permission to run Sol or
+          // start experiments. Leave the original Web message for its owner.
+          result.waitingForWeb++;
+          if(task.status!=='blocked')tips.mutate({action:'update',id:task.id,status:'blocked',
+            message:`${reason}；等待 Web Owner 或明确的人工升级，不自动派发 Local Sol`,heartbeatEnabled:false},{trustedUpdate:true});
+          continue;
+        }
         // The fallback is a new authorized Local Main request, not a GPU
         // approval. No direct subagent start, and no loop after one timeout.
         tips.messages({action:'post',from:'tips-web-handoff-watch',to:'server-controller',
@@ -72,7 +82,8 @@ export function scanWebHandoffs(tips,{now=Date.now(),ackTimeoutMs=WEB_ACK_TIMEOU
           message:`${reason}；已通知 Local Sol 评估 Luna 后备`,heartbeatEnabled:false},{trustedUpdate:true});
       }else if(mail.ackBy){
         result.acked++;
-        if(task.status==='pending')tips.mutate({action:'update',id:task.id,status:'running',
+        if(task.status==='pending'||(task.status==='blocked'&&/^Web (超过|已读但超过)/.test(task.message??'')))
+          tips.mutate({action:'update',id:task.id,status:'running',
           message:`${meta.to} 已 ACK；等待其实际验证和审查结论`},{trustedUpdate:true});
       }else result.awaiting++;
     }catch(error){result.errors.push(`${task.id}: ${String(error.message).slice(0,150)}`)}
