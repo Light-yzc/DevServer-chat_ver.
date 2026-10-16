@@ -12,7 +12,7 @@ This is an **opt-in, experimental Chrome/Edge Manifest V3 extension** plus a **r
 
 The browser's title match is **routing, not authentication**; the subsequent MCP tools must verify the Web identity. The relay never returns message contents. Local delivery (`submitted`) does **not** mark a Tips message read or complete; only MCP ACK/resolve does.
 
-**Explicit three-state delivery:** The relay includes unread messages up to 30 days old while the target Web identity lease is still valid. The extension stores `pending` until the browser composer has **confirmed a successful submit**, then moves that message ID to durable `submitted` and **never submits that message again**, even if Web has not ACKed. Only an explicit MCP ACK ID from the relay advances it to `done`; absence from a later snapshot (role expiry, retention window, etc.) is not treated as ACK. Failed attempts before submission remain `pending` and can retry. Previous extension versions used `done` for submission: on upgrade, the old markers migrate to `submitted`, preventing accidental duplicate wake-ups or false ACKs. Web tasks without ACK are handled separately by the Local Sol handoff fallback policy, not by submitting another ChatGPT prompt. See [`../tips/WEB_HANDOFF.md`](../tips/WEB_HANDOFF.md).
+**Explicit three-state delivery:** The relay includes unread messages up to 30 days old while the target Web identity lease is still valid. The extension keeps `pending` until the browser has **confirmed a successful submit**, then records a durable `submitted` timestamp. Only an explicit MCP ACK advances the message to `done`; disappearance from the snapshot (role expiry, retention window, etc.) is NOT ACK. Failed submission attempts stay `pending` and may retry. In v0.1.9, if an unACKed message remains in the authenticated relay snapshot **and** the Web tab is idle with 30 minutes of no visible activity, the extension can submit a **new, explicitly labeled recovery reminder** 30 minutes after the original submission. It can try only one more time at least 2 hours after the first recovery. After two recovery reminders it stops; the original `submitted` state is never silently reset. MCP ACK immediately cancels pending recoveries. No Local Sol wake, job rerun, or research authorization is inferred. Web processing, a draft, a missing tab, an expired identity, or disconnected relay all pause retry. Existing v1 `done` markers continue migrating to `submitted` without mass replay. See [`../tips/WEB_HANDOFF.md`](../tips/WEB_HANDOFF.md) for separately controlled scientific review fallbacks.
 
 ## Server installation
 
@@ -120,6 +120,19 @@ Version 0.1.4 separates **pending → submitted → done (MCP ACK only)**. The
 extension will not submit a second prompt for a submitted message, regardless
 of whether the Web Agent has ACKed yet. The popup shows all three counts.
 
+**Version 0.1.9** adds a strictly bounded exception to that earlier rule:
+30-minute **no-ACK + no-visible-activity** recovery, followed by at most one
+more reminder after 2 hours of continuing non-response. Each attempt has a
+durable `recoveries[id]={count,at}` record; content script de-duplicates each
+attempt independently. Recovery prompts tell Web to first check whether the
+job has already been processed and, if so, only ACK it—not repeat a command.
+No new endpoints, SHA/hash logic, credentials or server-side agent triggers.
+**You must copy updated files into the same existing unpacked extension folder
+and press Reload in Edge/Chrome**; restarting DevSpace MCP alone cannot update
+files on your local computer. Reload preserves `chrome.storage.local` pairing
+and per-role conversation bindings. A ChatGPT page refresh is generally not
+required because the extension re-injects its new content script on reload.
+
 Version 0.1.5 updates the *content-script wake notification*: the targeted Web
 Agent should inspect its own `web_mail(inbox)`, ACK processed messages, and
 **proactively advance research** when warranted (coordinate an existing task,
@@ -182,7 +195,7 @@ claimed.
 - **Never put a Tips message body, shell command, invite or claim key into an automated prompt**. Only an ID and recipient identity are sent to the chat.
 - Exact claimed Web identities only. No sending to `controller`, `server-controller`, arbitrary users, `sub-*` or unclaimed roles.
 - Browser tabs must have a saved `/c/<conversation-UUID>` URL and a **unique, exact title match**. An empty composer, an explicitly completed turn, no busy signals and a stable quiet window are required. Existing drafts are never overwritten.
-- WebSocket reconnects and background alarms retry **pending, never-submitted wake attempts** only. After successful submission that message ID remains `submitted`, does not trigger a duplicate browser prompt, and becomes `done` only on explicit Web ACK. The relay may notify about messages up to 30 days old, if their Web role lease remains valid.
+- WebSocket reconnects and browser alarms retry failed initial submissions. Confirmed `submitted` events remain durable, but may generate **only two time-gated recovery prompts** (30 minutes, then at least two hours), requiring a fresh unACKed relay snapshot, verified conversation pin, an empty composer, completed Turn, and 30 minutes with no observable activity. The local retry ledger survives extension restart. ACK cancels retries. At most one retry per attempt is sent; browser reconnection alone never resets the quota.
 - An unprocessed or ignored message stays in Tips until its recipient ACKs. The extension cannot verify model comprehension, tool availability or completion.
 - Browser closed, computer asleep, browser policy restricting background execution, expired Web identity lease, and changes to ChatGPT's DOM can all prevent delivery. Browser extension service workers may be terminated and restarted; 30-second alarms and a WebSocket with 20-second ping provide best-effort recovery, **not guaranteed immediate delivery**.
 - This is user-consented **UI automation**, not an officially supported model trigger. Review OpenAI's relevant Terms/Usage Policies and browser extension permissions before enabling it; account enforcement outcomes cannot be guaranteed.

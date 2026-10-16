@@ -28,6 +28,7 @@
     <div id="mode" class="mode"><span class="dot" aria-hidden="true"></span><span id="modeText">正在读取状态</span></div>
     <div class="metrics"><div class="metric"><strong id="pendingCount">—</strong><span>待提交</span></div><div class="metric"><strong id="submittedCount">—</strong><span>已提交 · 待 ACK</span></div><div class="metric"><strong id="doneCount">—</strong><span>已 ACK</span></div></div>
     <p id="status" role="status">等待连接</p><time id="updated"></time>
+    <p id="recoveryState" class="footnote" style="margin-top:7px"></p>
   </section>
   <section aria-labelledby="rolesTitle"><div class="section-title"><h2 id="rolesTitle">Web 身份</h2><span id="roleCount" class="count"></span></div><div id="roles"></div></section>
   <details id="settings"><summary>连接设置</summary>
@@ -36,6 +37,6 @@
     <label class="toggle"><input id="enabled" type="checkbox">启用自动唤醒</label>
     <div class="settings-actions"><p class="privacy">令牌仅保存在插件本地</p><button id="save" class="primary">保存并连接</button></div>
   </details>
-  <p class="footnote">聊天标题须与身份名称一致。提交成功后不再重复唤醒该消息；只有收到 MCP ACK 才记为已完成。</p>
+  <p class="footnote">聊天标题须与身份名称一致。提交成功后等待 MCP ACK；超时且页面持续空闲时，最多恢复提醒两次。恢复不会自动重复启动任务，也不代表科研实验重新授权。</p>
 </main><script src="options.js"></script></body>
 </html>

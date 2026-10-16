@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 const source=readFileSync(new URL('./extension/content.js',import.meta.url),'utf8');
 const request={type:'DEVSPACE_WAKE',role:'web-test_1',ids:['11111111-1111-1111-1111-111111111111']};
 function fixture({draft='',appearAt=3,clearOnClick=true,editAt=0,form=true,turnState='complete',stop=false,working=false,streaming=false,attachment=false,quiet=true,approval=true,onCheck}={}){
-  let ticks=0,clicks=0,deletes=0,lookupsBeforeInsert=0,lastSubmittedText='',clock=1_000_000,observer,version='0.1.8';
+  let ticks=0,clicks=0,deletes=0,lookupsBeforeInsert=0,lastSubmittedText='',clock=1_000_000,observer,version='0.1.9';
   const listeners=new Set();
   const turn={contains:n=>n===turn,querySelector(selector){if(selector==='[data-markdown-animated]')return streaming?{}:null;return turnState==null?null:{getAttribute:()=>turnState};}};
   const editor={textContent:draft,isConnected:true,focus(){},querySelector(){return null;},closest(selector){return selector==='form'?(form?root:null):root;}};
@@ -31,7 +31,7 @@ function fixture({draft='',appearAt=3,clearOnClick=true,editAt=0,form=true,turnS
   if(quiet)clock+=21_000;
   function message(msg){return new Promise(resolve=>[...listeners].at(-1)(msg,{},resolve));}
   return {...controls,send:(msg=request)=>message(msg),probe:()=>message({type:'DEVSPACE_STATUS'}),editor,ctx,
-    reinstall:()=>runInNewContext(source,ctx),upgrade:()=>{version='0.1.9';runInNewContext(source,ctx);},listenerCount:()=>listeners.size,
+    reinstall:()=>runInNewContext(source,ctx),upgrade:()=>{version='0.1.10';runInNewContext(source,ctx);},listenerCount:()=>listeners.size,
     stats:()=>({clicks,deletes,lookupsBeforeInsert}),submittedText:()=>lastSubmittedText};
 }
 
@@ -83,4 +83,17 @@ test('confirmed IDs are acknowledged locally without repeating a mixed old/new b
   const f=fixture();await f.send();f.advance(120_000);
   const result=await f.send({...request,ids:[...request.ids,'22222222-2222-2222-2222-222222222222']});
   assert.equal(result.status,'sent');assert.deepEqual([...result.ids],request.ids);assert.equal(f.stats().clicks,1);
+});
+
+test('first and second recovery attempts are separate sends but same attempt is locally deduped',async()=>{
+  const f=fixture();await f.send();f.advance(31*60_000);
+  assert.equal((await f.send({...request,retry:1})).status,'sent');
+  assert.equal(f.stats().clicks,2);
+  assert.match(f.submittedText(),/第 1\/2 次超时恢复提醒/);
+  assert.match(f.submittedText(),/严禁重复派发相同 Job/);
+  await f.send({...request,retry:1});assert.equal(f.stats().clicks,2,'repeated same attempt is deduped');
+  f.advance(2*60*60_000);await f.send({...request,retry:2});
+  assert.equal(f.stats().clicks,3);
+  await f.send({...request,retry:2});assert.equal(f.stats().clicks,3);
+  assert.equal((await f.send({...request,retry:3})).status,'invalid');
 });

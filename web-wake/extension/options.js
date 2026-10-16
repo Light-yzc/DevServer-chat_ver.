@@ -12,6 +12,8 @@ function statusText(raw){
   if(raw==='Not connected')return '尚未连接';
   const sent=raw.match(/^Wake submitted: (\S+) \((\d+) message\(s\)\)/);
   if(sent)return `已提交提醒 ${sent[1]} · ${sent[2]} 条消息（等待 Web ACK）`;
+  const recovery=raw.match(/^Recovery (\d)\/(\d) submitted: (\S+) \((\d+) message\(s\)\)/);
+  if(recovery)return `${recovery[3]} 已发送第 ${recovery[1]}/${recovery[2]} 次超时恢复提醒 · ${recovery[4]} 条消息`;
   const notReady=raw.match(/^Chat (\S+) content script not ready/);
   if(notReady)return `${notReady[1]} 需要刷新聊天页面`;
   if(raw.includes('Page script recovery pending'))return '正在恢复页面脚本，消息保持排队';
@@ -28,8 +30,8 @@ async function resetBinding(role){
 }
 async function refresh(){
   const sequence=++refreshSequence;
-  const {endpoint=DEFAULT_URL,token='',enabled=false,lastStatus='Not connected',lastStatusAt=0,serverRoles=[],bindings={},pending={},submitted={},done={}}
-    =await chrome.storage.local.get(['endpoint','token','enabled','lastStatus','lastStatusAt','serverRoles','bindings','pending','submitted','done']);
+  const {endpoint=DEFAULT_URL,token='',enabled=false,lastStatus='Not connected',lastStatusAt=0,serverRoles=[],bindings={},pending={},submitted={},done={},recoveries={}}
+    =await chrome.storage.local.get(['endpoint','token','enabled','lastStatus','lastStatusAt','serverRoles','bindings','pending','submitted','done','recoveries']);
   const tabs=await chrome.tabs.query({url:'https://chatgpt.com/*'});
   if(sequence!==refreshSequence)return;
   // Live status updates must not overwrite settings the user is editing.
@@ -40,6 +42,9 @@ async function refresh(){
   $('pendingCount').textContent=Object.keys(pending).length;
   $('submittedCount').textContent=Object.keys(submitted).length;
   $('doneCount').textContent=Object.keys(done).length;
+  const exhausted=Object.values(recoveries).filter(v=>v?.count>=2).length;
+  $('recoveryState').textContent=exhausted?`${exhausted} 条提醒已达到 2 次恢复上限，可检查对应 Web 对话。`:
+    '30 分钟无 ACK 且页面空闲才尝试恢复，最多 2 次。';
   $('status').textContent=statusText(lastStatus);
   $('updated').textContent=lastStatusAt?`最近状态 · ${new Date(lastStatusAt).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}`:'';
   $('updated').dateTime=lastStatusAt?new Date(lastStatusAt).toISOString():'';

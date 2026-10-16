@@ -31,7 +31,7 @@ function activityState(){
     lastActivity=Date.now();return {status:'busy',reason:state?'Web turn is still processing':'Web turn state unknown'};
   }
   if(Date.now()-lastActivity<QUIET_MS)return {status:'busy',reason:'Waiting for stable idle'};
-  return {status:'idle'};
+  return {status:'idle',lastActivityAt:lastActivity};
 }
 const observer=new MutationObserver(records=>{
   const turn=latestTurn();
@@ -47,18 +47,24 @@ function probe(){
   if(submitting || editor.textContent?.trim() || hasAttachments(editor))return {status:'busy',reason:'Web is processing or has a draft',version:VERSION};
   return {...state,version:VERSION};
 }
-async function submitWake({role,ids}){
+async function submitWake({role,ids,retry=0}){
   if(submitting)return {status:'busy'};
+  if(!Number.isInteger(retry)||retry<0||retry>2)return {status:'invalid'};
   if(!WAKE_ROLE_RE.test(role) || !Array.isArray(ids) || !ids.length || ids.length>30 || ids.some(id=>typeof id!=='string'||!/^[a-f\d-]{36}$/i.test(id)))return {status:'invalid'};
   const path=location.pathname;
   if(!/^\/c\/[a-f0-9-]{36}\/?$/i.test(path))return {status:'not_ready',reason:'Not a saved conversation'};
-  const alreadySent=ids.filter(id=>confirmed.get(id)===path);
+  const alreadySent=ids.filter(id=>{
+    const record=confirmed.get(id);
+    return record?.path===path && record.attempt>=retry;
+  });
   if(alreadySent.length)return {status:'sent',ids:alreadySent};
   const readiness=probe();
   if(readiness.status!=='idle')return readiness;
   const editor=findComposer();
   submitting=true;
-  const prompt=`DevSpace/Tips：${role} 有新消息（ID：${ids.join(', ')}）。请调用 web_mail(action="inbox") 读取未读消息；按已有授权处理后 ACK，必要时回复。必要时请尝试推进进度、启动 agent 或发送信息。本轮结束前再查一次 inbox；受阻则说明原因，勿无限轮询。`;
+  const prompt=retry?
+    `DevSpace/Tips：${role} 第 ${retry}/2 次超时恢复提醒（消息 ID：${ids.join(', ')}）。先调用 web_mail(action="inbox") 核对未 ACK 消息和实际进度；若已处理仅补 ACK，严禁重复派发相同 Job、重启实验或绕过 STOP/GPU/Owner。若仍有已授权待办请继续推进；处理后 ACK，并在本轮结束前再查一次 inbox。`:
+    `DevSpace/Tips：${role} 有新消息（ID：${ids.join(', ')}）。请调用 web_mail(action="inbox") 读取未读消息；按已有授权处理后 ACK，必要时回复。必要时请尝试推进进度、启动 agent 或发送信息。本轮结束前再查一次 inbox；受阻则说明原因，勿无限轮询。`;
   let clicked=false;
   try {
     editor.focus();
@@ -72,7 +78,8 @@ async function submitWake({role,ids}){
       if(!button || button.disabled || button.getAttribute('aria-disabled')==='true')continue;
       // Recheck the newest pending/ACK state just before clicking. Never infer
       // ACK from a disappearing event or an empty composer.
-      const approval=await chrome.runtime.sendMessage({type:'DEVSPACE_WAKE_CHECK',role,ids});
+      const approval=await chrome.runtime.sendMessage({type:'DEVSPACE_WAKE_CHECK',role,ids,retry,
+        lastActivityAt:lastActivity});
       if(!approval?.ok)return {status:'not_ready',reason:'Wake changed or ACKed; waiting for next snapshot'};
       if(!alive() || path!==location.pathname || !editor.isConnected || editor.textContent?.trim()!==prompt.trim() || hasAttachments(editor) || activityState().status!=='idle')return {status:'busy',reason:'Web resumed processing; wake queued'};
       const currentButton=findSend(editor);
@@ -83,7 +90,7 @@ async function submitWake({role,ids}){
         if(path!==location.pathname)return {status:'not_ready',reason:'Conversation changed; submission not confirmed'};
         const current=findComposer();
         if(current && !current.textContent?.trim()){
-          for(const id of ids)confirmed.set(id,path);
+          for(const id of ids)confirmed.set(id,{path,attempt:retry});
           return {status:'sent'};
         }
       }

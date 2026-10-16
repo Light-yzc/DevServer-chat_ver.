@@ -1,5 +1,11 @@
 # Web Wake 0.1.8 browser validation
 
+**Update 2026-10-16:** v0.1.9 adds bounded submission-recovery attempts.
+Automated VM tests cover the timeout, ACK and activity gates. The browser
+observations below were collected for v0.1.8; they are NOT claimed as live
+v0.1.9 retry acceptance. Updating the user's local unpacked extension and
+checking a real timed recovery remains a manual acceptance step.
+
 Date: 2026-10-13, Asia/Shanghai. Browser: the user's existing Microsoft Edge
 profile and ChatGPT Web. Browser access used the computer-use connector;
 no hidden React state, network interception, or private tokens were read.

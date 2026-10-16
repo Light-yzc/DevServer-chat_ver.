@@ -1,12 +1,32 @@
 /* DevSpace Web Wake. Only this service worker sees the private relay pairing token. */
 const DEFAULT_URL = 'wss://regen.centralus.cloudapp.azure.com/web-wake/ws';
 const WAKE_DELAY_MS = 60_000;
+const FIRST_RECOVERY_MS = 30 * 60_000;
+const SECOND_RECOVERY_MS = 2 * 60 * 60_000;
+const MAX_RECOVERIES = 2;
 let socket=null,connectTimer=null,pinging=null,busy=false,lastAttempt={};
 let serverRoles=[];
+let socketAuthenticated=false;
 let stateQueue=Promise.resolve();
 const recoveryAt={};
 function withState(fn){const result=stateQueue.then(fn);stateQueue=result.catch(()=>{});return result;}
 function pendingIds(state,role){return Object.values(state.pending??{}).filter(m=>m.to===role&&!state.submitted?.[m.id]&&!state.done?.[m.id]).map(m=>m.id).slice(0,30);}
+function recoveryIds(state,role,clock,activityAt){
+  if(!Number.isFinite(activityAt)||clock-activityAt<FIRST_RECOVERY_MS)return {ids:[],attempt:0};
+  const due=[];
+  for(const [id,at] of Object.entries(state.submitted??{})){
+    if(state.openEvents?.[id]!==role||state.done?.[id])continue;
+    const previous=state.recoveries?.[id]??{};
+    const count=Number.isInteger(previous.count)?previous.count:0;
+    if(count>=MAX_RECOVERIES)continue;
+    const last=count===0?at:previous.at;
+    if(!Number.isFinite(Number(last))||clock-Number(last)<(count===0?FIRST_RECOVERY_MS:SECOND_RECOVERY_MS))continue;
+    due.push({id,attempt:count+1});
+  }
+  if(!due.length)return {ids:[],attempt:0};
+  const attempt=due[0].attempt;
+  return {ids:due.filter(v=>v.attempt===attempt).slice(0,30).map(v=>v.id),attempt};
+}
 async function contentStatus(tab){
   if(tab.discarded || tab.status==='loading')return {status:'not_ready',reason:'Chat page is loading or sleeping; wake queued'};
   const version=chrome.runtime.getManifest().version;
@@ -34,13 +54,16 @@ async function canSubmit(m,sender){
   if(sender.id!==chrome.runtime.id || sender.frameId!==0 || !sender.tab?.id ||
      !/^web-[a-z0-9][a-z0-9_.-]{0,58}$/.test(m.role) || !Array.isArray(m.ids) || !m.ids.length || m.ids.length>30)return {ok:false};
   return withState(async()=>{
-    const state=await chrome.storage.local.get(['enabled','pending','submitted','done','bindings']);
+    const state=await chrome.storage.local.get(['enabled','pending','submitted','done','bindings','recoveries','openEvents']);
     const tab=await chrome.tabs.get(sender.tab.id),id=conversationId(tab.url);
     const tabs=await chrome.tabs.query({url:'https://chatgpt.com/*'});
     const targets=tabs.filter(t=>conversationId(t.url)&&normalizeTitle(t.title)===m.role);
-    const allowed=new Set(pendingIds(state,m.role));
+    const retry=Number.isInteger(m.retry)?m.retry:0;
+    const allowed=new Set(retry===0?pendingIds(state,m.role):
+      retry>=1&&retry<=MAX_RECOVERIES?recoveryIds(state,m.role,Date.now(),Number(m.lastActivityAt)).attempt===retry?
+        recoveryIds(state,m.role,Date.now(),Number(m.lastActivityAt)).ids:[]:[]);
     return {ok:!!(state.enabled && serverRoles.includes(m.role) && id && normalizeTitle(tab.title)===m.role &&
-      targets.length===1 && targets[0].id===tab.id && (!state.bindings?.[m.role]||state.bindings[m.role]===id) && m.ids.every(id=>allowed.has(id)))};
+      socketAuthenticated && targets.length===1 && targets[0].id===tab.id && (!state.bindings?.[m.role]||state.bindings[m.role]===id) && m.ids.every(id=>allowed.has(id)))};
   });
 }
 
@@ -68,26 +91,28 @@ async function openSocket() {
     };
     socket.onmessage=async event=>{
       let payload;try{payload=JSON.parse(event.data);}catch{return;}
-      if(payload.type==='ready')await report('Connected and authenticated');
+      if(payload.type==='ready'){socketAuthenticated=true;await report('Connected and authenticated');}
       if(payload.type==='error')await report(payload.message??'Server state unavailable');
       if(payload.type==='snapshot')await absorbSnapshot(payload);
     };
     socket.onerror=()=>{report('WebSocket connection failed (check Caddy and relay)');};
     socket.onclose=event=>{if(event.code===1008)report('Authentication rejected: check wake relay pairing token.');
-      socket=null;clearInterval(pinging);pinging=null;clearTimeout(connectTimer);
+      socketAuthenticated=false;socket=null;clearInterval(pinging);pinging=null;clearTimeout(connectTimer);
       connectTimer=setTimeout(openSocket,5000);
     };
   }catch(e){await report(`Socket error: ${e.message}`);}
 }
-function disconnect(){clearTimeout(connectTimer);clearInterval(pinging);pinging=null;
+function disconnect(){socketAuthenticated=false;clearTimeout(connectTimer);clearInterval(pinging);pinging=null;
   if(socket){const old=socket;socket=null;old.onclose=null;old.close();}}
 
 async function absorbSnapshot(payload) {
   if(!Array.isArray(payload.events)||!Array.isArray(payload.roles))return;
+  // Snapshots are only forwarded by the authenticated relay connection.
+  socketAuthenticated=true;
   await withState(async()=>{
   serverRoles=payload.roles.filter(v=>/^web-[a-z0-9][a-z0-9_.-]{0,58}$/.test(v));
-  const state=await chrome.storage.local.get(['done','pending','submitted','attempts','submissionStateVersion']);
-  const pending=state.pending??{},submitted=state.submitted??{};
+  const state=await chrome.storage.local.get(['done','pending','submitted','attempts','submissionStateVersion','recoveries']);
+  const pending=state.pending??{},submitted=state.submitted??{},recoveries=state.recoveries??{};
   let done=state.done??{};
   if(state.submissionStateVersion!==2){
     // Before v2, `done` was written when the browser submitted a prompt,
@@ -103,19 +128,20 @@ async function absorbSnapshot(payload) {
   for(const item of Array.isArray(payload.acked)?payload.acked:[]){
     if(!item||typeof item.id!=='string'||!serverRoles.includes(item.to)||
        !/^[a-f\d-]{36}$/i.test(item.id))continue;
-    done[item.id]=Date.now();delete pending[item.id];delete submitted[item.id];
+    done[item.id]=Date.now();delete pending[item.id];delete submitted[item.id];delete recoveries[item.id];
   }
-  const present=new Set();
+  const present=new Set(),openEvents={};
   for(const e of payload.events) {
     if(!e || typeof e.id!=='string'||!serverRoles.includes(e.to)||!/^[a-f\d-]{36}$/i.test(e.id))continue;
     present.add(e.id);
+    openEvents[e.id]=e.to;
     if(!submitted[e.id]&&!done[e.id])pending[e.id]={id:e.id,to:e.to};
     else delete pending[e.id];
   }
   // A message can disappear due to retention or role changes, not just ACK;
   // never turn disappearance into `done`. Submitted records remain durable.
   for(const id of Object.keys(pending))if(!present.has(id))delete pending[id];
-  await chrome.storage.local.set({pending,submitted,done,serverRoles,submissionStateVersion:2});
+  await chrome.storage.local.set({pending,submitted,done,serverRoles,openEvents,recoveries,submissionStateVersion:2});
   });
   await pump();
 }
@@ -123,10 +149,11 @@ async function absorbSnapshot(payload) {
 async function pump() {
   if(busy)return;busy=true;
   try {
-    const initial=await chrome.storage.local.get(['enabled','pending']);
+    const initial=await chrome.storage.local.get(['enabled','pending','submitted','openEvents']);
     if(!initial.enabled)return;
     const tabs=(await chrome.tabs.query({url:'https://chatgpt.com/*'})).filter(tab=>conversationId(tab.url));
-    const roles=[...new Set(Object.values(initial.pending??{}).map(m=>m.to))].filter(r=>serverRoles.includes(r));
+    const roles=[...new Set([...Object.values(initial.pending??{}).map(m=>m.to),
+      ...Object.keys(initial.submitted??{}).map(id=>initial.openEvents?.[id]).filter(Boolean)])].filter(r=>serverRoles.includes(r));
     for(const role of roles){
       if((Date.now()-(lastAttempt[role]??0))<15_000)continue;
       const targets=tabs.filter(tab=>normalizeTitle(tab.title)===role);
@@ -140,25 +167,38 @@ async function pump() {
       }
       // Probing/recovery takes time. Re-read ACKs and new messages rather than
       // dispatching the stale batch from the start of this pump.
-      const state=await withState(()=>chrome.storage.local.get(['enabled','pending','submitted','done','bindings']));
+      const state=await withState(()=>chrome.storage.local.get(['enabled','pending','submitted','done','bindings','recoveries','openEvents']));
       if(!state.enabled || !serverRoles.includes(role))continue;
       if(state.bindings?.[role]&&state.bindings[role]!==id){await report(`Role ${role} is pinned to a different conversation; reset its binding first.`);continue;}
-      const ids=pendingIds(state,role);
+      const fresh=pendingIds(state,role);
+      // Normal mail always wins. Recovery only considers still-unACKed IDs
+      // reported by the current authenticated relay snapshot.
+      const recovery=!fresh.length&&socketAuthenticated?
+        recoveryIds(state,role,Date.now(),readiness.lastActivityAt):{ids:[],attempt:0};
+      const ids=fresh.length?fresh:recovery.ids, retry=fresh.length?0:recovery.attempt;
       if(!ids.length)continue;
       let result;
-      try {result=await chrome.tabs.sendMessage(tab.id,{type:'DEVSPACE_WAKE',role,ids});}
+      try {result=await chrome.tabs.sendMessage(tab.id,{type:'DEVSPACE_WAKE',role,ids,retry});}
       catch {await report(`Chat ${role}: Submission connection interrupted; wake remains queued.`);continue;}
       if(result?.status==='sent'){
         const sentIds=Array.isArray(result.ids)?ids.filter(id=>result.ids.includes(id)):ids;
         if(!sentIds.length)continue;
         await withState(async()=>{
-          const {submitted={},pending={},done={},bindings={}}=await chrome.storage.local.get(['submitted','pending','done','bindings']);
+          const {submitted={},pending={},done={},bindings={},recoveries={},openEvents={}}=await chrome.storage.local.get(['submitted','pending','done','bindings','recoveries','openEvents']);
           bindings[role]=id;
-          for(const messageId of sentIds){if(!done[messageId])submitted[messageId]=Date.now();delete pending[messageId];}
-          await chrome.storage.local.set({submitted,pending,bindings});
+          for(const messageId of sentIds){
+            if(done[messageId])continue;
+            if(retry>0){
+              if(submitted[messageId]&&openEvents[messageId]===role && (recoveries[messageId]?.count??0)<retry)
+                recoveries[messageId]={count:retry,at:Date.now()};
+            }else submitted[messageId]=Date.now();
+            delete pending[messageId];
+          }
+          await chrome.storage.local.set({submitted,pending,bindings,recoveries});
         });
         lastAttempt[role]=Date.now()+WAKE_DELAY_MS-15_000;
-        await report(`Wake submitted: ${role} (${sentIds.length} message(s)); awaiting MCP ACK, no duplicate submission.`);
+        await report(retry?`Recovery ${retry}/${MAX_RECOVERIES} submitted: ${role} (${sentIds.length} message(s)); awaiting MCP ACK.`:
+          `Wake submitted: ${role} (${sentIds.length} message(s)); awaiting MCP ACK, no duplicate submission.`);
       } else if(result?.status==='busy'){
         await report(`Chat ${role} is processing or waiting for stable idle. Wake queued.`);
       } else {await report(`Chat ${role}: ${result?.reason??'composer not ready'}`);}
