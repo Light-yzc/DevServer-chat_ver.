@@ -1,5 +1,7 @@
 # tips – DevSpace progress tracking
 
+**Web 自主后台任务的完成/失败触发器（2026-10-16）**：通过 `node /mnt/disk1/yangzhongcheng/tips/web-job-cli.mjs start` 运行普通 Shell/Python 长任务，不启动 Subagent；任务结束或监护进程失联时，Tips 只向最初指定且已认领的 Web 身份发送一封终态邮件，由原有 Web Wake 插件在聊天空闲时提醒继续推进。`status` 可查询真实进程记录，`reconcile` 每分钟补发遗漏通知；**浏览器扩展没有修改**。详见 [`WEB_JOB_TRIGGER.md`](WEB_JOB_TRIGGER.md)。
+
 **vNext:** Black/graphite dashboard with grouping, dependency hints, heartbeat/staleness, persisted status history, per-project summaries, and a durable mailbox shared with web ChatGPT and an optional wake-on-message server Codex controller. See [MCP_INSTRUCTIONS.md](MCP_INSTRUCTIONS.md) and [SERVER_CONTROLLER.md](SERVER_CONTROLLER.md).
 
 **Web 面板时间线（2026-10-14）**：任务页不按 AIR-Research / AIR-LIFE / AIR / Paper 等**内部工作方向**分组，它们统一属于 AIR 科研总项目。**只有页面中确实出现不同顶层项目时**（例如 AIR 与基础设施），才显示顶层项目区块，项目内按最后更新时间倒序，项目区块也按最新活动时间排序；只有一个项目时连区块标题也不重复显示。默认只展示滚动的最近 24 小时，任何仍在 `running`/`queued` 的任务继续显示。最近事件、卡片内历史记录，以及消息页的已完成通信只展示最近 24 小时；未读、派发中和待验收的通信不因过期而消失。Agent 页也按最近活动时间统一排序，不再按 Web/Sub 等角色生成分组标题；Agent 注册身份仍始终可管理。

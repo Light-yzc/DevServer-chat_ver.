@@ -10,6 +10,8 @@
 
 **Web 收尾查信约束**：已认领 Web Main/Sub 在完成本轮已有任务后、最终结束 Turn 前，再调用一次 `web_mail(action="inbox")` 检查本身份新消息；有可授权处理的新消息则先执行并真实 ACK/回复，无法执行的明确客观阻塞、下一 Owner 和触发事件。不得将浏览器 `submitted` 当作 MCP ACK，不得为“清空”持续新增的邮件陷入无限轮询。此约束已写入 MCP server instructions、Web Mail 描述、Web Wake v0.1.7 注入提示及协作 Skill；浏览器忙碌识别仍为独立待办。
 
+**Web Chat 普通后台程序回调（不是 Subagent）**：Web 已认领身份通过 DevSpace Shell/exec_command 执行 `node /mnt/disk1/yangzhongcheng/tips/web-job-cli.mjs start --to <web_identity(whoami).id> --id webjob-固定名称 --title "任务" --cwd /绝对路径 -- executable args...`。该 CLI 脱离当前 Web 工具调用运行普通程序，在成功/失败时经 Tips 向原 Web 身份写一条幂等消息供原 Web Wake 扩展唤醒。使用前审查 STOP/GPU/Owner，收到事件后核实真实日志/产物，不能自行重跑冻结实验。具体参数、Timer 和限制见 [`WEB_JOB_TRIGGER.md`](WEB_JOB_TRIGGER.md)。无需更改 MCP 工具列表或 Web Wake 扩展。
+
 选路规则：**研究进度 → `tips`；Server/Main/Sub 邮箱 → `tips_messages`；旧 Web 控制端向 Sub 提交验收请求 → `tips_exchange`；创建/检查长期 Codex Worker → `subagent`；Web Chat 首次认领/识别 → `web_identity`；已认领 Web Chat 发收消息 → `web_mail`。** `controller` 是历史 Web 收件箱，**不等于**认领身份 `web-main`。可信新消息发往 `server-controller` **默认请求唤醒 Sol**，仅 `wake:false` 明确关闭。
 
 **连续性默认（节省 Sol）**：可信 Agent 给 `server-controller` 的普通新消息仍请求唤醒，但在 **10 分钟窗口内合并**；真实 `priority:high` 和独立授权安全事件立即处理。`wake:false` 只存档。服务器尽可能在一个 Sol Turn 中合并多个排队消息。Sol 可以用 [`WEB_HANDOFF.md`](WEB_HANDOFF.md) 的 `tips/web-handoff.mjs` 主动请求 Web Main/Sub 复核；Web Wake 仅尝试提示匹配的**已打开**聊天。Web 45 分钟没 ACK、或 ACK 后 3 小时没验收，轻量 watcher 自动触发**一次** Sol 后备调度，不表示可以启动禁止的 GPU 实验。

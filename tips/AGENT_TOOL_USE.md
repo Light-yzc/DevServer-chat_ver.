@@ -22,6 +22,8 @@ Main 更新项目卡片时要给出 Owner、下一步、验收标准、门禁和
 
 ## 先选对工具
 
+**Web 自己启动的普通长命令如何在完成或报错后唤醒同一 Web Chat**：不需要 Subagent。Web 先 `web_identity(whoami)`，再用 DevSpace `exec_command` 执行 `node /mnt/disk1/yangzhongcheng/tips/web-job-cli.mjs start --to <本会话 web-* ID> --id webjob-固定名称 --title "任务名" --cwd /允许目录 -- python3 -u script.py`。该命令立即返回；本地守护 Worker 在退出码 0、非零或启动失败时把结果写进私有目录，并通过 Tips 给同一 Web 身份发完成/失败消息，现有 Web Wake 扩展在聊天空闲时提醒查信。**不要把 Web 后台任务误当成 `subagent(start)`；不要改浏览器插件。** 使用条件、重试、验收与边界见 [`WEB_JOB_TRIGGER.md`](WEB_JOB_TRIGGER.md)。Web 收到信后先核实 `status webjob-ID` 和实际实验文件，再 ACK、继续合理的下一步，GPU NO-GO/STOP 不可因回调解除。
+
 | 你要做的事 | 使用工具 | 不应该用 |
 | --- | --- | --- |
 | 查看/更新研究任务、心跳、完成度 | `tips` | `subagent` 不是任务状态数据库 |

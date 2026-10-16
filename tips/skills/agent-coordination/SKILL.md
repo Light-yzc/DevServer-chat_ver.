@@ -19,6 +19,7 @@ Main/Sub 是职责而非管理员权限；`controller` 是旧 Web 邮箱，不�
 ## 工具和协议
 
 - `web_mail`：已认领 Web Chat 发/收消息；`tips_messages`：Local 普通消息；`tips_exchange`：旧 Web 控制端向 Local Sub 的可验收事务。
+- **Web 自己的长期脚本（不是 Luna/Subagent）**：当 Web Main/Sub 经 DevSpace 启动一个已获资源授权、非交互的 Python/Shell 后台命令，并希望完成或失败后收到提醒继续推进，优先使用 `node /mnt/disk1/yangzhongcheng/tips/web-job-cli.mjs start --to <本会话 web_identity(whoami).id> --id webjob-稳定ID --title "说明" --cwd /绝对路径 -- executable args...`。Worker 退出时经现有 Tips 给同一 Web 身份发信，已有 Web Wake 扩展负责空闲时提醒；失败和终态必须先检查日志/产物，不能直接重试 GPU。`status JOB_ID` 可核对，`reconcile` 定时补发。**不新建 Sub Agent、不改扩展、不把通知当成科研验收**。完整流程参见 [`tips/WEB_JOB_TRIGGER.md`](../../WEB_JOB_TRIGGER.md)。
 - `tracked:true` 表示 ACK + verify，并非科研成果验收。可信消息发往 `server-controller` 默认请求唤醒，但普通消息延迟 10 分钟归并；`priority:high`/安全门禁即时唤醒，`wake:false` 显式留档；Local Sub 回 Local Main 的回复也应携带可信唤醒。
 - Local Main 可用 `node tips/subagent-cli.mjs list/status/start/message/stop`。尽量委派 Luna，并在真实下发给 Sub 的指令中记录原始消息 ID、Owner、目标、证据和禁止操作。
 - **接收 Sub 完成回执后先验收，再派工**：`node tips/subagent-cli.mjs jobs sub-NAME` 查历史 Job；`handoff sub-NAME --job UUID` 得到本轮结构化报告，再按需读取 `diff/result/events/log/documentation`。Web Main 可用 `subagent(action="handoff", name="sub-NAME", jobId="UUID")` 等只读动作。共享工作区 Diff **不能归因到单个 Sub**；模型自报测试通过未经独立证明。若 `documentation.status` 显示待复核或代码变更与文档未同步，优先核查真实文件并安排 Owner 更新，不要使用旧 Thread 里复制的说明。详情见 `docs/AGENT_PROMPT_DESIGN.md`。

@@ -1,0 +1,7 @@
+[Unit]
+Description=Retry undelivered Tips Web background Job completions
+
+[Service]
+Type=oneshot
+WorkingDirectory=/mnt/disk1/yangzhongcheng
+ExecStart=/mnt/disk1/yangzhongcheng/tools/nvm/versions/node/v22.23.3/bin/node /mnt/disk1/yangzhongcheng/tips/web-job-cli.mjs reconcile
