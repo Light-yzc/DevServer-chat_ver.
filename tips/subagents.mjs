@@ -2,9 +2,9 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
+import {resolveCodexSelection,codexConfigPath} from './codex-provider-models.mjs';
 
 const ID=/^sub-[a-z0-9][a-z0-9_.-]{0,57}$/;
-const MODEL=new Set(['gpt-6-luna','gpt-6.1-sol']);
 const SANDBOX=new Set(['read-only','workspace-write','danger-full-access']);
 // Owner policy: ALL managed Subagent App Server turns run with full filesystem
 // sandbox permissions. This does not grant scientific/GPU dispatch approval.
@@ -33,10 +33,10 @@ export function subagentRegistry(config,tips){
   const modify=fn=>locked(dir,()=>{const db=load(),value=fn(db);write(file,db);return value});
   const get=id=>{if(!valid(id))err('Agent name must start with sub- (letters/digits/-/_)');return load().agents[id]??null};
   const list=()=>Object.values(load().agents).sort((a,b)=>(b.updatedAt??'').localeCompare(a.updatedAt??''));
-  function start({name,goal,cwd,model='gpt-6-luna',sandbox=SUBAGENT_SANDBOX,group='Subagents',reportTo=null}){
+  function start({name,goal,cwd,model='gpt-6-luna',provider=null,sandbox=SUBAGENT_SANDBOX,group='Subagents',reportTo=null}){
     if(!valid(name))err('name must start with sub- and contain 1..61 safe characters');
     if(typeof goal!=='string'||!goal.trim()||goal.length>16000)err('goal must be 1..16000 characters');
-    if(!MODEL.has(model))err('Unsupported Codex model (use gpt-6-luna or gpt-6.1-sol)');
+    const selection=resolveCodexSelection({model,provider,configPath:config.codexConfigPath??codexConfigPath()});
     if(!SANDBOX.has(sandbox))err('Invalid sandbox');
     // Older Web/Local callers may still explicitly pass workspace-write or
     // read-only. Normalize instead of silently launching a restricted Luna.
@@ -51,14 +51,14 @@ export function subagentRegistry(config,tips){
       if(current?.failureCircuitOpen)err('Subagent failure circuit is open: diagnose the failed Turn and request an audited admin reset first');
       if(current?.sandbox!==undefined&&current.sandbox!==SUBAGENT_SANDBOX)
         err('Existing agent still has a legacy sandbox; perform the safe idle registry full-access migration first');
-      if(current&&(current.model!==model||current.cwd!==root||current.sandbox!==sandbox))
-        err('Existing agent has different model/cwd/sandbox; use a new name to isolate sessions');
+      if(current&&(current.model!==model||(current.provider??null)!==selection.provider||current.cwd!==root||current.sandbox!==sandbox))
+        err('Existing agent has different model/provider/cwd/sandbox; use a new name to isolate sessions');
       if(!current&&Object.keys(db.agents).length>=MAX_REGISTERED_SUBAGENTS)
         err(`Subagent registration cap of ${MAX_REGISTERED_SUBAGENTS} reached`);
       const jobId=randomUUID();
       const goalFile=join(dir,`${name}-${jobId}.goal.txt`);
       writeFileSync(goalFile,goal+'\n',{mode:0o600});
-      const item={name,model,sandbox,cwd:root,group,status:'queued',jobId,goalFile,
+      const item={name,model,provider:selection.provider,sandbox,cwd:root,group,status:'queued',jobId,goalFile,
         // Delegation owner belongs to this job, not a prior resumed Thread.
         // Retaining an old Web requester here could leak a later result.
         reportTo:reportTo??null,

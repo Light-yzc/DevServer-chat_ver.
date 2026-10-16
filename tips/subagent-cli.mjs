@@ -33,13 +33,14 @@ case 'stop':out=registry.stop(name);break;
 case 'start':{
   const goal=options['goal-file']?readFileSync(options['goal-file'],'utf8'):options.goal;
   out=registry.start({name,goal,cwd:options.cwd,model:options.model||'gpt-6-luna',
+    provider:options.provider??null,
     sandbox:options.sandbox||'danger-full-access',group:options.group||'Subagents',
     reportTo:options['report-to']??null});break;
 }
 case 'message':out=registry.send({name,from:options.from||'server-controller',
   body:options.body,subject:options.subject||'Subagent instruction',priority:options.priority||'normal'});break;
 default:
-  console.error('Usage: node tips/subagent-cli.mjs start NAME --goal-file path [--cwd PATH --model gpt-6-luna]\n'
+  console.error('Usage: node tips/subagent-cli.mjs start NAME --goal-file path [--cwd PATH --model grok-4.7 --provider runanytime_grok]\n'
     +'       node tips/subagent-cli.mjs list | status NAME | jobs NAME | handoff NAME [--job UUID] | diff NAME [--job UUID]\n'
     +'       node tips/subagent-cli.mjs result|log|events|manifest NAME [--job UUID] [--chars 7000]\n'
     +'       node tips/subagent-cli.mjs message NAME --body TEXT | stop NAME\n'

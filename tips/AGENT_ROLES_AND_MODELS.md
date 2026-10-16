@@ -13,6 +13,10 @@
 | **Local Main** | `server-controller` | systemd 的独立本地 Codex 主控服务 | `gpt-6.1-sol`：关键问题推理强、稳定自动调用，**消耗本地 Sol 额度** | 处理可信唤醒、困难决策、指导 Local Sub | 守护器按授权 `wake:true` 调度独立持久会话；与任何 Web Chat 不共享上下文或身份 |
 | **Local Sub** | `sub-air-cpu-review` | Codex App Server + Subagent Manager | `gpt-6-luna` 默认：低成本、可执行持续一整天的长 Goal（受服务器与模型实际限制） | 实验执行、日志整理、批量验证、反复迭代 | `subagent(start)` 创建持久 Thread；Manager 队列、`message` 可唤醒空闲 Thread / steer 运行中 Turn |
 
+**Codex 自定义 Provider（不是其他 Agent App）**：`subagent(start)` 还可以选择 `model="grok-4.7", provider="runanytime_grok"`。`provider` 必须先在用户级 Codex `~/.codex/config.toml`（或 `$CODEX_HOME/config.toml`）定义为 `[model_providers.runanytime_grok]`；DevSpace 只使用 `codex -c model_provider="runanytime_grok" app-server --stdio` 为该 Sub 开启独立 Codex 会话，原 Luna/Sol 不变。第三方服务必须支持 `/v1/responses`；API Key 使用 Codex `env_key` 指定的环境变量，不写进 Git、任务卡或 Prompt。已有 Grok 可选读取权限为 `0600` 的 `~/.config/runanytime/grok.key`。**在 Key 未配置且未经过实际 Responses+Tool Calling 推理验证前，仅代表入口已配置，不能宣称 Grok 可实际运行。**
+
+兼容旧配置：直接写 `model="grok-4.7"` 仍会自动选 Codex 中已有的 `runanytime_grok`；以后新增的其他模型需同时传入 `provider="config.toml 中的名字"`，无需修改 DevSpace 的模型白名单。`runanytime_grok` 对应 `https://runanytime.hxi.me/v1`，它必须真正实现 Codex 所需的 Responses API、流式输出和工具调用；未经带密钥验收，不应让 Grok 执行真实科研任务。若要持久配置密钥，在服务器交互终端创建仅自己可读的 `~/.config/runanytime/grok.key`，不要把 Key 写入聊天、仓库或命令参数。不要将 API 返回 401 误认作确认支持 `/responses`。
+
 ## 建议调度
 
 1. **耗时长、机械执行、批量实验或整理**：默认 Local Sub / Luna，保存进度、报告检查点与失败原因，不必每一步耗费 Sol。

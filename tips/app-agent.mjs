@@ -16,6 +16,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'n
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {resolveCodexBin} from './codex-bin.mjs';
+import {resolveCodexSelection,codexProviderEnvironment,codexAppServerArgs} from './codex-provider-models.mjs';
 import { loadConfig } from '../vendor/devspace/dist/config.js';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
 import { tipsProtocol, needsDelivery, shouldInjectProtocol,localMainWakeRequested,localMainReplyWakeRequested } from './subagent-protocol.mjs';
@@ -27,9 +28,9 @@ import {taskBoardDigest} from './task-board-digest.mjs';
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 process.env.DEVSPACE_CONFIG_DIR??=join(ROOT,'var/config');
 const tips=createTipsV2(loadConfig());
-const params={name:'',model:'gpt-6-luna',cwd:ROOT,sandbox:'danger-full-access',effort:'medium',
+const params={name:'',model:'gpt-6-luna',provider:null,cwd:ROOT,sandbox:'danger-full-access',effort:'medium',
   promptFile:'',outputFile:'',logFile:'',sessionFile:'',probe:false};
-const flags=new Map([['--name','name'],['--model','model'],['--cwd','cwd'],
+const flags=new Map([['--name','name'],['--model','model'],['--provider','provider'],['--cwd','cwd'],
   ['--sandbox','sandbox'],['--effort','effort'],['--prompt-file','promptFile'],
   ['--output-last-message','outputFile'],['--log','logFile'],['--session-file','sessionFile']]);
 for(let i=2;i<process.argv.length;i++){
@@ -40,6 +41,8 @@ for(let i=2;i<process.argv.length;i++){
 }
 if(!/^[a-z0-9][a-z0-9_.-]{0,63}$/i.test(params.name))throw Error('--name requires stable 1–64 char Agent ID');
 if(!['danger-full-access','workspace-write','read-only'].includes(params.sandbox))throw Error('Invalid sandbox');
+const resolvedModel=resolveCodexSelection({model:params.model,provider:params.provider});
+params.provider=resolvedModel.provider;
 params.cwd=resolve(params.cwd);
 if(!params.probe&&!params.promptFile)throw Error('Provide --prompt-file');
 const runtime=join(tips.dir,'app-agents');
@@ -50,10 +53,12 @@ const timeoutSeconds=Math.min(7200,Math.max(60,Number(process.env.TIPS_APP_TURN_
 const eventOut=params.logFile?resolve(params.logFile):'';
 const safeLog=(o)=>{if(eventOut)writeFileSync(eventOut,JSON.stringify(o)+'\n',{flag:'a',mode:0o600});};
 const stored=()=>{try{return JSON.parse(readFileSync(threadFile,'utf8'))}catch{return null}};
-const store=(threadId,protocolInjected)=>writeFileSync(threadFile,JSON.stringify({threadId,model:params.model,protocolInjected,at:new Date().toISOString()})+'\n',{mode:0o600});
+const store=(threadId,protocolInjected)=>writeFileSync(threadFile,JSON.stringify({threadId,model:params.model,
+  provider:params.provider,protocolInjected,at:new Date().toISOString()})+'\n',{mode:0o600});
 let stopping=false,turnId=null,threadId=null,turnStatus=null,answer='',active=false,mailTimer=null;
 let executionSteps=0,lastStageAt=0;
-const proc=spawn(codex,['app-server','--stdio'],{cwd:params.cwd,env:process.env,stdio:['pipe','pipe','pipe']});
+const proc=spawn(codex,codexAppServerArgs(params),{cwd:params.cwd,
+  env:codexProviderEnvironment(params.provider),stdio:['pipe','pipe','pipe']});
 const pending=new Map();let nextId=1;
 proc.stderr.on('data',buf=>{const line=buf.toString('utf8');if(/error|failed|panic/i.test(line))console.error('[app-server]',line.slice(0,450))});
 proc.on('error',e=>{console.error('Could not spawn Codex app-server:',e.message);process.exitCode=1;});
@@ -200,6 +205,8 @@ async function main(){
   if(!init)throw Error('Initialization failed');
   emit({method:'initialized',params:{}});
   const session=stored();
+  if(session&&(session.model!==params.model||(session.provider??null)!==params.provider))
+    throw Error('Existing Codex Thread belongs to a different model/provider; choose a new Subagent name');
   const previousThreadId=session?.threadId??null;
   const needsFullProtocol=shouldInjectProtocol(session);
   const thread=previousThreadId?await ask('thread/resume',{threadId:previousThreadId,cwd:params.cwd,model:params.model,

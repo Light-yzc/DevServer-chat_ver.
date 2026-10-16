@@ -108,6 +108,7 @@ function launch(item){
   const fd=openSync(logPath,'a',0o600);
   const args=[join(ROOT,'tips/app-agent.mjs'),'--name',name,'--model',item.model,'--cwd',item.cwd,
     '--sandbox',item.sandbox,'--prompt-file',item.goalFile,'--output-last-message',outPath,'--log',eventPath];
+  if(item.provider)args.push('--provider',item.provider);
   let child;
   try{child=spawn(NODE,args,{cwd:item.cwd,env:{...process.env,DEVSPACE_CONFIG_DIR:process.env.DEVSPACE_CONFIG_DIR,
     TIPS_AGENT_ID:name},detached:true,stdio:['ignore',fd,fd]});}

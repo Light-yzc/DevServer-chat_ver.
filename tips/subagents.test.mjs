@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTipsV2 } from '../vendor/devspace/dist/tips-core.js';
@@ -54,6 +54,21 @@ test('path guard and unsafe names rejected',()=>{
     assert.throws(()=>t.registry.start({name:'../name',goal:'x',cwd:t.root}),/name/);
     assert.throws(()=>t.registry.start({name:'sub-outside',goal:'x',cwd:'/tmp'}),/allowedRoot/);
     assert.throws(()=>t.registry.start({name:'sub-model',goal:'x',cwd:t.root,model:'bogus'}),/model/);
+  }finally{t.cleanup()}
+});
+test('custom Codex model uses explicitly configured model provider and persists both for resumed session',()=>{
+  const t=harness();try{
+    const configPath=join(t.dir,'codex.toml');
+    writeFileSync(configPath,'[model_providers.runanytime_grok]\nwire_api = "responses"\nenv_key = "RUNANYTIME_API_KEY"\n[model_providers.ly_3090_proxy]\nwire_api = "responses"\n');
+    const registry=subagentRegistry({allowedRoots:[t.root],codexConfigPath:configPath},t.tips);
+    const a=registry.start({name:'sub-grok-probe',goal:'Config-only test',cwd:t.root,
+      model:'grok-4.7',provider:'runanytime_grok'});
+    assert.equal(a.model,'grok-4.7');assert.equal(a.provider,'runanytime_grok');
+    registry.update(a.name,a.jobId,{status:'completed'});
+    assert.throws(()=>registry.start({name:a.name,cwd:t.root,goal:'Wrong provider',model:'grok-4.7',
+      provider:'ly_3090_proxy'}),/provider/);
+    assert.equal(registry.start({name:a.name,cwd:t.root,goal:'Same configured provider',
+      model:'grok-4.7',provider:'runanytime_grok'}).provider,'runanytime_grok');
   }finally{t.cleanup()}
 });
 test('all new Subagent launch requests normalize even explicitly restricted sandbox to full',()=>{
