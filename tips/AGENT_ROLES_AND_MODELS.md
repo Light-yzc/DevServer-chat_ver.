@@ -13,11 +13,11 @@
 | **Local Main** | `server-controller` | systemd 的独立本地 Codex 主控服务 | `gpt-6.1-sol`：关键问题推理强、稳定自动调用，**消耗本地 Sol 额度** | 处理可信唤醒、困难决策、指导 Local Sub | 守护器按授权 `wake:true` 调度独立持久会话；与任何 Web Chat 不共享上下文或身份 |
 | **Local Sub** | `sub-air-cpu-review` | Codex App Server + Subagent Manager | `gpt-6-luna` 默认：低成本、可执行持续一整天的长 Goal（受服务器与模型实际限制） | 实验执行、日志整理、批量验证、反复迭代 | `subagent(start)` 创建持久 Thread；Manager 队列、`message` 可唤醒空闲 Thread / steer 运行中 Turn |
 
-**Codex 自定义 Provider（不是其他 Agent App）**：`subagent(start)` 还可以选择 `model="grok-4.7", provider="runanytime_grok"`。`provider` 必须先在用户级 Codex `~/.codex/config.toml`（或 `$CODEX_HOME/config.toml`）定义为 `[model_providers.runanytime_grok]`；DevSpace 只使用 `codex -c model_provider="runanytime_grok" app-server --stdio` 为该 Sub 开启独立 Codex 会话，原 Luna/Sol 不变。第三方服务必须支持 `/v1/responses`；API Key 使用 Codex `env_key` 指定的环境变量，不写进 Git、任务卡或 Prompt。已有 Grok 可选读取权限为 `0600` 的 `~/.config/runanytime/grok.key`。**在 Key 未配置且未经过实际 Responses+Tool Calling 推理验证前，仅代表入口已配置，不能宣称 Grok 可实际运行。**
+**Codex 自定义 Provider（不是其他 Agent App）**：`subagent(start)` 可选择 `model="grok-4.7", provider="runanytime_grok"`；仍由 Codex App Server 执行，不是 OpenCode。RunAnytime 原生 `/v1/responses` 不可用，因此生产配置把 `[model_providers.runanytime_grok]` 的 `base_url` 指向本机 `http://127.0.0.1:18741/v1`，由 `tips-grok-codex-relay.service` 转换为上游 Chat Completions。Codex 0.160 的真实 `turn/start`、流式回答和 `commandExecution` 已通过验收。只向 Grok 转发 `exec_command`/`write_stdin` 两种验证通过的工具；其余 10 种 Codex 工具因上游 `upstream_400` 暂不支持。原 Luna/Sol 不变。服务和回滚详见 [`GROK_CODEX_BRIDGE.md`](GROK_CODEX_BRIDGE.md)。
 
-兼容旧配置：直接写 `model="grok-4.7"` 仍会自动选 Codex 中已有的 `runanytime_grok`；以后新增的其他模型需同时传入 `provider="config.toml 中的名字"`，无需修改 DevSpace 的模型白名单。`runanytime_grok` 对应 `https://runanytime.hxi.me/v1`，它必须真正实现 Codex 所需的 Responses API、流式输出和工具调用；未经带密钥验收，不应让 Grok 执行真实科研任务。若要持久配置密钥，在服务器交互终端创建仅自己可读的 `~/.config/runanytime/grok.key`，不要把 Key 写入聊天、仓库或命令参数。不要将 API 返回 401 误认作确认支持 `/responses`。
+兼容旧配置：直接写 `model="grok-4.7"` 仍会自动选 `runanytime_grok`；以后新增其他模型可同时传入 `provider="config.toml 中的名字"`。Key 只从环境变量或权限为 `0600` 的 `~/.config/runanytime/grok.key` 读取；不写入聊天、代码或任务卡。**模型链路已验证并不意味着科研任务已经获准启动**：当前停止所有实验的 STOP、GPU 与 Owner 约束继续生效，Subagent Manager 目前不因本次部署自动启动。
 
-`subagent(action="models")` 可以在不运行任何推理的情况下读取 Codex `model/list` 和配置的 Provider 名称。该 App Server 接口仅枚举启动时的默认 Provider 模型目录，**不会替你向 RunAnytime 查询全部 Grok 模型**。结果里的 `credentialStatus=present_unverified` 只表示凭据存在、文件权限符合要求，仍须通过真实推理验证 Responses/Tool Calling。
+`subagent(action="models")` 可以在不运行任何推理的情况下读取 Codex `model/list` 和已配置的 Provider 名称。它不枚举 RunAnytime 全部模型；`credentialStatus=present_unverified` **仅反映静态密钥存在，不反映代理/接口运行状态**，不能取代上面的真实端到端验收。
 
 ## 建议调度
 

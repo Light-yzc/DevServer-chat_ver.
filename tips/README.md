@@ -1,5 +1,7 @@
 # tips – DevSpace progress tracking
 
+**Grok 4.7 via Codex App Server（2026-10-16）**：部署本地 `codex-relay 0.5.8`（`127.0.0.1:18741`），将 RunAnytime 的 Chat Completions 转成 Codex 0.160 所需 Responses。正式用户 Codex Provider 已切换，真实文本 Turn 和 shell 工具调用通过。为兼容上游，仅向 Grok 转发 `exec_command` / `write_stdin`；Luna/Sol 默认路由及科研 STOP 保持不变。详见 [`GROK_CODEX_BRIDGE.md`](GROK_CODEX_BRIDGE.md)。
+
 **2026-10-16 Web-first 协作改造**：Web Main 直接协调已明确授权的 Sub，Local Sol 改为非必经的异常专家；默认不再因普通 Luna 完成、Web 审查超时或自动 blocker 反复唤醒 Sol。新增只读 `coordination-audit-cli.mjs` 检查旧任务卡与注册表、Owner/下一动作缺失及 STOP 信号；改进有限范围 CPU 开发的一轮多次修复。**现有“停止全部实验”依然有效，部署代码并不意味着恢复实验**。见 [`WEB_FIRST_COORDINATION.md`](WEB_FIRST_COORDINATION.md)。
 
 **Web 自主后台任务的完成/失败触发器（2026-10-16）**：通过 `node /mnt/disk1/yangzhongcheng/tips/web-job-cli.mjs start` 运行普通 Shell/Python 长任务，不启动 Subagent；任务结束或监护进程失联时，Tips 只向最初指定且已认领的 Web 身份发送一封终态邮件，由原有 Web Wake 插件在聊天空闲时提醒继续推进。`status` 可查询真实进程记录，`reconcile` 每分钟补发遗漏通知；**浏览器扩展没有修改**。详见 [`WEB_JOB_TRIGGER.md`](WEB_JOB_TRIGGER.md)。

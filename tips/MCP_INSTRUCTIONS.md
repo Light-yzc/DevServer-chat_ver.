@@ -14,7 +14,7 @@
 
 **Web-first 多 Agent 协作**：Web Main 直接委派并验收 Luna，Local Sol 不再承担每个 Sub Turn 的第二次审批。Sub 执行终态仅回传显式 Web Owner；旧无 Web Owner 的 AIR 交接仅在 Local 留档且不唤醒 Sol。`TIPS_ENABLE_AUTO_BLOCK_WAKE` / `TIPS_ENABLE_LOCAL_SOL_FALLBACK` 默认不启用。Web 在新任务前可用只读 `node /mnt/disk1/yangzhongcheng/tips/coordination-audit-cli.mjs` 找出陈旧卡片、实际已终止 Sub Job、未明 Owner 和 STOP 信号。详情见 [`WEB_FIRST_COORDINATION.md`](WEB_FIRST_COORDINATION.md)。现在的“停止全部实验”仍优先，不能从代码或 Prompt 推导出新的执行许可。
 
-**Codex 原生自定义模型/Provider**：DevSpace 仍只启动 Codex App Server（不接其他 Agent App）。`subagent(action="start", name="sub-grok-review", model="grok-4.7", provider="runanytime_grok", cwd="/允许路径", goal="仅限授权范围的检查")` 从 Codex `config.toml` 选择已定义的 `[model_providers.runanytime_grok]`，将该 provider 作为 `-c model_provider=...` 传给专属 Codex App Server。缺 Key 不代表可推理；自定义网关须支持 Responses API 和所需工具调用。Luna/Sol 默认路径保持不变。详见 [`AGENT_ROLES_AND_MODELS.md`](AGENT_ROLES_AND_MODELS.md)。
+**Codex 自定义模型/Provider（Grok 已接通）**：DevSpace 仍只启动 Codex App Server，不接其他 Agent App。`subagent(action="start", name="sub-grok-review", model="grok-4.7", provider="runanytime_grok", cwd="/允许路径", goal="仅限已授权检查")` 读取 Codex `config.toml`，经本地 `127.0.0.1:18741` Responses↔Chat 转换服务连接 RunAnytime。已验证文本和 Codex `commandExecution` 工具调用；**Grok 只兼容 `exec_command` / `write_stdin`，不支持当前 10 种其他 Codex 工具**。Luna/Sol 及原默认 Provider 不变。详见 [`GROK_CODEX_BRIDGE.md`](GROK_CODEX_BRIDGE.md)；用户停止全部实验的 STOP 继续有效。
 
 **只读模型列表**：`subagent(action="models")` 返回 Codex App Server `model/list` 的**默认 Provider 模型目录**以及本机 `~/.codex/config.toml` 已配置的自定义 Provider、已知模型提示、凭据是否已配置（绝不返回凭据）。可设置 `includeHidden:true` 包含隐藏目录条目。自定义 Provider 的第三方模型无法靠默认 Provider 的 `model/list` 自动列全；`configured` 和 `present_unverified` 不代表已经验证 API 或工具调用。这个 Action 不创建 Sub、不启动推理、不依赖 Subagent Manager 运行。
 

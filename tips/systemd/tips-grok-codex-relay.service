@@ -1,0 +1,15 @@
+[Unit]
+Description=Local Codex Responses to RunAnytime Grok Chat Completions bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /mnt/disk1/yangzhongcheng/tips/grok-codex-relay-launch.sh
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
