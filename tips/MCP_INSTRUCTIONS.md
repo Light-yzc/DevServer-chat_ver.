@@ -16,6 +16,8 @@
 
 **Codex 原生自定义模型/Provider**：DevSpace 仍只启动 Codex App Server（不接其他 Agent App）。`subagent(action="start", name="sub-grok-review", model="grok-4.7", provider="runanytime_grok", cwd="/允许路径", goal="仅限授权范围的检查")` 从 Codex `config.toml` 选择已定义的 `[model_providers.runanytime_grok]`，将该 provider 作为 `-c model_provider=...` 传给专属 Codex App Server。缺 Key 不代表可推理；自定义网关须支持 Responses API 和所需工具调用。Luna/Sol 默认路径保持不变。详见 [`AGENT_ROLES_AND_MODELS.md`](AGENT_ROLES_AND_MODELS.md)。
 
+**只读模型列表**：`subagent(action="models")` 返回 Codex App Server `model/list` 的**默认 Provider 模型目录**以及本机 `~/.codex/config.toml` 已配置的自定义 Provider、已知模型提示、凭据是否已配置（绝不返回凭据）。可设置 `includeHidden:true` 包含隐藏目录条目。自定义 Provider 的第三方模型无法靠默认 Provider 的 `model/list` 自动列全；`configured` 和 `present_unverified` 不代表已经验证 API 或工具调用。这个 Action 不创建 Sub、不启动推理、不依赖 Subagent Manager 运行。
+
 选路规则：**研究进度 → `tips`；Server/Main/Sub 邮箱 → `tips_messages`；旧 Web 控制端向 Sub 提交验收请求 → `tips_exchange`；创建/检查长期 Codex Worker → `subagent`；Web Chat 首次认领/识别 → `web_identity`；已认领 Web Chat 发收消息 → `web_mail`。** `controller` 是历史 Web 收件箱，**不等于**认领身份 `web-main`。可信新消息发往 `server-controller` **默认请求唤醒 Sol**，仅 `wake:false` 明确关闭。
 
 **连续性默认（节省 Sol）**：可信 Agent 给 `server-controller` 的普通新消息仍请求唤醒，但在 **10 分钟窗口内合并**；真实 `priority:high` 和独立授权安全事件立即处理。`wake:false` 只存档。服务器尽可能在一个 Sol Turn 中合并多个排队消息。Sol 可以用 [`WEB_HANDOFF.md`](WEB_HANDOFF.md) 的 `tips/web-handoff.mjs` 主动请求 Web Main/Sub 复核；Web Wake 仅尝试提示匹配的**已打开**聊天。Web 45 分钟没 ACK、或 ACK 后 3 小时没验收，轻量 watcher 自动触发**一次** Sol 后备调度，不表示可以启动禁止的 GPU 实验。

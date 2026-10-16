@@ -4,9 +4,10 @@ import { TIP_TOOL_DESCRIPTIONS } from './tips-tool-descriptions.js';
 import {readSubEvidence,listSubJobEvidence} from '../../../tips/subagent-evidence.mjs';
 import {createWebIdentityStore} from './web-identity-store.js';
 import {openAiConversationScopeId} from './request-meta.js';
+import {listSubagentModelChoices} from '../../../tips/codex-model-list.mjs';
 
 function safeTool(handler){return async (input,extra)=>{
-  try{return {content:[{type:'text',text:JSON.stringify(handler(input,extra),null,2)}]}}
+  try{return {content:[{type:'text',text:JSON.stringify(await handler(input,extra),null,2)}]}}
   catch(e){return {isError:true,content:[{type:'text',text:String(e.message??e)}]}}
 }}
 
@@ -18,8 +19,8 @@ export function registerSubagentTool(server,config,z){
     title:'Codex App Server subagents with Tips mailboxes',
     description:TIP_TOOL_DESCRIPTIONS.subagent,
     inputSchema:{
-      action:z.enum(['start','list','status','jobs','handoff','result','diff','log','events','manifest','documentation','message','stop']).describe('jobs lists past Turns; handoff/result/diff/log/events/manifest/documentation read bounded evidence by Sub and jobId. Shared-workspace changes are unattributed.'),
-      name:z.string().optional().describe('Stable managed Agent identity, must start with sub-, e.g. sub-air-cpu. Required except list.'),
+      action:z.enum(['models','start','list','status','jobs','handoff','result','diff','log','events','manifest','documentation','message','stop']).describe('models reads Codex model/list and configured providers WITHOUT running a model Turn. jobs lists prior Turns; handoff/diff/log are bounded reads.'),
+      name:z.string().optional().describe('Stable managed Agent identity, must start with sub-, e.g. sub-air-cpu. Required except list/models.'),
       goal:z.string().optional().describe('Concrete bounded task prompt, required for start; do not authorize frozen GPU experiments by implication.'),
       model:z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._:\/+\-]{0,119}$/).optional().describe('Codex model ID. Native: gpt-6-luna or gpt-6.1-sol. Custom: e.g. grok-4.7 with provider=runanytime_grok configured in Codex config.toml.'),
       provider:z.string().regex(/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/).optional().describe('Codex config.toml [model_providers.NAME] ID, e.g. runanytime_grok. Not another Agent app. Default native Luna/Sol provider remains unchanged.'),
@@ -32,10 +33,12 @@ export function registerSubagentTool(server,config,z){
       priority:z.enum(['low','normal','high']).optional(),
       jobId:z.string().uuid().optional().describe('Optional precise Sub Turn ID; defaults to this Sub identity current job.'),
       maxChars:z.number().int().min(200).max(16000).optional().describe('Maximum read-only excerpt length, default 7000.'),
+      includeHidden:z.boolean().optional().describe('models only: include hidden entries from the Codex App Server default-provider catalog.'),
     },annotations:{readOnlyHint:false},
   },safeTool((input,extra)=>{
     switch(input.action){
       case 'list':return agents.list();
+      case 'models':return listSubagentModelChoices({includeHidden:input.includeHidden});
       case 'status':{
         const agent=agents.status(input.name);
         if(!agent)throw Error('Unknown subagent');

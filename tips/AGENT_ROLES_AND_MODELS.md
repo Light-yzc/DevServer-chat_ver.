@@ -17,6 +17,8 @@
 
 兼容旧配置：直接写 `model="grok-4.7"` 仍会自动选 Codex 中已有的 `runanytime_grok`；以后新增的其他模型需同时传入 `provider="config.toml 中的名字"`，无需修改 DevSpace 的模型白名单。`runanytime_grok` 对应 `https://runanytime.hxi.me/v1`，它必须真正实现 Codex 所需的 Responses API、流式输出和工具调用；未经带密钥验收，不应让 Grok 执行真实科研任务。若要持久配置密钥，在服务器交互终端创建仅自己可读的 `~/.config/runanytime/grok.key`，不要把 Key 写入聊天、仓库或命令参数。不要将 API 返回 401 误认作确认支持 `/responses`。
 
+`subagent(action="models")` 可以在不运行任何推理的情况下读取 Codex `model/list` 和配置的 Provider 名称。该 App Server 接口仅枚举启动时的默认 Provider 模型目录，**不会替你向 RunAnytime 查询全部 Grok 模型**。结果里的 `credentialStatus=present_unverified` 只表示凭据存在、文件权限符合要求，仍须通过真实推理验证 Responses/Tool Calling。
+
 ## 建议调度
 
 1. **耗时长、机械执行、批量实验或整理**：默认 Local Sub / Luna，保存进度、报告检查点与失败原因，不必每一步耗费 Sol。
